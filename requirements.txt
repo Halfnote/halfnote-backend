@@ -1,0 +1,9 @@
+Django==5.0.1
+djangorestframework==3.14.0
+python-musicbrainzngs==0.7.1
+spotipy==2.23.0
+psycopg2-binary==2.9.9
+redis==5.0.1
+python-dotenv==1.0.0
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.1 
