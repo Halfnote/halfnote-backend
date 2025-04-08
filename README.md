@@ -24,30 +24,30 @@ A Django-based backend service for the Boomboxd music rating platform. This serv
 ### Local Development Setup
 
 1. Clone the repository:
-```bash
+```shell
 git clone <repository-url>
 cd boomboxd-backend
 ```
 
 2. Create and activate virtual environment:
-```bash
+```shell
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. Install dependencies:
-```bash
+```shell
 pip install -r requirements.txt
 ```
 
 4. Create `.env` file from template:
-```bash
+```shell
 cp .env.template .env
 # Edit .env with your configuration
 ```
 
 5. Set up the database:
-```bash
+```shell
 # Start PostgreSQL (using Docker)
 docker run --name boomboxd-postgres \
   -e POSTGRES_PASSWORD=yourpassword \
@@ -67,7 +67,7 @@ python manage.py createsuperuser
 ```
 
 6. Run the development server:
-```bash
+```shell
 python manage.py runserver
 ```
 
@@ -78,11 +78,10 @@ All endpoints return JSON responses. Authentication is handled via HTTP-only coo
 ### Authentication Endpoints
 
 #### Register New User
-```http
+```
 POST /api/auth/register/
 Content-Type: application/json
 
-Request Body:
 {
     "username": "string",
     "email": "string",
@@ -98,11 +97,10 @@ Response (200):
 ```
 
 #### Login
-```http
+```
 POST /api/auth/login/
 Content-Type: application/json
 
-Request Body:
 {
     "username": "string",
     "password": "string"
@@ -112,35 +110,35 @@ Response (200):
 {
     "message": "Login successful"
 }
-Note: Sets HTTP-only auth cookies
 ```
+Note: Sets HTTP-only auth cookies
 
 #### Refresh Token
-```http
+```
 POST /api/auth/refresh/
 
 Response (200):
 {
     "message": "Token refresh successful"
 }
-Note: Updates HTTP-only auth cookies
 ```
+Note: Updates HTTP-only auth cookies
 
 #### Logout
-```http
+```
 POST /api/auth/logout/
 
 Response (200):
 {
     "message": "Logout successful"
 }
-Note: Clears auth cookies
 ```
+Note: Clears auth cookies
 
 ### Album Endpoints
 
 #### List Albums
-```http
+```
 GET /api/albums/
 Query Parameters:
 - page: integer (optional)
@@ -148,9 +146,9 @@ Query Parameters:
 
 Response (200):
 {
-    "count": integer,
-    "next": string (url),
-    "previous": string (url),
+    "count": "integer",
+    "next": "string (url)",
+    "previous": "string (url)",
     "results": [
         {
             "id": "uuid",
@@ -175,14 +173,14 @@ Response (200):
 ```
 
 #### Get Single Album
-```http
+```
 GET /api/albums/{id}/
 
 Response (200): Single album object
 ```
 
 #### Search Albums
-```http
+```
 GET /api/albums/search/
 Query Parameters:
 - q: string (required)
@@ -193,24 +191,22 @@ Response (200): Array of album objects
 ### Single Endpoints
 
 #### List Singles
-```http
+```
 GET /api/singles/
 Query Parameters:
 - page: integer (optional)
 - ordering: string (optional)
-
-Response (200): Same structure as albums list
 ```
 
 #### Get Single Track
-```http
+```
 GET /api/singles/{id}/
 
 Response (200): Single track object
 ```
 
 #### Search Singles
-```http
+```
 GET /api/singles/search/
 Query Parameters:
 - q: string (required)
@@ -221,7 +217,7 @@ Response (200): Array of single objects
 ### Review Endpoints
 
 #### List Reviews
-```http
+```
 GET /api/reviews/
 Query Parameters:
 - album_id: string (optional)
@@ -231,16 +227,16 @@ Query Parameters:
 
 Response (200):
 {
-    "count": integer,
-    "next": string (url),
-    "previous": string (url),
+    "count": "integer",
+    "next": "string (url)",
+    "previous": "string (url)",
     "results": [
         {
             "id": "uuid",
             "user": "string",
             "album": {object} | null,
             "single": {object} | null,
-            "rating": integer(1-10),
+            "rating": "integer(1-10)",
             "text": "string",
             "created_at": "datetime",
             "updated_at": "datetime"
@@ -250,15 +246,14 @@ Response (200):
 ```
 
 #### Create Review
-```http
+```
 POST /api/reviews/
 Content-Type: application/json
 
-Request Body:
 {
     "album_id": "uuid",  // Either album_id or single_id required
     "single_id": "uuid", // not both
-    "rating": integer(1-10),  // Updated rating range
+    "rating": "integer(1-10)",  // Updated rating range
     "text": "string"
 }
 
@@ -266,21 +261,20 @@ Response (201): Created review object
 ```
 
 #### Get Single Review
-```http
+```
 GET /api/reviews/{id}/
 
 Response (200): Single review object
 ```
 
 #### Update Review
-```http
+```
 PUT /api/reviews/{id}/
 PATCH /api/reviews/{id}/  # For partial updates
 Content-Type: application/json
 
-Request Body:
 {
-    "rating": integer(1-10),  // Updated rating range
+    "rating": "integer(1-10)",  // Updated rating range
     "text": "string"
 }
 
@@ -288,7 +282,7 @@ Response (200): Updated review object
 ```
 
 #### Delete Review
-```http
+```
 DELETE /api/reviews/{id}/
 
 Response (204): No content
@@ -297,7 +291,7 @@ Response (204): No content
 ### Genre Endpoints
 
 #### List Genres
-```http
+```
 GET /api/genres/
 
 Response (200):
@@ -312,7 +306,7 @@ Response (200):
 ### System Endpoints
 
 #### Health Check
-```http
+```
 GET /health/
 
 Response (200):
@@ -327,7 +321,7 @@ Response (200):
 
 All endpoints may return these error responses:
 
-```http
+```
 401 Unauthorized:
 {
     "detail": "Authentication credentials were not provided."
