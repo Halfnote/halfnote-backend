@@ -10,7 +10,7 @@ class Review(models.Model):
     album = models.ForeignKey(Album, on_delete=models.CASCADE, null=True, blank=True)
     single = models.ForeignKey(Single, on_delete=models.CASCADE, null=True, blank=True)
     rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
     text = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
