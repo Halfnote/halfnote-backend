@@ -30,7 +30,9 @@ class Album(models.Model):
         validators=[MinValueValidator(1.0), MaxValueValidator(10.0)]
     )
     total_ratings = models.IntegerField(default=0)
-    musicbrainz_id = models.CharField(max_length=255, unique=True)
+    discogs_id = models.CharField(max_length=255, unique=True)
+    discogs_url = models.URLField(null=True, blank=True)
+    discogs_master_id = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -56,7 +58,8 @@ class Single(models.Model):
         validators=[MinValueValidator(1.0), MaxValueValidator(10.0)]
     )
     total_ratings = models.IntegerField(default=0)
-    musicbrainz_id = models.CharField(max_length=255, unique=True)
+    discogs_id = models.CharField(max_length=255, unique=True)
+    discogs_url = models.URLField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

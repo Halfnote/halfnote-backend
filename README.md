@@ -1,14 +1,14 @@
 # Boomboxd Backend
 
-A Django-based backend service for the Boomboxd music rating platform. This service integrates with MusicBrainz and Spotify to provide music metadata, streaming links, and allows users to rate and review music.
+A Django-based backend service for the Boomboxd music rating platform. This service integrates with Discogs and Spotify to provide music metadata, streaming links, and allows users to rate and review albums.
 
 ## Features
 
-- 🎵 Music search and metadata from MusicBrainz
+- 🎵 Music search and metadata from Discogs API
 - 🎧 Spotify streaming links and embeds
-- 🖼️ Album/single cover art
+- 🖼️ Album cover art
 - ⭐ User ratings and reviews
-- 🔒 Secure authentication with HTTP-only cookies
+- 🔒 Secure authentication with JWT tokens
 - 💾 Redis caching for performance
 - 🎸 Genre support
 
@@ -20,6 +20,7 @@ A Django-based backend service for the Boomboxd music rating platform. This serv
 - PostgreSQL
 - Redis
 - Spotify Developer Account
+- Discogs Developer Account
 
 ### Local Development Setup
 
@@ -31,7 +32,7 @@ cd boomboxd-backend
 
 2. Create and activate virtual environment:
 ```shell
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
@@ -48,7 +49,10 @@ cp .env.template .env
 
 5. Set up the database:
 ```shell
-# Start PostgreSQL (using Docker)
+# If using installed PostgreSQL
+createdb boomboxd
+
+# Or start PostgreSQL using Docker
 docker run --name boomboxd-postgres \
   -e POSTGRES_PASSWORD=yourpassword \
   -e POSTGRES_USER=boomboxd \
@@ -56,8 +60,10 @@ docker run --name boomboxd-postgres \
   -p 5432:5432 \
   -d postgres
 
-# Start Redis
+# Start Redis (if using Docker)
 docker run --name boomboxd-redis -p 6379:6379 -d redis
+# Or if installed locally
+brew services start redis  # On macOS
 
 # Run migrations
 python manage.py migrate
@@ -71,14 +77,51 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+## Using the Utility Script
+
+A utility script `manage_music.py` is provided to help manage music data:
+
+```shell
+# Search for albums
+python manage_music.py search "Pink Floyd"
+
+# Add an album to the database
+python manage_music.py add_album <discogs_id> "<title>" "<artist>" "<release_date>" "<cover_url>"
+
+# Add an artist
+python manage_music.py add_artist "Pink Floyd"
+
+# Add a review (after adding the album)
+python manage_music.py add_review <album_id> 9.5 "One of the best albums ever made"
+
+# List all albums in the database
+python manage_music.py list_albums
+
+# List all artists in the database
+python manage_music.py list_artists
+```
+
+## Workflow
+
+The typical workflow for adding reviews is:
+
+1. **Search** for an album (`/api/albums/search/?q=query`)
+2. **Save** the album to the database (either via `save_to_library` API or `manage_music.py add_album`)
+3. **Review** the album (requires the album to be in the database first)
+
 ## API Documentation
 
-All endpoints return JSON responses. Authentication is handled via HTTP-only cookies.
+All endpoints return JSON responses. Authentication is handled via JWT tokens stored in HTTP-only cookies.
+
+### Base URL
+
+For local development: `http://localhost:8000/api/`
+For production: `https://api.boomboxd.com/api/`
 
 ### Authentication Endpoints
 
 #### Register New User
-```
+```json
 POST /api/auth/register/
 Content-Type: application/json
 
@@ -97,7 +140,7 @@ Response (200):
 ```
 
 #### Login
-```
+```json
 POST /api/auth/login/
 Content-Type: application/json
 
@@ -114,7 +157,7 @@ Response (200):
 Note: Sets HTTP-only auth cookies
 
 #### Refresh Token
-```
+```json
 POST /api/auth/refresh/
 
 Response (200):
@@ -125,7 +168,7 @@ Response (200):
 Note: Updates HTTP-only auth cookies
 
 #### Logout
-```
+```json
 POST /api/auth/logout/
 
 Response (200):
@@ -135,14 +178,32 @@ Response (200):
 ```
 Note: Clears auth cookies
 
+#### Get Current User
+```json
+GET /api/auth/user/
+
+Response (200):
+{
+    "id": "integer",
+    "username": "string",
+    "email": "string",
+    "first_name": "string",
+    "last_name": "string",
+    "date_joined": "datetime"
+}
+```
+
 ### Album Endpoints
 
 #### List Albums
-```
+```json
 GET /api/albums/
 Query Parameters:
 - page: integer (optional)
 - ordering: string (optional, e.g., "-release_date", "average_rating")
+- artist_id: integer (optional)
+- genre_id: integer (optional)
+- year: integer (optional)
 
 Response (200):
 {
@@ -153,7 +214,10 @@ Response (200):
         {
             "id": "uuid",
             "title": "string",
-            "artist": "string",
+            "artist": {
+                "id": "integer",
+                "name": "string"
+            },
             "release_date": "YYYY-MM-DD",
             "cover_art_url": "string",
             "spotify_url": "string",
@@ -173,57 +237,166 @@ Response (200):
 ```
 
 #### Get Single Album
-```
+```json
 GET /api/albums/{id}/
 
-Response (200): Single album object
+Response (200): 
+{
+    "id": "uuid",
+    "title": "string",
+    "artist": {
+        "id": "integer",
+        "name": "string"
+    },
+    "release_date": "YYYY-MM-DD",
+    "cover_art_url": "string",
+    "spotify_url": "string",
+    "spotify_embed_url": "string",
+    "genres": [
+        {
+            "id": "integer",
+            "name": "string"
+        }
+    ],
+    "average_rating": "float(1.0-10.0)",
+    "total_ratings": "integer",
+    "reviews": [
+        {
+            "id": "uuid",
+            "user": {
+                "id": "integer",
+                "username": "string"
+            },
+            "rating": "integer(1-10)",
+            "text": "string",
+            "created_at": "datetime"
+        }
+    ],
+    "created_at": "datetime"
+}
 ```
 
 #### Search Albums
-```
+```json
 GET /api/albums/search/
 Query Parameters:
 - q: string (required)
+- type: string (optional, values: "album", "artist", "all", default: "all")
+- limit: integer (optional, default: 20)
 
-Response (200): Array of album objects
+Response (200): 
+{
+    "results": [
+        {
+            "discogs_id": "string",
+            "title": "string",
+            "artist": "string",
+            "cover_art_url": "string",
+            "year": "string",
+            "genres": ["string"],
+            "styles": ["string"],
+            "in_library": boolean
+        }
+    ],
+    "next_page": integer | null
+}
 ```
 
-### Single Endpoints
+#### Save Album to Library
+```json
+POST /api/albums/save_to_library/
+Content-Type: application/json
+Authorization: Bearer <token>
 
-#### List Singles
+{
+    "discogs_id": "string",
+    "title": "string",
+    "artist": "string",
+    "release_date": "YYYY-MM-DD",
+    "cover_art_url": "string",
+    "genres": ["string"],
+    "styles": ["string"]
+}
+
+Response (201):
+{
+    "detail": "Album saved to library",
+    "album": {
+        "id": "uuid",
+        "title": "string",
+        "artist": {
+            "id": "integer",
+            "name": "string"
+        },
+        "release_date": "YYYY-MM-DD",
+        "cover_art_url": "string",
+        "genres": [
+            {
+                "id": "integer",
+                "name": "string"
+            }
+        ],
+        "average_rating": 0,
+        "total_ratings": 0
+    }
+}
 ```
-GET /api/singles/
+
+### Artist Endpoints
+
+#### List Artists
+```json
+GET /api/artists/
 Query Parameters:
 - page: integer (optional)
-- ordering: string (optional)
+- ordering: string (optional, e.g., "name")
+- search: string (optional)
+
+Response (200):
+{
+    "count": "integer",
+    "next": "string (url)",
+    "previous": "string (url)",
+    "results": [
+        {
+            "id": "integer",
+            "name": "string",
+            "albums_count": "integer"
+        }
+    ]
+}
 ```
 
-#### Get Single Track
-```
-GET /api/singles/{id}/
+#### Get Single Artist
+```json
+GET /api/artists/{id}/
 
-Response (200): Single track object
-```
-
-#### Search Singles
-```
-GET /api/singles/search/
-Query Parameters:
-- q: string (required)
-
-Response (200): Array of single objects
+Response (200):
+{
+    "id": "integer",
+    "name": "string",
+    "albums": [
+        {
+            "id": "uuid",
+            "title": "string",
+            "release_date": "YYYY-MM-DD",
+            "cover_art_url": "string",
+            "average_rating": "float(1.0-10.0)"
+        }
+    ]
+}
 ```
 
 ### Review Endpoints
 
 #### List Reviews
-```
+```json
 GET /api/reviews/
 Query Parameters:
 - album_id: string (optional)
-- single_id: string (optional)
 - user: string (optional)
 - page: integer (optional)
+- ordering: string (optional, e.g., "-created_at", "-rating")
 
 Response (200):
 {
@@ -233,9 +406,19 @@ Response (200):
     "results": [
         {
             "id": "uuid",
-            "user": "string",
-            "album": {object} | null,
-            "single": {object} | null,
+            "user": {
+                "id": "integer",
+                "username": "string"
+            },
+            "album": {
+                "id": "uuid",
+                "title": "string",
+                "artist": {
+                    "id": "integer",
+                    "name": "string"
+                },
+                "cover_art_url": "string"
+            },
             "rating": "integer(1-10)",
             "text": "string",
             "created_at": "datetime",
@@ -246,35 +429,74 @@ Response (200):
 ```
 
 #### Create Review
-```
+```json
 POST /api/reviews/
 Content-Type: application/json
 
 {
-    "album_id": "uuid",  // Either album_id or single_id required
-    "single_id": "uuid", // not both
-    "rating": "integer(1-10)",  // Updated rating range
+    "album_id": "uuid",
+    "rating": "integer(1-10)",
     "text": "string"
 }
 
-Response (201): Created review object
+Response (201): 
+{
+    "id": "uuid",
+    "user": {
+        "id": "integer",
+        "username": "string"
+    },
+    "album": {
+        "id": "uuid",
+        "title": "string",
+        "artist": {
+            "id": "integer", 
+            "name": "string"
+        },
+        "cover_art_url": "string"
+    },
+    "rating": "integer(1-10)",
+    "text": "string",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+}
 ```
 
 #### Get Single Review
-```
+```json
 GET /api/reviews/{id}/
 
-Response (200): Single review object
+Response (200): 
+{
+    "id": "uuid",
+    "user": {
+        "id": "integer",
+        "username": "string"
+    },
+    "album": {
+        "id": "uuid",
+        "title": "string",
+        "artist": {
+            "id": "integer",
+            "name": "string"
+        },
+        "cover_art_url": "string"
+    },
+    "rating": "integer(1-10)",
+    "text": "string",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+}
 ```
 
 #### Update Review
-```
+```json
 PUT /api/reviews/{id}/
 PATCH /api/reviews/{id}/  # For partial updates
 Content-Type: application/json
 
 {
-    "rating": "integer(1-10)",  // Updated rating range
+    "rating": "integer(1-10)",
     "text": "string"
 }
 
@@ -282,38 +504,101 @@ Response (200): Updated review object
 ```
 
 #### Delete Review
-```
+```json
 DELETE /api/reviews/{id}/
 
 Response (204): No content
 ```
 
+### User Profile Endpoints
+
+#### Get User Profile
+```json
+GET /api/users/{username}/
+
+Response (200):
+{
+    "id": "integer",
+    "username": "string",
+    "first_name": "string",
+    "last_name": "string",
+    "bio": "string",
+    "avatar_url": "string",
+    "date_joined": "datetime",
+    "reviews_count": "integer",
+    "followers_count": "integer",
+    "following_count": "integer"
+}
+```
+
+#### Get User Reviews
+```json
+GET /api/users/{username}/reviews/
+Query Parameters:
+- page: integer (optional)
+
+Response (200): List of review objects
+```
+
+#### Follow User
+```json
+POST /api/users/{username}/follow/
+
+Response (200):
+{
+    "detail": "Successfully followed user"
+}
+```
+
+#### Unfollow User
+```json
+POST /api/users/{username}/unfollow/
+
+Response (200):
+{
+    "detail": "Successfully unfollowed user"
+}
+```
+
 ### Genre Endpoints
 
 #### List Genres
-```
+```json
 GET /api/genres/
+Query Parameters:
+- ordering: string (optional, e.g., "name", "-albums_count")
 
 Response (200):
 [
     {
         "id": "integer",
-        "name": "string"
+        "name": "string",
+        "albums_count": "integer"
     }
 ]
+```
+
+#### Get Albums by Genre
+```json
+GET /api/genres/{id}/albums/
+Query Parameters:
+- page: integer (optional)
+
+Response (200): List of album objects
 ```
 
 ### System Endpoints
 
 #### Health Check
-```
+```json
 GET /health/
 
 Response (200):
 {
     "status": "healthy",
     "database": "healthy",
-    "cache": "healthy"
+    "cache": "healthy",
+    "version": "string"
 }
 ```
 
@@ -321,7 +606,7 @@ Response (200):
 
 All endpoints may return these error responses:
 
-```
+```json
 401 Unauthorized:
 {
     "detail": "Authentication credentials were not provided."
@@ -389,7 +674,7 @@ const submitReview = async (albumId, rating, text) => {
 ### Docker Deployment
 
 1. Build and run with Docker Compose:
-```bash
+```shell
 docker-compose up --build
 ```
 
@@ -403,7 +688,7 @@ docker-compose up --build
 2. Configure environment variables in AWS console
 
 3. Deploy:
-```bash
+```shell
 eb init
 eb create boomboxd-env
 eb deploy
@@ -413,7 +698,7 @@ eb deploy
 
 Required environment variables in `.env`:
 
-```plaintext
+```env
 DJANGO_SECRET_KEY=your-secret-key
 DEBUG=True/False
 ALLOWED_HOSTS=comma,separated,hosts

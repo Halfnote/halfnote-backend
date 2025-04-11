@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.db.models import F
 from .models import Review
 from .serializers import ReviewSerializer
-from music.models import Album, Single
+from music.models import Album
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -13,22 +13,42 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         album_id = self.request.data.get('album_id')
-        single_id = self.request.data.get('single_id')
+        rating = float(self.request.data.get('rating'))
         
         if album_id:
-            album = Album.objects.get(id=album_id)
-            album.total_ratings = F('total_ratings') + 1
-            album.average_rating = (F('average_rating') * F('total_ratings') + 
-                                  self.request.data['rating']) / (F('total_ratings') + 1)
-            album.save()
-            serializer.save(user=self.request.user, album=album)
-        elif single_id:
-            single = Single.objects.get(id=single_id)
-            single.total_ratings = F('total_ratings') + 1
-            single.average_rating = (F('average_rating') * F('total_ratings') + 
-                                   self.request.data['rating']) / (F('total_ratings') + 1)
-            single.save()
-            serializer.save(user=self.request.user, single=single)
+            try:
+                album = Album.objects.get(id=album_id)
+                
+                # Update album rating (without using F expressions in calculations)
+                current_total = album.total_ratings
+                current_avg = album.average_rating
+                
+                # Calculate new average
+                if current_total == 0:
+                    new_avg = rating
+                else:
+                    new_avg = ((current_avg * current_total) + rating) / (current_total + 1)
+                
+                # Update the album
+                album.total_ratings = current_total + 1
+                album.average_rating = new_avg
+                album.save()
+                
+                # Save the review
+                serializer.save(user=self.request.user, album=album)
+                
+            except Album.DoesNotExist:
+                return Response(
+                    {"status": "error", "detail": f"Album with ID {album_id} not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except Exception as e:
+                return Response(
+                    {"status": "error", "detail": str(e)}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         else:
-            return Response({'error': 'Either album_id or single_id is required'}, 
-                          status=status.HTTP_400_BAD_REQUEST) 
+            return Response(
+                {"status": "error", "detail": "album_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            ) 

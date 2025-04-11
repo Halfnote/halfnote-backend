@@ -1,9 +1,12 @@
 Django==5.0.1
 djangorestframework==3.14.0
-python-musicbrainzngs==0.7.1
+requests==2.32.3
 spotipy==2.23.0
-psycopg2-binary==2.9.9
-redis==5.0.1
+psycopg2-binary==2.9.10
+redis==5.2.1
 python-dotenv==1.0.0
 django-cors-headers==4.3.1
-djangorestframework-simplejwt==5.3.1 
+djangorestframework-simplejwt==5.3.1
+coreapi==2.3.3
+PyJWT==2.8.0
+pyjwt[crypto]==2.8.0 
