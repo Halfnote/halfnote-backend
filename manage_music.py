@@ -1,27 +1,30 @@
 #!/usr/bin/env python
 """
-Utility script for managing music data in Boomboxd
+Boomboxd Command Line Utility
+=============================
 
-This script allows you to:
-1. Search for albums
-2. Add albums to your library
-3. Add artists
-4. Add reviews
+This is a simple command-line tool for managing music data in the Boomboxd backend.
+It helps you search, add, and manage albums and reviews without using the web API.
 
-Usage:
-    python manage_music.py search "Pink Floyd"
-    python manage_music.py add_album 10362 "The Dark Side of the Moon" "Pink Floyd" "1973-03-01"
-    python manage_music.py add_artist "Radiohead"
-    python manage_music.py add_review <album_id> 9.5 "One of the best albums ever made"
+Examples:
+---------
+  # Search for an album
+  python manage_music.py search "Pink Floyd"
+
+  # Add an album to your library
+  python manage_music.py add_album 10362 "The Dark Side of the Moon" "Pink Floyd" "1973-03-01"
+
+  # Create a review
+  python manage_music.py add_review <album_id> 9.5 "One of the best albums ever made"
+
+  # List all albums in the database
+  python manage_music.py list_albums
 """
 
 import os
 import sys
 import uuid
 import django
-import json
-import requests
-from datetime import datetime
 
 # Set up Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings')
@@ -34,8 +37,20 @@ from music.services.discogs import DiscogsClient
 
 User = get_user_model()
 
+#
+# Core Functions
+#
+
 def search_album(query):
-    """Search for an album using Discogs API"""
+    """
+    Search for an album using Discogs API
+    
+    Args:
+        query (str): The search query (artist name, album title, etc.)
+    
+    Returns:
+        list: Search results from Discogs
+    """
     print(f"Searching for: {query}")
     
     discogs_client = DiscogsClient()
@@ -58,7 +73,19 @@ def search_album(query):
     return results
 
 def add_album(discogs_id, title, artist_name, release_date=None, cover_art_url=None):
-    """Add an album to the database"""
+    """
+    Add an album to the database
+    
+    Args:
+        discogs_id (str): The Discogs ID of the album
+        title (str): Album title
+        artist_name (str): Artist name
+        release_date (str, optional): Release date in YYYY-MM-DD format
+        cover_art_url (str, optional): URL to album cover artwork
+    
+    Returns:
+        Album: The created or existing album object
+    """
     print(f"Adding album: {title} by {artist_name}")
     
     # Get or create the artist
@@ -93,18 +120,18 @@ def add_album(discogs_id, title, artist_name, release_date=None, cover_art_url=N
     
     return album
 
-def add_artist(name):
-    """Add an artist to the database"""
-    artist, created = Artist.objects.get_or_create(name=name)
-    if created:
-        print(f"Created new artist: {artist.name}")
-    else:
-        print(f"Artist already exists: {artist.name}")
-    
-    return artist
-
 def add_review(album_id, rating, text=""):
-    """Add a review for an album"""
+    """
+    Add a review for an album
+    
+    Args:
+        album_id (str): The UUID of the album to review
+        rating (float): Rating value between 1 and 10
+        text (str, optional): Review text
+    
+    Returns:
+        Review: The created review object
+    """
     try:
         album = Album.objects.get(id=album_id)
     except Album.DoesNotExist:
@@ -127,7 +154,7 @@ def add_review(album_id, rating, text=""):
         print("Rating must be a number between 1 and 10")
         return None
     
-    # Create the review (without specifying an ID)
+    # Create the review
     review = Review.objects.create(
         user=user,
         album=album,
@@ -149,7 +176,14 @@ def add_review(album_id, rating, text=""):
     
     return review
 
+#
+# Helper Functions
+#
+
 def print_usage():
+    """Print command-line usage instructions"""
+    print("Boomboxd Command Line Utility")
+    print("=============================")
     print("Usage:")
     print("  python manage_music.py search <query>")
     print("  python manage_music.py add_album <discogs_id> <title> <artist> [<release_date>] [<cover_url>]")
@@ -157,6 +191,10 @@ def print_usage():
     print("  python manage_music.py add_review <album_id> <rating> [<text>]")
     print("  python manage_music.py list_albums")
     print("  python manage_music.py list_artists")
+
+#
+# Command Line Interface
+#
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -177,7 +215,12 @@ if __name__ == "__main__":
         add_album(discogs_id, title, artist, release_date, cover_url)
     
     elif command == "add_artist" and len(sys.argv) >= 3:
-        add_artist(sys.argv[2])
+        artist_name = sys.argv[2]
+        artist, created = Artist.objects.get_or_create(name=artist_name)
+        if created:
+            print(f"Created new artist: {artist.name}")
+        else:
+            print(f"Artist already exists: {artist.name}")
     
     elif command == "add_review" and len(sys.argv) >= 4:
         album_id = sys.argv[2]
@@ -189,13 +232,14 @@ if __name__ == "__main__":
         albums = Album.objects.all().order_by("-created_at")
         print(f"Found {albums.count()} albums:")
         for album in albums:
-            print(f"[{album.id}] {album.title} by {album.artist.name} ({album.release_date}) - Rating: {album.average_rating}/10 ({album.total_ratings} reviews)")
+            print(f"[{album.id}] {album.title} by {album.artist.name} ({album.release_date}) - Rating: {album.average_rating:.1f}/10 ({album.total_ratings} reviews)")
     
     elif command == "list_artists":
         artists = Artist.objects.all().order_by("name")
         print(f"Found {artists.count()} artists:")
         for artist in artists:
-            print(f"[{artist.id}] {artist.name}")
+            albums_count = Album.objects.filter(artist=artist).count()
+            print(f"[{artist.id}] {artist.name} ({albums_count} albums)")
     
     else:
         print_usage()

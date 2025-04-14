@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Album, Single, Genre, Artist
+from .models import Album, Genre, Artist
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,18 +25,6 @@ class AlbumSerializer(serializers.ModelSerializer):
         model = Album
         fields = [
             'id', 'title', 'artist', 'artist_id', 'release_date',
-            'cover_art_url', 'spotify_url', 'spotify_embed_url',
-            'genres', 'average_rating', 'total_ratings',
-            'created_at'
-        ]
-
-class SingleSerializer(serializers.ModelSerializer):
-    genres = GenreSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Single
-        fields = [
-            'id', 'title', 'artist', 'release_date',
             'cover_art_url', 'spotify_url', 'spotify_embed_url',
             'genres', 'average_rating', 'total_ratings',
             'created_at'

@@ -12,6 +12,114 @@ logger = logging.getLogger(__name__)
 class DiscogsClient:
     BASE_URL = "https://api.discogs.com"
     
+    # Add a genre mapping dictionary to map Discogs genres to our supported genres
+    GENRE_MAPPING = {
+        # Rock and related genres
+        'rock': 'Rock',
+        'alternative rock': 'Rock',
+        'hard rock': 'Rock',
+        'indie rock': 'Rock',
+        'classic rock': 'Rock',
+        'punk': 'Rock',
+        'metal': 'Rock',
+        'grunge': 'Rock',
+        
+        # Pop and related genres
+        'pop': 'Pop',
+        'synth-pop': 'Pop',
+        'disco': 'Pop',
+        'dance': 'Pop',
+        'electropop': 'Pop',
+        'britpop': 'Pop',
+        
+        # Electronic and related genres
+        'electronic': 'Electronic',
+        'techno': 'Electronic',
+        'house': 'Electronic',
+        'trance': 'Electronic',
+        'ambient': 'Electronic',
+        'downtempo': 'Electronic',
+        'dubstep': 'Electronic',
+        'edm': 'Electronic',
+        
+        # Hip-hop and related genres
+        'hip hop': 'Hip-hop',
+        'hip-hop': 'Hip-hop',
+        'rap': 'Hip-hop',
+        'trap': 'Hip-hop',
+        
+        # Jazz and related genres
+        'jazz': 'Jazz',
+        'bebop': 'Jazz',
+        'fusion': 'Jazz',
+        'smooth jazz': 'Jazz',
+        
+        # Country and related genres
+        'country': 'Country',
+        'bluegrass': 'Country',
+        'americana': 'Country',
+        'country rock': 'Country',
+        
+        # Classical and related genres
+        'classical': 'Classical',
+        'baroque': 'Classical',
+        'opera': 'Classical',
+        'orchestral': 'Classical',
+        'symphony': 'Classical',
+        
+        # Folk and related genres
+        'folk': 'Folk',
+        'acoustic': 'Folk',
+        'singer-songwriter': 'Folk',
+        'traditional': 'Folk',
+        
+        # Latin and related genres
+        'latin': 'Latin',
+        'salsa': 'Latin',
+        'bossa nova': 'Latin',
+        'reggaeton': 'Latin',
+        'samba': 'Latin',
+        
+        # Reggae and related genres
+        'reggae': 'Reggae',
+        'dub': 'Reggae',
+        'ska': 'Reggae',
+        'dancehall': 'Reggae',
+        
+        # Soundtrack and related genres
+        'soundtrack': 'Soundtrack',
+        'score': 'Soundtrack',
+        'film score': 'Soundtrack',
+        'film': 'Soundtrack',
+        'movie': 'Soundtrack',
+        
+        # Funk and related genres
+        'funk': 'Funk',
+        'soul': 'Funk',
+        'r&b': 'Funk',
+        'rhythm and blues': 'Funk',
+        
+        # Gospel and related genres
+        'gospel': 'Gospel',
+        'christian': 'Gospel',
+        'spiritual': 'Gospel',
+        'religious': 'Gospel',
+        
+        # World music
+        'world': 'World',
+        'african': 'World',
+        'asian': 'World',
+        'celtic': 'World',
+        'middle eastern': 'World',
+    }
+    
+    # The set of valid genres in our system
+    VALID_GENRES = {
+        'Pop', 'Rock', 'Country', 'Jazz', 'Gospel', 'Funk',
+        'Soundtrack', 'Hip-hop', 'Latin', 'Electronic',
+        'Reggae', 'Classical', 'Folk', 'World'
+    }
+    
     def __init__(self, user_agent="BoomboxdApp/1.0 +http://boomboxd.com", token=None):
         self.user_agent = user_agent
         # Use the provided token or get from environment
@@ -122,64 +230,6 @@ class DiscogsClient:
         
         return results
     
-    def search_single(self, title: str, artist: Optional[str] = None) -> List[Dict]:
-        """
-        Search for singles (tracks) in the Discogs database
-        """
-        params = {
-            'type': 'release',  # Try 'release' for singles
-            'title': title,
-            'format': 'single',
-        }
-        
-        if artist:
-            params['artist'] = artist
-        
-        data = self._make_request("database/search", params)
-        if not data:
-            logger.warning(f"No Discogs data found for single: {title}")
-            return []
-            
-        results = []
-        
-        for item in data.get('results', []):
-            # Log the raw data for debugging
-            logger.info(f"Raw Discogs result for single: {item}")
-            
-            # Extract artist from the title if it contains " - "
-            item_artist = item.get('artist', '')
-            if not item_artist and ' - ' in item.get('title', ''):
-                parts = item.get('title', '').split(' - ', 1)
-                item_artist = parts[0].strip()
-                item_title = parts[1].strip() if len(parts) > 1 else item.get('title', '')
-            else:
-                item_title = item.get('title', '')
-            
-            # Extract and format year
-            year = item.get('year', '')
-            release_date = f"{year}-01-01" if year and year.isdigit() else ''
-            
-            # Only get items with a valid title and artist
-            if not item_title or not item_artist:
-                continue
-                
-            result = {
-                'id': str(item.get('id', '')),
-                'title': item_title,
-                'artist': item_artist,
-                'release_date': release_date,
-                'cover_art_url': item.get('cover_image'),
-                'thumb_url': item.get('thumb'),
-                'country': item.get('country', ''),
-                'genres': item.get('genre', []),
-                'styles': item.get('style', []),
-                'discogs_url': item.get('uri', ''),
-            }
-            
-            results.append(result)
-        
-        return results
-    
     def _get_master_details(self, master_id):
         """Get detailed information about a master release"""
         data = self._make_request(f"masters/{master_id}")
@@ -224,3 +274,42 @@ class DiscogsClient:
                         logger.warning(f"Error parsing release date: {e}")
                         
         return details 
+
+    def map_genres(self, discogs_genres, discogs_styles):
+        """
+        Maps Discogs genres and styles to our system's supported genres
+        
+        Args:
+            discogs_genres: List of genre strings from Discogs
+            discogs_styles: List of style strings from Discogs
+            
+        Returns:
+            List of mapped genre strings that match our system's supported genres
+        """
+        mapped_genres = set()
+        
+        # Process all genres and styles from Discogs
+        all_tags = []
+        if discogs_genres:
+            all_tags.extend(discogs_genres)
+        if discogs_styles:
+            all_tags.extend(discogs_styles)
+        
+        # Convert all tags to lowercase for case-insensitive matching
+        all_tags = [tag.lower() for tag in all_tags]
+        
+        # Map each tag to our supported genres
+        for tag in all_tags:
+            if tag in self.GENRE_MAPPING:
+                mapped_genres.add(self.GENRE_MAPPING[tag])
+        
+        # If we couldn't map any genres, default to "Rock" as a fallback
+        if not mapped_genres:
+            mapped_genres.add('Rock')
+        
+        # Make sure all genres are in our valid genres list
+        result = list(mapped_genres.intersection(self.VALID_GENRES))
+        
+        logger.info(f"Mapped Discogs genres {discogs_genres} and styles {discogs_styles} to {result}")
+        
+        return result 

@@ -9,7 +9,8 @@ from .serializers import AlbumSerializer, AlbumSearchResultSerializer
 from .services.discogs import DiscogsClient
 from .services.spotify import SpotifyClient
 from rest_framework.exceptions import APIException
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
+from django_filters.rest_framework import DjangoFilterBackend
 import uuid
 import logging
 
@@ -22,8 +23,9 @@ class ExternalAPIError(APIException):
 
 class MusicViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [OrderingFilter]
-    ordering_fields = ['release_date', 'average_rating', 'total_ratings']
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    ordering_fields = ['release_date', 'average_rating', 'total_ratings', 'created_at', 'title']
+    ordering = ['-created_at']  # Default ordering
 
     def get_object(self):
         obj = super().get_object()
@@ -34,16 +36,14 @@ class MusicViewSet(viewsets.ModelViewSet):
     def _search_external_apis(self, query):
         discogs_client = DiscogsClient()
         spotify_client = SpotifyClient()
-
-        try:
-            discogs_results = discogs_client.search_album(query)
-            if not discogs_results:
-                return Response({'message': 'No results found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Discogs API error: {str(e)}")
-            raise ExternalAPIError()
-
+        
+        # Search Discogs first
+        discogs_results = discogs_client.search_album(query)
+        
+        logger.info(f"Found {len(discogs_results)} albums on Discogs for '{query}'")
+        
         results = []
+        
         for discogs_item in discogs_results:
             # Get or create the artist
             artist_name = discogs_item['artist']
@@ -55,24 +55,16 @@ class MusicViewSet(viewsets.ModelViewSet):
             # Process genres and styles
             genre_objects = []
             
-            # Add genres from Discogs
-            discogs_genres = discogs_item.get('genres', [])
-            for genre_name in discogs_genres:
+            # Map Discogs genres and styles to our supported genres
+            mapped_genre_names = discogs_client.map_genres(
+                discogs_item.get('genres', []),
+                discogs_item.get('styles', [])
+            )
+            
+            # Create Genre objects from the mapped names
+            for genre_name in mapped_genre_names:
                 genre, _ = Genre.objects.get_or_create(name=genre_name)
                 genre_objects.append(genre)
-            
-            # Add styles from Discogs as additional genres
-            discogs_styles = discogs_item.get('styles', [])
-            for style_name in discogs_styles:
-                style, _ = Genre.objects.get_or_create(name=style_name)
-                genre_objects.append(style)
-            
-            # Add genres from Spotify if available
-            if spotify_data and spotify_data.get('genres'):
-                for genre_name in spotify_data['genres']:
-                    genre, _ = Genre.objects.get_or_create(name=genre_name)
-                    if genre not in genre_objects:
-                        genre_objects.append(genre)
             
             # Extract year from the date string
             release_date = discogs_item.get('release_date')
@@ -228,4 +220,35 @@ class MusicViewSet(viewsets.ModelViewSet):
 class AlbumViewSet(MusicViewSet):
     queryset = Album.objects.all()
     serializer_class = AlbumSerializer
-    cache_prefix = 'album' 
+    cache_prefix = 'album'
+    filterset_fields = {
+        'title': ['exact', 'icontains'],
+        'artist__name': ['exact', 'icontains'],
+        'genres__name': ['exact'],
+        'release_date': ['exact', 'year', 'year__gte', 'year__lte'],
+        'average_rating': ['gte', 'lte'],
+    }
+    search_fields = ['title', 'artist__name', 'genres__name']
+    
+    @action(detail=False, methods=['get'])
+    def by_genre(self, request):
+        """Get albums by genre name"""
+        genre_name = request.query_params.get('name')
+        if not genre_name:
+            return Response({"detail": "Genre name parameter is required"}, status=400)
+        
+        try:
+            albums = self.get_queryset().filter(genres__name__iexact=genre_name)
+            page = self.paginate_queryset(albums)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(albums, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error fetching albums by genre: {str(e)}")
+            return Response(
+                {"detail": "An error occurred while fetching albums by genre"},
+                status=500
+            ) 

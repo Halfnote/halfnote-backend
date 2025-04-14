@@ -51,4 +51,9 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-debug.log 
+debug.log
+.cache
+cookies.txt
+.DS_Store
+*~
+.env 

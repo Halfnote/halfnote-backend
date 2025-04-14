@@ -1,6 +1,117 @@
 # Boomboxd Backend
 
-A Django-based backend service for the Boomboxd music rating platform. This service integrates with Discogs and Spotify to provide music metadata, streaming links, and allows users to rate and review albums.
+A Django-based backend service for the Boomboxd music rating platform. This service integrates with Discogs to provide music metadata and allows users to rate and review albums.
+
+## Core Architecture
+
+```
+boomboxd-backend/
+├── accounts/            # User authentication and profile management
+├── music/               # Album and artist data management
+│   ├── services/        # External API integrations (Discogs, Spotify)
+│   ├── models.py        # Database models for music data
+│   ├── views.py         # API endpoints for music data
+│   └── serializers.py   # JSON serialization for API responses
+├── reviews/             # User reviews functionality
+├── boomboxd/            # Main project configuration
+└── manage_music.py      # CLI utility for managing music data
+```
+
+## Key Concepts
+
+1. **Albums**: Music releases fetched from Discogs and stored locally
+2. **Artists**: Musicians/bands that create albums
+3. **Genres**: Limited to 14 pre-defined categories: Pop, Rock, Country, Jazz, Gospel, Funk, Soundtrack, Hip-hop, Latin, Electronic, Reggae, Classical, Folk, and World
+4. **Reviews**: User ratings (1-10 scale) and text reviews for albums
+
+## Setup
+
+### Prerequisites
+
+- Python 3.9+
+- PostgreSQL
+- Redis
+
+### Installation
+
+1. Create and activate virtual environment:
+```shell
+python3 -m venv venv
+source venv/bin/activate
+```
+
+2. Install dependencies:
+```shell
+pip install -r requirements.txt
+```
+
+3. Configure environment:
+```shell
+cp .env.template .env
+# Edit .env with your configuration
+```
+
+4. Set up database:
+```shell
+createdb boomboxd
+python manage.py migrate
+```
+
+5. Create superuser:
+```shell
+python manage.py createsuperuser
+```
+
+6. Run server:
+```shell
+python manage.py runserver
+```
+
+## Usage
+
+### Command Line Utility
+
+```shell
+# Search for albums
+python manage_music.py search "Pink Floyd"
+
+# Add an album to the database
+python manage_music.py add_album <discogs_id> "<title>" "<artist>" "<release_date>" "<cover_url>"
+
+# List all albums
+python manage_music.py list_albums
+```
+
+### API Endpoints
+
+#### Authentication
+- `POST /api/auth/register/` - Register a new user
+- `POST /api/auth/login/` - Login and get auth token
+- `POST /api/auth/logout/` - Logout and clear auth token
+
+#### Albums
+- `GET /api/albums/` - List all albums
+- `GET /api/albums/{id}/` - Get album details
+- `GET /api/albums/search/?q=query` - Search for albums from Discogs
+- `POST /api/albums/save_to_library/` - Save a Discogs album to library
+
+#### Reviews
+- `GET /api/reviews/` - List all reviews
+- `POST /api/reviews/` - Create a new review
+- `GET /api/reviews/{id}/` - Get review details
+- `PUT/DELETE /api/reviews/{id}/` - Update/delete a review
+
+#### Genres
+- `GET /api/genres/` - List all genres
+- `GET /api/genres/{id}/albums/` - Get albums for a specific genre
+
+## Genre System
+
+The system uses a mapping mechanism to convert various Discogs genres to 14 standardized categories. This ensures consistency in the database while still allowing discovery through Discogs' rich genre metadata.
+
+## Authentication System
+
+Authentication is handled with JWT tokens stored in HTTP-only cookies for security.
 
 ## Features
 
@@ -578,6 +689,8 @@ Response (200):
 ]
 ```
 
+> **Note:** The system supports these specific genres: Pop, Rock, Country, Jazz, Gospel, Funk, Soundtrack, Hip-hop, Latin, Electronic, Reggae, Classical, Folk, and World.
+
 #### Get Albums by Genre
 ```json
 GET /api/genres/{id}/albums/
@@ -726,3 +839,59 @@ SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
 ## License
 
 [MIT License](LICENSE) 
+
+## Filtering, Searching and Ordering
+
+The API now supports advanced filtering, searching, and ordering capabilities:
+
+### Album Filtering
+
+```
+# Filter by exact match
+GET /api/albums/?artist__name=Pink Floyd
+GET /api/albums/?genres__name=Rock
+
+# Filter by containment (case-insensitive)
+GET /api/albums/?title__icontains=dark
+
+# Filter by range
+GET /api/albums/?release_date__year=1973
+GET /api/albums/?release_date__year__gte=1970&release_date__year__lte=1979
+GET /api/albums/?average_rating__gte=8.5
+```
+
+### Review Filtering
+
+```
+# Filter by user
+GET /api/reviews/?user__username=testuser
+
+# Filter by album
+GET /api/reviews/?album__id=123e4567-e89b-12d3-a456-426614174000
+GET /api/reviews/?album__title__icontains=dark
+
+# Filter by rating
+GET /api/reviews/?rating__gte=8
+```
+
+### Searching
+
+```
+# Search across multiple fields
+GET /api/albums/?search=pink floyd
+GET /api/reviews/?search=excellent
+```
+
+### Ordering
+
+```
+# Order by fields
+GET /api/albums/?ordering=release_date  # Ascending
+GET /api/albums/?ordering=-average_rating  # Descending
+
+# Order by multiple fields
+GET /api/albums/?ordering=-average_rating,title
+```
+
+The available filter fields are:
+- Albums: title, artist__name, genres__name, release_date, average_rating
