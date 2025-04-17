@@ -11,5 +11,9 @@
       "src": "/(.*)",
       "dest": "api/index.py"
     }
-  ]
+  ],
+  "github": {
+    "silent": true
+  },
+  "public": true
 } 

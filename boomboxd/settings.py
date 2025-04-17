@@ -11,7 +11,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
+# Get allowed hosts from environment or use defaults
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+if os.getenv('ALLOWED_HOSTS') == '':
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
+# Allow all Vercel domains
+if os.environ.get('VERCEL', '0') == '1':
+    ALLOWED_HOSTS.append('.vercel.app')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -105,7 +112,7 @@ REST_FRAMEWORK = {
         'accounts.authentication.CookieJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
@@ -126,6 +133,13 @@ REST_FRAMEWORK = {
 
 # Add CORS settings
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+if CORS_ALLOWED_ORIGINS == ['']:
+    CORS_ALLOWED_ORIGINS = ['http://localhost:3000', 'https://boomboxd.vercel.app']
+
+# Allow any Vercel frontend
+if os.environ.get('VERCEL', '0') == '1':
+    CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
 
 # Add detection for Vercel environment
