@@ -6,7 +6,6 @@ from reviews.views import ReviewViewSet
 from rest_framework_simplejwt.views import TokenRefreshView
 from accounts.views import RegisterView, LoginView, UserProfileViewSet, RefreshTokenView, LogoutView
 from .views import health_check
-from rest_framework.documentation import include_docs_urls
 
 # Create a router for our API
 router = DefaultRouter()
@@ -24,5 +23,4 @@ urlpatterns = [
     path('api/auth/refresh/', RefreshTokenView.as_view(), name='refresh'),
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('health/', health_check, name='health_check'),
-    path('docs/', include_docs_urls(title='Boomboxd API')),  # API documentation
 ] 
