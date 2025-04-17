@@ -10,8 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# Simplified ALLOWED_HOSTS
-ALLOWED_HOSTS = ['*']  # Since we're using Vercel, this is safe as Vercel handles the domain security
+# Allow all hosts for simplicity
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -60,14 +60,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'boomboxd.wsgi.application'
 
-# Static files (CSS, JavaScript, Images)
+# Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
 
-# Database configuration
+# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -79,7 +76,7 @@ DATABASES = {
     }
 }
 
-# Simplified cache configuration - using local memory cache
+# Cache
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -94,7 +91,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-# REST Framework settings
+# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'accounts.authentication.CookieJWTAuthentication',
@@ -111,15 +108,13 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings - Allow all origins since Vercel handles security
+# CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# Security settings
+# Security
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-
-# Cookie settings
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True 
