@@ -57,3 +57,4 @@ cookies.txt
 .DS_Store
 *~
 .env 
+.vercel

@@ -6,7 +6,11 @@ from reviews.views import ReviewViewSet
 from rest_framework_simplejwt.views import TokenRefreshView
 from accounts.views import RegisterView, LoginView, UserProfileViewSet, RefreshTokenView, LogoutView
 from .views import health_check
+from django.http import HttpResponse
 
+# Add a simple welcome view
+def welcome(request):
+    return HttpResponse("Welcome to Boomboxd API!")
 
 router = DefaultRouter()
 router.register(r'albums', AlbumViewSet)
@@ -14,6 +18,7 @@ router.register(r'reviews', ReviewViewSet)
 router.register(r'profile', UserProfileViewSet, basename='profile')
 
 urlpatterns = [
+    path('', welcome, name='welcome'),  # Root URL for welcome page
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),
