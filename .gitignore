@@ -34,6 +34,7 @@ static/
 env/
 venv/
 ENV/
+.env.vercel
 
 # IDE
 .idea/
