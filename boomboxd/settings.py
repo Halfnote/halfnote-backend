@@ -86,12 +86,22 @@ DATABASES = {
 }
 
 # Redis cache configuration
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_LOCATION'),
+if os.environ.get('VERCEL', '0') == '1':
+    # Use local memory cache on Vercel
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
     }
-}
+else:
+    # Use Redis in other environments
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.getenv('REDIS_LOCATION'),
+        }
+    }
 
 # Add JWT settings
 SIMPLE_JWT = {
@@ -121,15 +131,18 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
+}
+
+# Add throttling only if not on Vercel
+if not os.environ.get('VERCEL', '0') == '1':
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle'
-    ],
-    'DEFAULT_THROTTLE_RATES': {
+    ]
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
         'anon': '100/day',
         'user': '1000/day'
     }
-}
 
 # Add CORS settings
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
