@@ -6,19 +6,16 @@ from reviews.views import ReviewViewSet
 from rest_framework_simplejwt.views import TokenRefreshView
 from accounts.views import RegisterView, LoginView, UserProfileViewSet, RefreshTokenView, LogoutView
 from .views import health_check
-from django.http import HttpResponse
+from rest_framework.documentation import include_docs_urls
 
-# Add a simple welcome view
-def welcome(request):
-    return HttpResponse("Welcome to Boomboxd API!")
-
+# Create a router for our API
 router = DefaultRouter()
 router.register(r'albums', AlbumViewSet)
 router.register(r'reviews', ReviewViewSet)
 router.register(r'profile', UserProfileViewSet, basename='profile')
 
 urlpatterns = [
-    path('', welcome, name='welcome'),  # Root URL for welcome page
+    path('', include(router.urls)),  # Root URL now shows DRF API root
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),
@@ -27,4 +24,5 @@ urlpatterns = [
     path('api/auth/refresh/', RefreshTokenView.as_view(), name='refresh'),
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('health/', health_check, name='health_check'),
+    path('docs/', include_docs_urls(title='Boomboxd API')),  # Added API docs
 ] 
