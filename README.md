@@ -137,7 +137,7 @@ Authentication is handled with JWT tokens stored in HTTP-only cookies for securi
 
 1. Clone the repository:
 ```shell
-git clone <repository-url>
+git clone https://github.com/your-username/boomboxd-backend.git
 cd boomboxd-backend
 ```
 
@@ -895,3 +895,86 @@ GET /api/albums/?ordering=-average_rating,title
 
 The available filter fields are:
 - Albums: title, artist__name, genres__name, release_date, average_rating
+
+## Setup Instructions
+
+### Local Development
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/boomboxd-backend.git
+   cd boomboxd-backend
+   ```
+
+2. Create and activate a virtual environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. Create `.env` file from template:
+   ```
+   cp .env.template .env
+   ```
+   Then, edit the `.env` file to add your credentials.
+
+5. Run migrations:
+   ```
+   python manage.py makemigrations
+   python manage.py migrate
+   ```
+
+6. Start the development server:
+   ```
+   python manage.py runserver
+   ```
+
+### Deploying to Vercel
+
+1. Create a new project on Vercel.
+
+2. Add all environment variables from your `.env` file to the Vercel project:
+   - Go to Project Settings > Environment Variables
+   - Add each key-value pair
+   - Make sure to set `VERCEL=1`
+   - For the database, use your Supabase connection pooler details
+
+3. Configure your Vercel project:
+   - Set the Framework Preset to Other
+   - The root directory should be `/`
+   - Build command can be empty or `pip install -r requirements.txt`
+   - Output directory can be empty
+
+4. Deploy and enjoy!
+
+## Database Setup
+
+For production, we use a Supabase PostgreSQL database. To set it up:
+
+1. Create a database in Supabase.
+
+2. Run migrations to set up the database schema locally:
+   ```bash
+   # Create a script to use Supabase connection data
+   ./migrate_supabase.sh
+   ```
+
+3. Add these environment variables to Vercel:
+   ```
+   DB_NAME=postgres
+   DB_USER=postgres.yoursubdomain
+   DB_PASSWORD=your-password
+   DB_HOST=your-pooler-host.supabase.co
+   DB_PORT=6543
+   ```
+
+## Security Notes
+
+- Always keep your .env file out of version control.
+- Never commit sensitive credentials to the repository.
+- For production, use environment variables in Vercel for all sensitive data.

@@ -77,8 +77,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'postgres'),
-        'USER': os.getenv('DB_USER', 'postgres'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT', '5432'),
@@ -94,12 +94,20 @@ if os.environ.get('VERCEL', '0') == '1':
             'LOCATION': 'unique-snowflake',
         }
     }
-else:
-    # Use Redis in other environments
+elif os.getenv('REDIS_LOCATION'):
+    # Use Redis if REDIS_LOCATION is provided
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': os.getenv('REDIS_LOCATION'),
+        }
+    }
+else:
+    # Fallback to local memory cache
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
         }
     }
 
