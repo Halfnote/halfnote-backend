@@ -24,5 +24,5 @@ urlpatterns = [
     path('api/auth/refresh/', RefreshTokenView.as_view(), name='refresh'),
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('health/', health_check, name='health_check'),
-    path('docs/', include_docs_urls(title='Boomboxd API')),  # Added API docs
+    path('docs/', include_docs_urls(title='Boomboxd API')),  # API documentation
 ] 
