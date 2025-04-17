@@ -1,12 +1,10 @@
 {
   "version": 2,
+  "buildCommand": "chmod +x build_files.sh && ./build_files.sh",
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "buildCommand": "sh ./build_files.sh"
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
