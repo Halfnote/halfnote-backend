@@ -1,9 +1,25 @@
+from django.core.wsgi import get_wsgi_application
+
+# Set up Django's settings
 import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings')
 
-# Set Vercel environment flag
-os.environ['VERCEL'] = '1'
+# Get the Django WSGI application
+app = application = get_wsgi_application()
 
-from boomboxd.wsgi import application
-
-# This is needed for Vercel serverless functions
-app = application 
+# Function to handle HTTP requests in Vercel
+def handler(request, **kwargs):
+    """
+    This handler is used by Vercel to serve both the Django application
+    and static files.
+    """
+    # Extract path from the request
+    path = request.get('path', '')
+    
+    # Check if the request is for a static file
+    if path.startswith('/static/'):
+        # Let Django's StaticFilesHandler handle it
+        return application(request, **kwargs)
+    
+    # For all other requests, use the Django application
+    return application(request, **kwargs) 
