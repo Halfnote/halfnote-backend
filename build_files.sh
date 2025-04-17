@@ -1,8 +1,14 @@
 #!/bin/bash
 # Build script for Vercel deployment
 
-# Install Python dependencies
-pip install -r requirements.txt
+echo "Building the project..."
+python -m pip install -r requirements.txt
 
-# Collect static files
-python manage.py collectstatic --noinput 
+echo "Running migrations..."
+python manage.py makemigrations
+python manage.py migrate
+
+echo "Collecting static files..."
+python manage.py collectstatic --no-input
+
+echo "Build completed successfully!" 
