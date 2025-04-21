@@ -9,7 +9,8 @@ class ExternalMusicService:
     def __init__(self):
         self.discogs = discogs_client.Client(
             'BoomboxdApp/1.0',
-            user_token=settings.DISCOGS_USER_TOKEN
+            consumer_key=settings.DISCOGS_CONSUMER_KEY,
+            consumer_secret=settings.DISCOGS_CONSUMER_SECRET
         )
     
     def search_discogs(self, query, cache_key):
