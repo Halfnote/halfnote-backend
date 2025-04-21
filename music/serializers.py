@@ -31,12 +31,11 @@ class AlbumSerializer(serializers.ModelSerializer):
         ]
 
 class AlbumSearchResultSerializer(serializers.Serializer):
-    id = serializers.CharField()
+    discogs_id = serializers.CharField()
     title = serializers.CharField()
     artist = serializers.CharField()
-    release_date = serializers.DateField(required=False, allow_null=True)
-    cover_art_url = serializers.URLField(required=False, allow_null=True)
-    thumb_url = serializers.URLField(required=False, allow_null=True)
+    year = serializers.IntegerField(required=False, allow_null=True)
+    cover_image = serializers.URLField(required=False, allow_null=True)
     genres = serializers.ListField(child=serializers.CharField(), required=False)
     styles = serializers.ListField(child=serializers.CharField(), required=False)
     discogs_url = serializers.URLField(required=False, allow_null=True)
