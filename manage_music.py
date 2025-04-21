@@ -33,7 +33,7 @@ django.setup()
 from django.contrib.auth import get_user_model
 from music.models import Album, Artist, Genre
 from reviews.models import Review
-from music.services.discogs import DiscogsClient
+from music.services import ExternalMusicService
 
 User = get_user_model()
 
@@ -53,8 +53,9 @@ def search_album(query):
     """
     print(f"Searching for: {query}")
     
-    discogs_client = DiscogsClient()
-    results = discogs_client.search_album(query)
+    service = ExternalMusicService()
+    cache_key = f'cli_search:{query}'
+    results = service.search_discogs(query, cache_key)
     
     if not results:
         print("No results found")
@@ -64,11 +65,11 @@ def search_album(query):
     for i, result in enumerate(results[:10], 1):  # Show first 10 results
         artist = result.get('artist', 'Unknown')
         title = result.get('title', 'Unknown')
-        release_date = result.get('release_date', 'Unknown date')
-        discogs_id = result.get('id', '')
+        year = result.get('year', 'Unknown date')
+        discogs_id = result.get('discogs_id', '')
         genres = ", ".join(result.get('genres', []))
         
-        print(f"{i}. [{discogs_id}] {title} by {artist} ({release_date}) - {genres}")
+        print(f"{i}. [{discogs_id}] {title} by {artist} ({year}) - {genres}")
     
     return results
 
@@ -187,7 +188,7 @@ def print_usage():
     print("Usage:")
     print("  python manage_music.py search <query>")
     print("  python manage_music.py add_album <discogs_id> <title> <artist> [<release_date>] [<cover_url>]")
-    print("  python manage_music.py add_artist <name>")
+    print("  python manage_music.py add_artist <n>")
     print("  python manage_music.py add_review <album_id> <rating> [<text>]")
     print("  python manage_music.py list_albums")
     print("  python manage_music.py list_artists")
@@ -200,47 +201,49 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(1)
-    
+        
     command = sys.argv[1]
     
-    if command == "search" and len(sys.argv) >= 3:
-        search_album(sys.argv[2])
-    
-    elif command == "add_album" and len(sys.argv) >= 5:
+    if command == "search":
+        if len(sys.argv) < 3:
+            print("Please provide a search query")
+            sys.exit(1)
+        query = " ".join(sys.argv[2:])
+        search_album(query)
+        
+    elif command == "add_album":
+        if len(sys.argv) < 5:
+            print("Please provide discogs_id, title, and artist")
+            sys.exit(1)
         discogs_id = sys.argv[2]
         title = sys.argv[3]
         artist = sys.argv[4]
-        release_date = sys.argv[5] if len(sys.argv) >= 6 else None
-        cover_url = sys.argv[6] if len(sys.argv) >= 7 else None
+        release_date = sys.argv[5] if len(sys.argv) > 5 else None
+        cover_url = sys.argv[6] if len(sys.argv) > 6 else None
         add_album(discogs_id, title, artist, release_date, cover_url)
-    
-    elif command == "add_artist" and len(sys.argv) >= 3:
-        artist_name = sys.argv[2]
-        artist, created = Artist.objects.get_or_create(name=artist_name)
-        if created:
-            print(f"Created new artist: {artist.name}")
-        else:
-            print(f"Artist already exists: {artist.name}")
-    
-    elif command == "add_review" and len(sys.argv) >= 4:
+        
+    elif command == "add_review":
+        if len(sys.argv) < 4:
+            print("Please provide album_id and rating")
+            sys.exit(1)
         album_id = sys.argv[2]
         rating = sys.argv[3]
-        text = " ".join(sys.argv[4:]) if len(sys.argv) >= 5 else ""
+        text = " ".join(sys.argv[4:]) if len(sys.argv) > 4 else ""
         add_review(album_id, rating, text)
-    
+        
     elif command == "list_albums":
-        albums = Album.objects.all().order_by("-created_at")
-        print(f"Found {albums.count()} albums:")
+        albums = Album.objects.all().order_by('-created_at')
+        print(f"\nFound {albums.count()} albums:")
         for album in albums:
-            print(f"[{album.id}] {album.title} by {album.artist.name} ({album.release_date}) - Rating: {album.average_rating:.1f}/10 ({album.total_ratings} reviews)")
-    
+            print(f"[{album.id}] {album.title} by {album.artist.name}")
+            
     elif command == "list_artists":
-        artists = Artist.objects.all().order_by("name")
-        print(f"Found {artists.count()} artists:")
+        artists = Artist.objects.all().order_by('name')
+        print(f"\nFound {artists.count()} artists:")
         for artist in artists:
-            albums_count = Album.objects.filter(artist=artist).count()
-            print(f"[{artist.id}] {artist.name} ({albums_count} albums)")
-    
+            print(f"[{artist.id}] {artist.name}")
+            
     else:
+        print(f"Unknown command: {command}")
         print_usage()
         sys.exit(1) 
