@@ -20,8 +20,8 @@ def create_review(request, album_id):
         
         # Validate rating
         rating = int(request.data.get('rating', 0))
-        if not (1 <= rating <= 5):
-            return Response({'error': 'Rating must be between 1 and 5'}, status=400)
+        if not (1 <= rating <= 10):
+            return Response({'error': 'Rating must be between 1 and 10'}, status=400)
             
         # Validate genres
         genres = request.data.get('genres', [])
@@ -45,16 +45,6 @@ def create_review(request, album_id):
 def album_reviews(request, album_id):
     try:
         reviews = Review.objects.filter(album_id=album_id).order_by('-created_at')
-        return Response({
-            'reviews': [review_to_dict(r) for r in reviews]
-        })
-    except Exception as e:
-        return Response({'error': str(e)}, status=400)
-
-@api_view(['GET'])
-def user_reviews(request, username):
-    try:
-        reviews = Review.objects.filter(user__username=username).order_by('-created_at')
         return Response({
             'reviews': [review_to_dict(r) for r in reviews]
         })
