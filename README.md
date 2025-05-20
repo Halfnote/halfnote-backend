@@ -8,7 +8,7 @@ A Django REST API for the Boomboxd music review platform. This API allows users 
 
 #### Register a New User
 ```http
-POST /api/register/
+POST /api/accounts/register/
 ```
 **Request Body:**
 ```json
@@ -30,7 +30,7 @@ POST /api/register/
 
 #### Login
 ```http
-POST /api/login/
+POST /api/accounts/login/
 ```
 **Request Body:**
 ```json
@@ -52,7 +52,7 @@ POST /api/login/
 
 #### Get User Profile
 ```http
-GET /api/profile/
+GET /api/accounts/profile/
 ```
 **Response (200):**
 ```json
@@ -65,7 +65,7 @@ GET /api/profile/
 
 #### Update User Profile
 ```http
-PUT /api/profile/
+PUT /api/accounts/profile/
 ```
 **Request Body:**
 ```json
@@ -87,7 +87,7 @@ PUT /api/profile/
 
 #### Search Albums
 ```http
-GET /api/search/?q=search_term
+GET /api/music/search/?q=search_term
 ```
 **Response (200):**
 ```json
@@ -108,7 +108,7 @@ GET /api/search/?q=search_term
 
 #### Get Album Details
 ```http
-GET /api/albums/{discogs_id}/
+GET /api/music/albums/{discogs_id}/
 ```
 **Response (200):**
 ```json
@@ -138,7 +138,7 @@ GET /api/albums/{discogs_id}/
 
 #### Create Album Review
 ```http
-POST /api/albums/{discogs_id}/review/
+POST /api/music/albums/{discogs_id}/review/
 ```
 **Request Body:**
 ```json
@@ -162,7 +162,7 @@ POST /api/albums/{discogs_id}/review/
 
 #### Get User's Reviews
 ```http
-GET /api/users/{username}/reviews/
+GET /api/accounts/users/{username}/reviews/
 ```
 **Response (200):**
 ```json
@@ -210,4 +210,4 @@ Currently, there are no rate limits implemented on the API endpoints.
 3. Run migrations: `python manage.py migrate`
 4. Start the development server: `python manage.py runserver`
 
-The API will be available at `http://localhost:8000/api/`
+The API will be available at `http://localhost:8000/`

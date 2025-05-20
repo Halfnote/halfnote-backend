@@ -9,19 +9,17 @@ def api_root(request):
         'version': '1.0.0',
         'endpoints': {
             'auth': {
-                'register': '/api/register/',
-                'login': '/api/login/',
-                'profile': '/api/profile/',
+                'register': '/api/accounts/register/',
+                'login': '/api/accounts/login/',
+                'profile': '/api/accounts/profile/',
             },
-            'albums': {
-                'search': '/api/albums/search/',
-                'import': '/api/albums/import/{discogs_id}/',
-                'detail': '/api/albums/{album_id}/',
-                'reviews': '/api/albums/{album_id}/reviews/',
-                'create_review': '/api/albums/{album_id}/review/',
+            'music': {
+                'search': '/api/music/search/',
+                'detail': '/api/music/albums/{discogs_id}/',
+                'create_review': '/api/music/albums/{discogs_id}/review/',
             },
             'users': {
-                'reviews': '/api/users/{username}/reviews/',
+                'reviews': '/api/accounts/users/{username}/reviews/',
             }
         }
     }) 
