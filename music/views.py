@@ -6,6 +6,9 @@ from .models import Album, Review
 from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer
 from .services import ExternalMusicService
 import logging
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import permission_classes
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +184,9 @@ def import_album_from_discogs(discogs_id):
     
     return album
 
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def create_review(request, discogs_id):
     """Create a review for an album, importing the album if needed"""
     if not request.user.is_authenticated:
