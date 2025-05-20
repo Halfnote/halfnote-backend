@@ -50,7 +50,7 @@ def search(request):
     results = search_discogs(query)
     return JsonResponse({'results': results})
 
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def import_album(request, discogs_id):
     try:
         # Check if already imported

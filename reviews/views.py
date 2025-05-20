@@ -1,7 +1,6 @@
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
-import json
 from .models import Review
 from music.models import Album
 
@@ -11,54 +10,56 @@ ALLOWED_GENRES = [
 ]
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@api_view(['POST'])
 def create_review(request, album_id):
     if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Login required'}, status=401)
+        return Response({'error': 'Login required'}, status=401)
     
     try:
-        data = json.loads(request.body)
         album = Album.objects.get(id=album_id)
         
         # Validate rating
-        rating = int(data.get('rating', 0))
+        rating = int(request.data.get('rating', 0))
         if not (1 <= rating <= 5):
-            return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+            return Response({'error': 'Rating must be between 1 and 5'}, status=400)
             
         # Validate genres
-        genres = data.get('genres', [])
+        genres = request.data.get('genres', [])
         if not all(g in ALLOWED_GENRES for g in genres):
-            return JsonResponse({'error': 'Invalid genres'}, status=400)
+            return Response({'error': 'Invalid genres'}, status=400)
             
         review = Review.objects.create(
             user=request.user,
             album=album,
             rating=rating,
-            text=data.get('text', ''),
+            text=request.data.get('text', ''),
             genres=genres
         )
-        return JsonResponse(review_to_dict(review), status=201)
+        return Response(review_to_dict(review), status=201)
     except Album.DoesNotExist:
-        return JsonResponse({'error': 'Album not found'}, status=404)
+        return Response({'error': 'Album not found'}, status=404)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response({'error': str(e)}, status=400)
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
 def album_reviews(request, album_id):
     try:
         reviews = Review.objects.filter(album_id=album_id).order_by('-created_at')
-        return JsonResponse({
+        return Response({
             'reviews': [review_to_dict(r) for r in reviews]
         })
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response({'error': str(e)}, status=400)
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
 def user_reviews(request, username):
-    reviews = Review.objects.filter(user__username=username).order_by('-created_at')
-    return JsonResponse({
-        'reviews': [review_to_dict(r) for r in reviews]
-    })
+    try:
+        reviews = Review.objects.filter(user__username=username).order_by('-created_at')
+        return Response({
+            'reviews': [review_to_dict(r) for r in reviews]
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
 
 def review_to_dict(review):
     return {

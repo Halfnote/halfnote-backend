@@ -62,9 +62,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'boomboxd.wsgi.application'
 
-# Static files
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static')
+]
 
 # Database
 DATABASES = {
@@ -114,6 +117,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
 }
 
 # CORS
@@ -129,4 +136,7 @@ SESSION_COOKIE_SECURE = True
 
 # Discogs API
 DISCOGS_CONSUMER_KEY = os.getenv('DISCOGS_CONSUMER_KEY')
-DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET') 
+DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET')
+
+# Whitenoise static file storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
