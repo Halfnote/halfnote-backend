@@ -3,120 +3,11 @@ import logging
 import time
 from typing import List, Dict, Optional
 from django.conf import settings
-from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
 class ExternalMusicService:
     BASE_URL = "https://api.discogs.com"
-    
-    # Add a genre mapping dictionary to map Discogs genres to our supported genres
-    GENRE_MAPPING = {
-        # Rock and related genres
-        'rock': 'Rock',
-        'alternative rock': 'Rock',
-        'hard rock': 'Rock',
-        'indie rock': 'Rock',
-        'classic rock': 'Rock',
-        'punk': 'Rock',
-        'metal': 'Rock',
-        'grunge': 'Rock',
-        
-        # Pop and related genres
-        'pop': 'Pop',
-        'synth-pop': 'Pop',
-        'disco': 'Pop',
-        'dance': 'Pop',
-        'electropop': 'Pop',
-        'britpop': 'Pop',
-        
-        # Electronic and related genres
-        'electronic': 'Electronic',
-        'techno': 'Electronic',
-        'house': 'Electronic',
-        'trance': 'Electronic',
-        'ambient': 'Electronic',
-        'downtempo': 'Electronic',
-        'dubstep': 'Electronic',
-        'edm': 'Electronic',
-        
-        # Hip-hop and related genres
-        'hip hop': 'Hip-hop',
-        'hip-hop': 'Hip-hop',
-        'rap': 'Hip-hop',
-        'trap': 'Hip-hop',
-        
-        # Jazz and related genres
-        'jazz': 'Jazz',
-        'bebop': 'Jazz',
-        'fusion': 'Jazz',
-        'smooth jazz': 'Jazz',
-        
-        # Country and related genres
-        'country': 'Country',
-        'bluegrass': 'Country',
-        'americana': 'Country',
-        'country rock': 'Country',
-        
-        # Classical and related genres
-        'classical': 'Classical',
-        'baroque': 'Classical',
-        'opera': 'Classical',
-        'orchestral': 'Classical',
-        'symphony': 'Classical',
-        
-        # Folk and related genres
-        'folk': 'Folk',
-        'acoustic': 'Folk',
-        'singer-songwriter': 'Folk',
-        'traditional': 'Folk',
-        
-        # Latin and related genres
-        'latin': 'Latin',
-        'salsa': 'Latin',
-        'bossa nova': 'Latin',
-        'reggaeton': 'Latin',
-        'samba': 'Latin',
-        
-        # Reggae and related genres
-        'reggae': 'Reggae',
-        'dub': 'Reggae',
-        'ska': 'Reggae',
-        'dancehall': 'Reggae',
-        
-        # Soundtrack and related genres
-        'soundtrack': 'Soundtrack',
-        'score': 'Soundtrack',
-        'film score': 'Soundtrack',
-        'film': 'Soundtrack',
-        'movie': 'Soundtrack',
-        
-        # Funk and related genres
-        'funk': 'Funk',
-        'soul': 'Funk',
-        'r&b': 'Funk',
-        'rhythm and blues': 'Funk',
-        
-        # Gospel and related genres
-        'gospel': 'Gospel',
-        'christian': 'Gospel',
-        'spiritual': 'Gospel',
-        'religious': 'Gospel',
-        
-        # World music
-        'world': 'World',
-        'african': 'World',
-        'asian': 'World',
-        'celtic': 'World',
-        'middle eastern': 'World',
-    }
-    
-    # The set of valid genres in our system
-    VALID_GENRES = {
-        'Pop', 'Rock', 'Country', 'Jazz', 'Gospel', 'Funk',
-        'Soundtrack', 'Hip-hop', 'Latin', 'Electronic',
-        'Reggae', 'Classical', 'Folk', 'World'
-    }
     
     def __init__(self):
         self.user_agent = "BoomboxdApp/1.0 +http://boomboxd.com"
@@ -150,11 +41,6 @@ class ExternalMusicService:
             response = requests.get(url, params=params, headers=headers)
             self.last_request_time = time.time()
             
-            # Log response for debugging
-            logger.info(f"Response status: {response.status_code}")
-            if response.status_code != 200:
-                logger.error(f"Response text: {response.text}")
-            
             if response.status_code != 200:
                 logger.error(f"Discogs API error: {response.status_code} - {response.text}")
                 return None
@@ -163,31 +49,11 @@ class ExternalMusicService:
         except Exception as e:
             logger.error(f"Error making Discogs API request: {str(e)}")
             return None
-
-    def map_genres(self, discogs_genres, discogs_styles):
-        """Map Discogs genres and styles to our supported genres"""
-        mapped_genres = set()
-        
-        # Convert all genres/styles to lowercase for matching
-        all_tags = [g.lower() for g in (discogs_genres or [])] + [s.lower() for s in (discogs_styles or [])]
-        
-        # Map each tag to our genre system
-        for tag in all_tags:
-            if tag in self.GENRE_MAPPING:
-                mapped_genres.add(self.GENRE_MAPPING[tag])
-            
-        # Return only valid genres
-        return list(mapped_genres & self.VALID_GENRES)
     
-    def search_discogs(self, query, cache_key):
-        """Search for albums on Discogs with caching"""
+    def search_discogs(self, query):
+        """Search for albums on Discogs"""
         logger.info(f"Searching Discogs for query: {query}")
         
-        cached_results = cache.get(cache_key)
-        if cached_results:
-            logger.info(f"Returning cached results for {query}")
-            return cached_results
-
         try:
             params = {
                 'type': 'master',  # Just master releases
@@ -223,104 +89,73 @@ class ExternalMusicService:
                         'genres': item.get('genre', []),
                         'styles': item.get('style', []),
                         'cover_image': item.get('cover_image', ''),
-                        'discogs_id': str(item.get('id')),
-                        'master_id': item.get('master_id')
+                        'discogs_id': str(item.get('id'))
                     })
                 except Exception as e:
                     logger.error(f"Error processing Discogs result: {str(e)}")
                     continue
             
-            cache.set(cache_key, formatted_results, timeout=3600)
             return formatted_results
             
         except Exception as e:
             logger.error(f"Discogs API error: {str(e)}")
             return []
 
-    def get_spotify_embed(self, query, cache_key):
-        """Get Spotify embed URL for an album"""
-        cached_result = cache.get(cache_key)
-        if cached_result:
-            return cached_result
-
+    def get_album_details(self, discogs_id):
+        """Get detailed information about an album from Discogs"""
+        logger.info(f"Fetching album details for Discogs ID: {discogs_id}")
+        
         try:
-            results = self.spotify.search(query, type='album', limit=1)
-            if not results['albums']['items']:
+            # For master releases, use the masters endpoint
+            data = self._make_request(f"masters/{discogs_id}")
+            
+            if not data:
+                # If not found as a master, try the release endpoint
+                data = self._make_request(f"releases/{discogs_id}")
+            
+            if not data:
+                logger.error(f"Album not found on Discogs: {discogs_id}")
                 return None
-                
-            album = results['albums']['items'][0]
-            result = {
-                'spotify_url': album['external_urls']['spotify'],
-                'spotify_embed_url': f"https://open.spotify.com/embed/album/{album['id']}"
+            
+            # Get the main artist name
+            artist_name = "Unknown Artist"
+            if 'artists' in data and data['artists']:
+                artist_name = data['artists'][0].get('name', "Unknown Artist")
+            
+            # Format the album data
+            album_data = {
+                'title': data.get('title', ''),
+                'artist': artist_name,
+                'year': data.get('year', ''),
+                'genres': data.get('genres', []),
+                'styles': data.get('styles', []),
+                'cover_image': '',
+                'discogs_id': discogs_id,
+                'tracklist': []
             }
             
-            cache.set(cache_key, result, timeout=3600)  # Cache for 1 hour
-            return result
+            # Get the cover image
+            if 'images' in data and data['images']:
+                primary_images = [img for img in data['images'] if img.get('type') == 'primary']
+                if primary_images:
+                    album_data['cover_image'] = primary_images[0].get('uri', '')
+                else:
+                    album_data['cover_image'] = data['images'][0].get('uri', '')
+            
+            # Get the tracklist
+            if 'tracklist' in data:
+                album_data['tracklist'] = [
+                    {
+                        'position': track.get('position', ''),
+                        'title': track.get('title', ''),
+                        'duration': track.get('duration', '')
+                    }
+                    for track in data['tracklist']
+                    if track.get('type_') != 'heading'  # Skip headings
+                ]
+            
+            return album_data
             
         except Exception as e:
-            logger.error(f"Spotify API error getting embed: {str(e)}")
-            return None
-
-    def search_spotify(self, query, cache_key):
-        """Search for albums on Spotify with caching"""
-        cached_results = cache.get(cache_key)
-        if cached_results:
-            return cached_results
-
-        try:
-            results = self.spotify.search(query, type='album', limit=10)
-            formatted_results = []
-            
-            for album in results['albums']['items']:
-                formatted_results.append({
-                    'title': album['name'],
-                    'artist': album['artists'][0]['name'] if album['artists'] else 'Unknown Artist',
-                    'cover_image': album['images'][0]['url'] if album['images'] else None,
-                    'spotify_id': album['id'],
-                    'release_date': album['release_date'],
-                })
-            
-            cache.set(cache_key, formatted_results, timeout=3600)  # Cache for 1 hour
-            return formatted_results
-            
-        except Exception as e:
-            logger.error(f"Spotify API error: {str(e)}")
-            return []
-
-    def search_spotify_matches(self, query, cache_key, limit=5):
-        """Search for potential Spotify matches for an album"""
-        cached_results = cache.get(cache_key)
-        if cached_results:
-            return cached_results
-
-        try:
-            results = self.spotify.search(query, type='album', limit=limit)
-            matches = []
-            
-            for album in results['albums']['items']:
-                matches.append({
-                    'spotify_id': album['id'],
-                    'title': album['name'],
-                    'artist': album['artists'][0]['name'],
-                    'release_date': album['release_date'],
-                    'total_tracks': album['total_tracks'],
-                    'images': album['images'],
-                    'spotify_url': album['external_urls']['spotify'],
-                    'spotify_embed_url': f"https://open.spotify.com/embed/album/{album['id']}"
-                })
-            
-            cache.set(cache_key, matches, timeout=3600)  # Cache for 1 hour
-            return matches
-            
-        except Exception as e:
-            logger.error(f"Spotify API error: {str(e)}")
-            return []
-
-    def verify_spotify_album(self, spotify_id):
-        """Verify that a Spotify album ID exists"""
-        try:
-            album = self.spotify.album(spotify_id)
-            return bool(album)
-        except Exception as e:
-            logger.error(f"Error verifying Spotify album {spotify_id}: {str(e)}")
-            return False 
+            logger.error(f"Error fetching album details from Discogs: {str(e)}")
+            return None 

@@ -20,13 +20,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third party apps
     'rest_framework',
-    'corsheaders',
     'rest_framework_simplejwt',
+    'corsheaders',
     'django_filters',
-    'accounts.apps.AccountsConfig',
-    'music.apps.MusicConfig',
-    'reviews.apps.ReviewsConfig',
+    
+    # Local apps
+    'accounts',
+    'music',
+    'reviews',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -104,22 +108,21 @@ SIMPLE_JWT = {
 
 # REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'accounts.authentication.CookieJWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
     'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.BrowsableAPIRenderer',
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
     ],
 }
 
