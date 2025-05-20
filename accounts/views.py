@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from .serializers import UserSerializer
 from music.models import Review
 from music.serializers import ReviewSerializer
-from django.http import status
+from rest_framework import status
 
 User = get_user_model()
 
