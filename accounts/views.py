@@ -4,25 +4,35 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import User
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@api_view(['POST'])
 def register(request):
-    data = json.loads(request.body)
+    """
+    Register a new user.
+    
+    POST parameters:
+    - username: Required. The username for the new account
+    - password: Required. The password for the new account
+    - bio: Optional. A short bio for the user
+    - avatar_url: Optional. URL to the user's avatar image
+    """
     try:
         user = User.objects.create_user(
-            username=data['username'],
-            password=data['password'],
-            bio=data.get('bio', ''),
-            avatar_url=data.get('avatar_url', '')
+            username=request.data['username'],
+            password=request.data['password'],
+            bio=request.data.get('bio', ''),
+            avatar_url=request.data.get('avatar_url', '')
         )
-        return JsonResponse({
+        return Response({
             'username': user.username,
             'bio': user.bio,
             'avatar_url': user.avatar_url
         }, status=201)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response({'error': str(e)}, status=400)
 
 @csrf_exempt
 @require_http_methods(["POST"])
