@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.core.cache import cache
@@ -16,6 +16,7 @@ import logging
 import re
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 import requests
 from django.conf import settings
 
@@ -24,15 +25,50 @@ logger = logging.getLogger(__name__)
 DISCOGS_URL = "https://api.discogs.com"
 
 def search_discogs(query):
+    headers = {
+        'User-Agent': 'BoomboxdApp/1.0'
+    }
+    
     response = requests.get(
         f"{DISCOGS_URL}/database/search",
         params={
             "q": query,
-            "type": "release",
-            "token": settings.DISCOGS_CONSUMER_KEY
-        }
+            "type": "master",  # Changed to master instead of release
+            "token": settings.DISCOGS_CONSUMER_KEY,
+            "per_page": 10
+        },
+        headers=headers
     )
-    return response.json()['results'][:10]  # Return top 10 results
+    
+    # Print response for debugging
+    print(f"Discogs API Response Status: {response.status_code}")
+    print(f"Discogs API Response: {response.text}")
+    
+    if not response.ok:
+        logger.error(f"Discogs API error: {response.status_code} - {response.text}")
+        return []
+        
+    try:
+        data = response.json()
+        if 'results' not in data:
+            logger.error(f"Unexpected Discogs API response format: {data}")
+            return []
+            
+        # Transform the results to match our expected format
+        transformed_results = []
+        for result in data['results'][:10]:
+            transformed_results.append({
+                'title': result.get('title', ''),
+                'artist': result.get('artist', ''),
+                'year': result.get('year', ''),
+                'cover_image': result.get('cover_image', ''),
+                'master_id': result.get('master_id', ''),
+                'id': result.get('id', '')
+            })
+        return transformed_results
+    except Exception as e:
+        logger.error(f"Error parsing Discogs response: {str(e)}")
+        return []
 
 def get_album_from_discogs(discogs_id):
     response = requests.get(
@@ -41,22 +77,30 @@ def get_album_from_discogs(discogs_id):
     )
     return response.json()
 
-@require_http_methods(["GET"])
+@csrf_exempt
+@api_view(['GET'])
 def search(request):
     query = request.GET.get('q')
     if not query:
-        return JsonResponse({'error': 'Query parameter required'}, status=400)
+        return Response({'error': 'Query parameter required'}, status=400)
     
-    results = search_discogs(query)
-    return JsonResponse({'results': results})
+    try:
+        service = ExternalMusicService()
+        cache_key = f'discogs_search:{query}'
+        results = service.search_discogs(query, cache_key)
+        return Response({'results': results})
+    except Exception as e:
+        logger.error(f"Search error: {str(e)}")
+        return Response({'error': 'Search failed', 'details': str(e)}, status=500)
 
-@require_http_methods(["GET", "POST"])
+@csrf_exempt
+@api_view(['GET', 'POST'])
 def import_album(request, discogs_id):
     try:
         # Check if already imported
         album = Album.objects.filter(discogs_id=discogs_id).first()
         if album:
-            return JsonResponse(album_to_dict(album))
+            return Response(album_to_dict(album))
             
         # Get from Discogs and create
         data = get_album_from_discogs(discogs_id)
@@ -67,17 +111,17 @@ def import_album(request, discogs_id):
             cover_url=data.get('images', [{}])[0].get('uri', ''),
             discogs_id=discogs_id
         )
-        return JsonResponse(album_to_dict(album), status=201)
+        return Response(album_to_dict(album), status=201)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return Response({'error': str(e)}, status=400)
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
 def album_detail(request, album_id):
     try:
         album = Album.objects.get(id=album_id)
-        return JsonResponse(album_to_dict(album))
+        return Response(album_to_dict(album))
     except Album.DoesNotExist:
-        return JsonResponse({'error': 'Album not found'}, status=404)
+        return Response({'error': 'Album not found'}, status=404)
 
 def album_to_dict(album):
     return {

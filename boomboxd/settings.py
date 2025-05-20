@@ -118,8 +118,8 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
+        'rest_framework.renderers.JSONRenderer',
     ],
 }
 
@@ -137,6 +137,7 @@ SESSION_COOKIE_SECURE = True
 # Discogs API
 DISCOGS_CONSUMER_KEY = os.getenv('DISCOGS_CONSUMER_KEY')
 DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET')
+DISCOGS_TOKEN = os.getenv('DISCOGS_TOKEN', DISCOGS_CONSUMER_KEY)  # Use token if available, fallback to consumer key
 
 # Whitenoise static file storage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
