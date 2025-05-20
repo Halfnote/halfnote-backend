@@ -22,12 +22,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'music.apps.MusicConfig',
-    'reviews.apps.ReviewsConfig',
-    'accounts.apps.AccountsConfig',
     'rest_framework_simplejwt',
     'django_filters',
+    'accounts.apps.AccountsConfig',
+    'music.apps.MusicConfig',
+    'reviews.apps.ReviewsConfig',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
