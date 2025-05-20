@@ -10,114 +10,6 @@ logger = logging.getLogger(__name__)
 class ExternalMusicService:
     BASE_URL = "https://api.discogs.com"
     
-    # Add a genre mapping dictionary to map Discogs genres to our supported genres
-    GENRE_MAPPING = {
-        # Rock and related genres
-        'rock': 'Rock',
-        'alternative rock': 'Rock',
-        'hard rock': 'Rock',
-        'indie rock': 'Rock',
-        'classic rock': 'Rock',
-        'punk': 'Rock',
-        'metal': 'Rock',
-        'grunge': 'Rock',
-        
-        # Pop and related genres
-        'pop': 'Pop',
-        'synth-pop': 'Pop',
-        'disco': 'Pop',
-        'dance': 'Pop',
-        'electropop': 'Pop',
-        'britpop': 'Pop',
-        
-        # Electronic and related genres
-        'electronic': 'Electronic',
-        'techno': 'Electronic',
-        'house': 'Electronic',
-        'trance': 'Electronic',
-        'ambient': 'Electronic',
-        'downtempo': 'Electronic',
-        'dubstep': 'Electronic',
-        'edm': 'Electronic',
-        
-        # Hip-hop and related genres
-        'hip hop': 'Hip-hop',
-        'hip-hop': 'Hip-hop',
-        'rap': 'Hip-hop',
-        'trap': 'Hip-hop',
-        
-        # Jazz and related genres
-        'jazz': 'Jazz',
-        'bebop': 'Jazz',
-        'fusion': 'Jazz',
-        'smooth jazz': 'Jazz',
-        
-        # Country and related genres
-        'country': 'Country',
-        'bluegrass': 'Country',
-        'americana': 'Country',
-        'country rock': 'Country',
-        
-        # Classical and related genres
-        'classical': 'Classical',
-        'baroque': 'Classical',
-        'opera': 'Classical',
-        'orchestral': 'Classical',
-        'symphony': 'Classical',
-        
-        # Folk and related genres
-        'folk': 'Folk',
-        'acoustic': 'Folk',
-        'singer-songwriter': 'Folk',
-        'traditional': 'Folk',
-        
-        # Latin and related genres
-        'latin': 'Latin',
-        'salsa': 'Latin',
-        'bossa nova': 'Latin',
-        'reggaeton': 'Latin',
-        'samba': 'Latin',
-        
-        # Reggae and related genres
-        'reggae': 'Reggae',
-        'dub': 'Reggae',
-        'ska': 'Reggae',
-        'dancehall': 'Reggae',
-        
-        # Soundtrack and related genres
-        'soundtrack': 'Soundtrack',
-        'score': 'Soundtrack',
-        'film score': 'Soundtrack',
-        'film': 'Soundtrack',
-        'movie': 'Soundtrack',
-        
-        # Funk and related genres
-        'funk': 'Funk',
-        'soul': 'Funk',
-        'r&b': 'Funk',
-        'rhythm and blues': 'Funk',
-        
-        # Gospel and related genres
-        'gospel': 'Gospel',
-        'christian': 'Gospel',
-        'spiritual': 'Gospel',
-        'religious': 'Gospel',
-        
-        # World music
-        'world': 'World',
-        'african': 'World',
-        'asian': 'World',
-        'celtic': 'World',
-        'middle eastern': 'World',
-    }
-    
-    # The set of valid genres in our system
-    VALID_GENRES = {
-        'Pop', 'Rock', 'Country', 'Jazz', 'Gospel', 'Funk',
-        'Soundtrack', 'Hip-hop', 'Latin', 'Electronic',
-        'Reggae', 'Classical', 'Folk', 'World'
-    }
-    
     def __init__(self):
         self.user_agent = "BoomboxdApp/1.0 +http://boomboxd.com"
         self.consumer_key = settings.DISCOGS_CONSUMER_KEY
@@ -159,21 +51,6 @@ class ExternalMusicService:
             logger.error(f"Error making Discogs API request: {str(e)}")
             return None
 
-    def map_genres(self, discogs_genres, discogs_styles):
-        """Map Discogs genres and styles to our supported genres"""
-        mapped_genres = set()
-        
-        # Convert all genres/styles to lowercase for matching
-        all_tags = [g.lower() for g in (discogs_genres or [])] + [s.lower() for s in (discogs_styles or [])]
-        
-        # Map each tag to our genre system
-        for tag in all_tags:
-            if tag in self.GENRE_MAPPING:
-                mapped_genres.add(self.GENRE_MAPPING[tag])
-            
-        # Return only valid genres
-        return list(mapped_genres & self.VALID_GENRES)
-    
     def search_discogs(self, query, cache_key):
         """Search for albums on Discogs with caching"""
         logger.info(f"Searching Discogs for query: {query}")
@@ -211,17 +88,11 @@ class ExternalMusicService:
                         parts = item.get('title', '').split(' - ', 1)
                         item_artist = parts[0].strip()
                     
-                    # Map genres and styles
-                    genres = self.map_genres(
-                        item.get('genre', []),
-                        item.get('style', [])
-                    )
-                    
                     formatted_results.append({
                         'title': item.get('title', '').split(' - ')[-1].strip(),
                         'artist': item_artist,
                         'year': item.get('year'),
-                        'genres': genres,
+                        'genres': item.get('genre', []),
                         'styles': item.get('style', []),
                         'cover_image': item.get('thumb', item.get('cover_image')),
                         'discogs_id': str(item.get('id')),

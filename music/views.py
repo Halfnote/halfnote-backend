@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.core.cache import cache
 from django.db.models import Q
-from .models import Album, Genre, Artist
+from django.shortcuts import get_object_or_404
+from .models import Album
 from .serializers import AlbumSerializer, AlbumSearchResultSerializer
 from .services import ExternalMusicService
 from .decorators import handle_api_errors, validate_params, cache_response
@@ -13,14 +14,147 @@ from django_filters.rest_framework import DjangoFilterBackend
 import uuid
 import logging
 import re
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+import requests
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-class MusicViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    ordering_fields = ['release_date', 'average_rating', 'total_ratings', 'created_at', 'title']
-    ordering = ['-created_at']
+DISCOGS_URL = "https://api.discogs.com"
+
+def search_discogs(query):
+    response = requests.get(
+        f"{DISCOGS_URL}/database/search",
+        params={
+            "q": query,
+            "type": "release",
+            "token": settings.DISCOGS_CONSUMER_KEY
+        }
+    )
+    return response.json()['results'][:10]  # Return top 10 results
+
+def get_album_from_discogs(discogs_id):
+    response = requests.get(
+        f"{DISCOGS_URL}/releases/{discogs_id}",
+        params={"token": settings.DISCOGS_CONSUMER_KEY}
+    )
+    return response.json()
+
+@require_http_methods(["GET"])
+def search(request):
+    query = request.GET.get('q')
+    if not query:
+        return JsonResponse({'error': 'Query parameter required'}, status=400)
+    
+    results = search_discogs(query)
+    return JsonResponse({'results': results})
+
+@require_http_methods(["POST"])
+def import_album(request, discogs_id):
+    try:
+        # Check if already imported
+        album = Album.objects.filter(discogs_id=discogs_id).first()
+        if album:
+            return JsonResponse(album_to_dict(album))
+            
+        # Get from Discogs and create
+        data = get_album_from_discogs(discogs_id)
+        album = Album.objects.create(
+            title=data['title'],
+            artist=data['artists'][0]['name'],
+            year=data.get('year'),
+            cover_url=data.get('images', [{}])[0].get('uri', ''),
+            discogs_id=discogs_id
+        )
+        return JsonResponse(album_to_dict(album), status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@require_http_methods(["GET"])
+def album_detail(request, album_id):
+    try:
+        album = Album.objects.get(id=album_id)
+        return JsonResponse(album_to_dict(album))
+    except Album.DoesNotExist:
+        return JsonResponse({'error': 'Album not found'}, status=404)
+
+def album_to_dict(album):
+    return {
+        'id': str(album.id),
+        'title': album.title,
+        'artist': album.artist,
+        'year': album.year,
+        'cover_url': album.cover_url,
+        'discogs_id': album.discogs_id
+    }
+
+class AlbumViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for viewing and editing albums.
+    """
+    queryset = Album.objects.all()
+    serializer_class = AlbumSerializer
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """
+        Search for albums on Discogs.
+        """
+        query = request.query_params.get('q', '')
+        if not query:
+            return Response(
+                {'error': 'Search query is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        service = ExternalMusicService()
+        cache_key = f'discogs_search:{query}'
+        results = service.search_discogs(query, cache_key)
+        serializer = AlbumSearchResultSerializer(results, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def import_from_discogs(self, request):
+        """
+        Import an album from Discogs using its ID.
+        """
+        discogs_id = request.data.get('discogs_id')
+        if not discogs_id:
+            return Response(
+                {'error': 'Discogs ID is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if album already exists
+        existing_album = Album.objects.filter(discogs_id=discogs_id).first()
+        if existing_album:
+            serializer = self.get_serializer(existing_album)
+            return Response(serializer.data)
+
+        # Get album data from Discogs service
+        service = ExternalMusicService()
+        album_data = service._make_request(f"masters/{discogs_id}")
+        if not album_data:
+            return Response(
+                {'error': 'Album not found on Discogs'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Format album data
+        formatted_data = {
+            'title': album_data.get('title'),
+            'artist': album_data.get('artists', [{}])[0].get('name', 'Unknown Artist'),
+            'release_date': album_data.get('year'),
+            'cover_image_url': album_data.get('images', [{}])[0].get('uri'),
+            'discogs_id': discogs_id
+        }
+
+        # Create new album
+        serializer = self.get_serializer(data=formatted_data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get_object(self):
         obj = super().get_object()
@@ -32,7 +166,7 @@ class MusicViewSet(viewsets.ModelViewSet):
     @validate_params('q')
     @cache_response(timeout=3600)
     @action(detail=False, methods=["get"])
-    def search(self, request):
+    def search_discogs(self, request):
         """Search for albums using Discogs"""
         query = request.query_params['q']
         limit = int(request.query_params.get("limit", 10))
@@ -130,42 +264,13 @@ class MusicViewSet(viewsets.ModelViewSet):
             spotify_embed_url=request.data.get('spotify_embed_url')
         )
 
-        # Process genres
-        genres = request.data.get('genres', []) + request.data.get('styles', [])
-        genre_objects = []
-        for genre_name in genres:
-            genre, _ = Genre.objects.get_or_create(name=genre_name)
-            genre_objects.append(genre)
-        
-        if genre_objects:
-            album.genres.set(genre_objects)
-
         return Response(self.get_serializer(album).data, status=status.HTTP_201_CREATED)
 
-class AlbumViewSet(MusicViewSet):
-    queryset = Album.objects.all()
-    serializer_class = AlbumSerializer
     cache_prefix = 'album'
     filterset_fields = {
         'title': ['exact', 'icontains'],
         'artist__name': ['exact', 'icontains'],
-        'genres__name': ['exact'],
         'release_date': ['exact', 'year', 'year__gte', 'year__lte'],
         'average_rating': ['gte', 'lte'],
     }
-    search_fields = ['title', 'artist__name', 'genres__name']
-
-    @handle_api_errors
-    @cache_response(timeout=3600)
-    @action(detail=False, methods=['get'])
-    def by_genre(self, request):
-        """Get albums filtered by genre"""
-        genre = request.query_params.get('genre')
-        if not genre:
-            return Response(
-                {"detail": "Genre parameter is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        albums = self.queryset.filter(genres__name__iexact=genre)
-        return Response(self.get_serializer(albums, many=True).data) 
+    search_fields = ['title', 'artist__name'] 

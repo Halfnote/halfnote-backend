@@ -1,68 +1,76 @@
-from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.response import Response
-from django.db.models import F
-from rest_framework.filters import OrderingFilter, SearchFilter
-from django_filters.rest_framework import DjangoFilterBackend
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+import json
 from .models import Review
-from .serializers import ReviewSerializer
 from music.models import Album
 
-class ReviewViewSet(viewsets.ModelViewSet):
-    queryset = Review.objects.all()
-    serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = {
-        'user__username': ['exact'],
-        'album__id': ['exact'],
-        'album__title': ['icontains'],
-        'album__artist__name': ['exact', 'icontains'],
-        'rating': ['exact', 'gte', 'lte'],
-        'created_at': ['gte', 'lte'],
-    }
-    search_fields = ['text', 'album__title', 'album__artist__name']
-    ordering_fields = ['created_at', 'rating', 'album__title']
-    ordering = ['-created_at']  # Default ordering
+ALLOWED_GENRES = [
+    'Pop', 'Rock', 'Hip-Hop', 'Jazz', 'Electronic', 
+    'Classical', 'Folk', 'Country', 'Metal', 'Other'
+]
 
-    def perform_create(self, serializer):
-        album_id = self.request.data.get('album_id')
-        rating = float(self.request.data.get('rating'))
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_review(request, album_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Login required'}, status=401)
+    
+    try:
+        data = json.loads(request.body)
+        album = Album.objects.get(id=album_id)
         
-        if album_id:
-            try:
-                album = Album.objects.get(id=album_id)
-                
-                # Update album rating (without using F expressions in calculations)
-                current_total = album.total_ratings
-                current_avg = album.average_rating
-                
-                # Calculate new average
-                if current_total == 0:
-                    new_avg = rating
-                else:
-                    new_avg = ((current_avg * current_total) + rating) / (current_total + 1)
-                
-                # Update the album
-                album.total_ratings = current_total + 1
-                album.average_rating = new_avg
-                album.save()
-                
-                # Save the review
-                serializer.save(user=self.request.user, album=album)
-                
-            except Album.DoesNotExist:
-                return Response(
-                    {"status": "error", "detail": f"Album with ID {album_id} not found"}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            except Exception as e:
-                return Response(
-                    {"status": "error", "detail": str(e)}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        else:
-            return Response(
-                {"status": "error", "detail": "album_id is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            ) 
+        # Validate rating
+        rating = int(data.get('rating', 0))
+        if not (1 <= rating <= 5):
+            return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+            
+        # Validate genres
+        genres = data.get('genres', [])
+        if not all(g in ALLOWED_GENRES for g in genres):
+            return JsonResponse({'error': 'Invalid genres'}, status=400)
+            
+        review = Review.objects.create(
+            user=request.user,
+            album=album,
+            rating=rating,
+            text=data.get('text', ''),
+            genres=genres
+        )
+        return JsonResponse(review_to_dict(review), status=201)
+    except Album.DoesNotExist:
+        return JsonResponse({'error': 'Album not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@require_http_methods(["GET"])
+def album_reviews(request, album_id):
+    try:
+        reviews = Review.objects.filter(album_id=album_id).order_by('-created_at')
+        return JsonResponse({
+            'reviews': [review_to_dict(r) for r in reviews]
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@require_http_methods(["GET"])
+def user_reviews(request, username):
+    reviews = Review.objects.filter(user__username=username).order_by('-created_at')
+    return JsonResponse({
+        'reviews': [review_to_dict(r) for r in reviews]
+    })
+
+def review_to_dict(review):
+    return {
+        'user': review.user.username,
+        'album': {
+            'id': str(review.album.id),
+            'title': review.album.title,
+            'artist': review.album.artist,
+            'cover_url': review.album.cover_url
+        },
+        'rating': review.rating,
+        'text': review.text,
+        'genres': review.genres,
+        'created_at': review.created_at.isoformat()
+    } 

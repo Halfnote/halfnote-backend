@@ -20,9 +20,8 @@ boomboxd-backend/
 ## Key Concepts
 
 1. **Albums**: Music releases fetched from Discogs and stored locally
-2. **Artists**: Musicians/bands that create albums
-3. **Genres**: Limited to 14 pre-defined categories: Pop, Rock, Country, Jazz, Gospel, Funk, Soundtrack, Hip-hop, Latin, Electronic, Reggae, Classical, Folk, and World
-4. **Reviews**: User ratings (1-10 scale) and text reviews for albums
+2. **Reviews**: User ratings (1-10 scale) and text reviews for albums, with associated genres
+3. **Genres**: Each review can be tagged with one or more genres from a predefined list: Pop, Rock, Country, Jazz, Gospel, Funk, Soundtrack, Hip-hop, Latin, Electronic, Reggae, Classical, Folk, and World
 
 ## Setup
 
@@ -93,21 +92,36 @@ python manage_music.py list_albums
 - `GET /api/albums/` - List all albums
 - `GET /api/albums/{id}/` - Get album details
 - `GET /api/albums/search/?q=query` - Search for albums from Discogs
-- `POST /api/albums/save_to_library/` - Save a Discogs album to library
+- `POST /api/albums/import_from_discogs/` - Import a Discogs album to library
 
 #### Reviews
 - `GET /api/reviews/` - List all reviews
-- `POST /api/reviews/` - Create a new review
+- `POST /api/reviews/` - Create a new review with genres
 - `GET /api/reviews/{id}/` - Get review details
 - `PUT/DELETE /api/reviews/{id}/` - Update/delete a review
 
-#### Genres
-- `GET /api/genres/` - List all genres
-- `GET /api/genres/{id}/albums/` - Get albums for a specific genre
-
 ## Genre System
 
-The system uses a mapping mechanism to convert various Discogs genres to 14 standardized categories. This ensures consistency in the database while still allowing discovery through Discogs' rich genre metadata.
+The genre system is designed to be simple and user-driven:
+
+1. Each review can be tagged with one or more genres from a predefined list
+2. Genres are stored directly with the review, eliminating complex relationships
+3. The same album can be tagged with different genres by different users
+4. Genre data can be used for:
+   - Finding albums by genre through review aggregation
+   - Understanding how different users categorize the same album
+   - Discovering music through genre-based exploration
+
+Example review creation with genres:
+```json
+POST /api/reviews/
+{
+    "album_id": "uuid",
+    "rating": 8,
+    "text": "Great album!",
+    "genres": ["Rock", "Electronic"]
+}
+```
 
 ## Authentication System
 
@@ -118,10 +132,9 @@ Authentication is handled with JWT tokens stored in HTTP-only cookies for securi
 - 🎵 Music search and metadata from Discogs API
 - 🎧 Spotify streaming links and embeds
 - 🖼️ Album cover art
-- ⭐ User ratings and reviews
+- ⭐ User ratings and reviews with genre tagging
 - 🔒 Secure authentication with JWT tokens
 - 💾 Redis caching for performance
-- 🎸 Genre support
 
 ## Setup
 
@@ -547,27 +560,23 @@ Content-Type: application/json
 {
     "album_id": "uuid",
     "rating": "integer(1-10)",
-    "text": "string"
+    "text": "string",
+    "genres": ["string"]  // Array of genre names from predefined list
 }
 
-Response (201): 
+Response (201):
 {
     "id": "uuid",
-    "user": {
-        "id": "integer",
-        "username": "string"
-    },
+    "user": "string",
     "album": {
         "id": "uuid",
         "title": "string",
-        "artist": {
-            "id": "integer", 
-            "name": "string"
-        },
-        "cover_art_url": "string"
+        "artist": "string",
+        "cover_image_url": "string"
     },
     "rating": "integer(1-10)",
     "text": "string",
+    "genres": ["string"],
     "created_at": "datetime",
     "updated_at": "datetime"
 }
@@ -608,7 +617,8 @@ Content-Type: application/json
 
 {
     "rating": "integer(1-10)",
-    "text": "string"
+    "text": "string",
+    "genres": ["string"]  // Optional, array of genre names
 }
 
 Response (200): Updated review object
@@ -763,9 +773,8 @@ const searchAlbums = async (query) => {
   return response.json();
 };
 
-// Example: Submit a review
-const submitReview = async (albumId, rating, text) => {
-  // rating should be between 1 and 10
+// Example: Submit a review with genres
+const submitReview = async (albumId, rating, text, genres) => {
   const response = await fetch('/api/reviews/', {
     method: 'POST',
     credentials: 'include',
@@ -775,7 +784,8 @@ const submitReview = async (albumId, rating, text) => {
     body: JSON.stringify({
       album_id: albumId,
       rating: rating,  // 1-10 rating
-      text: text
+      text: text,
+      genres: genres  // Array of genre names, e.g. ["Rock", "Electronic"]
     })
   });
   return response.json();

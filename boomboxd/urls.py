@@ -1,26 +1,21 @@
-from django.contrib import admin
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from music.views import AlbumViewSet
-from reviews.views import ReviewViewSet
-from rest_framework_simplejwt.views import TokenRefreshView
-from accounts.views import RegisterView, LoginView, UserProfileViewSet, RefreshTokenView, LogoutView
-from .views import health_check
-
-# Create a router for our API
-router = DefaultRouter()
-router.register(r'albums', AlbumViewSet)
-router.register(r'reviews', ReviewViewSet)
-router.register(r'profile', UserProfileViewSet, basename='profile')
+from django.urls import path
+from accounts import views as account_views
+from music import views as music_views
+from reviews import views as review_views
 
 urlpatterns = [
-    path('', include(router.urls)),  # Root URL now shows DRF API root
-    path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
-    path('api-auth/', include('rest_framework.urls')),
-    path('api/auth/register/', RegisterView.as_view(), name='register'),
-    path('api/auth/login/', LoginView.as_view(), name='login'),
-    path('api/auth/refresh/', RefreshTokenView.as_view(), name='refresh'),
-    path('api/auth/logout/', LogoutView.as_view(), name='logout'),
-    path('health/', health_check, name='health_check'),
+    # Auth endpoints
+    path('api/register/', account_views.register),
+    path('api/login/', account_views.login),
+    path('api/profile/', account_views.profile),
+    
+    # Album endpoints
+    path('api/albums/search/', music_views.search),
+    path('api/albums/import/<int:discogs_id>/', music_views.import_album),
+    path('api/albums/<uuid:album_id>/', music_views.album_detail),
+    
+    # Review endpoints
+    path('api/albums/<uuid:album_id>/reviews/', review_views.album_reviews),
+    path('api/albums/<uuid:album_id>/review/', review_views.create_review),
+    path('api/users/<str:username>/reviews/', review_views.user_reviews),
 ] 

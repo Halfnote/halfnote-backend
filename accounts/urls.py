@@ -1,16 +1,8 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
-
-from accounts.views import RegisterView, LoginView, UserProfileViewSet, ListViewSet
-
-router = DefaultRouter()
-router.register(r'profiles', UserProfileViewSet, basename='profile')
-router.register(r'lists', ListViewSet, basename='list')
+from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    path('login/', LoginView.as_view(), name='login'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('', include(router.urls)),
+    path('register/', views.register),
+    path('login/', views.login),
+    path('profile/', views.profile),
 ] 
