@@ -2,8 +2,12 @@ from django.urls import path
 from accounts import views as account_views
 from music import views as music_views
 from reviews import views as review_views
+from . import views as root_views
 
 urlpatterns = [
+    # Root endpoint
+    path('', root_views.api_root),
+    
     # Auth endpoints
     path('api/register/', account_views.register),
     path('api/login/', account_views.login),
