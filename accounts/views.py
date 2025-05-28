@@ -4,15 +4,16 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import User
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
 from .serializers import UserSerializer
 from music.models import Review
 from music.serializers import ReviewSerializer
-from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
 User = get_user_model()
 
@@ -67,22 +68,19 @@ def login(request):
         })
     return Response({'error': 'Invalid credentials'}, status=401)
 
-@require_http_methods(["GET", "PUT"])
+@api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
 def profile(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not logged in'}, status=401)
-        
     if request.method == "GET":
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
     
-    # PUT request
-    data = json.loads(request.body)
+    # PUT
+    data = request.data
     request.user.bio = data.get('bio', request.user.bio)
     request.user.avatar_url = data.get('avatar_url', request.user.avatar_url)
     request.user.save()
-    return JsonResponse({
+    return Response({
         'username': request.user.username,
         'bio': request.user.bio,
         'avatar_url': request.user.avatar_url
@@ -98,4 +96,63 @@ def user_reviews(request, username):
         serializer = ReviewSerializer(reviews, many=True)
         return Response(serializer.data)
     except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND) 
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def follow_user(request, username):
+    try:
+        user_to_follow = User.objects.get(username=username)
+        if user_to_follow == request.user:
+            return Response({'error': "Can't follow yourself!"}, status=400)
+        request.user.following.add(user_to_follow)
+        return Response({'message': f'Now following {username}'})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unfollow_user(request, username):
+    try:
+        user_to_unfollow = User.objects.get(username=username)
+        request.user.following.remove(user_to_unfollow)
+        return Response({'message': f'Unfollowed {username}'})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_following(request, username):
+    try:
+        user = User.objects.get(username=username)
+        is_following = request.user.following.filter(id=user.id).exists()
+        return Response({'is_following': is_following})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_followers(request, username):
+    try:
+        user = User.objects.get(username=username)
+        followers = user.followers.all()
+        serializer = UserSerializer(followers, many=True)
+        return Response(serializer.data)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_following(request, username):
+    try:
+        user = User.objects.get(username=username)
+        following = user.following.all()
+        serializer = UserSerializer(following, many=True)
+        return Response(serializer.data)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
