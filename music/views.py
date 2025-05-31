@@ -171,7 +171,7 @@ def import_album_from_discogs(discogs_id):
     if not album_data:
         return None
         
-    # Create the album record
+    # Create the album record with only tracklist and credits as new metadata
     album = Album.objects.create(
         title=album_data['title'],
         artist=album_data['artist'],
@@ -179,7 +179,9 @@ def import_album_from_discogs(discogs_id):
         cover_url=album_data.get('cover_image'),
         discogs_id=discogs_id,
         genres=album_data.get('genres', []),
-        styles=album_data.get('styles', [])
+        styles=album_data.get('styles', []),
+        tracklist=album_data.get('tracklist', []),
+        credits=album_data.get('credits', [])
     )
     
     return album

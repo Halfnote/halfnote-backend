@@ -106,23 +106,56 @@ class ExternalMusicService:
         logger.info(f"Fetching album details for Discogs ID: {discogs_id}")
         
         try:
-            # For master releases, use the masters endpoint
-            data = self._make_request(f"masters/{discogs_id}")
+            # First try to get the master release
+            master_data = self._make_request(f"masters/{discogs_id}")
             
-            if not data:
+            if master_data:
+                # If we found a master release, get the main release
+                main_release_id = master_data.get('main_release')
+                if main_release_id:
+                    release_data = self._make_request(f"releases/{main_release_id}")
+                else:
+                    release_data = None
+            else:
                 # If not found as a master, try the release endpoint
-                data = self._make_request(f"releases/{discogs_id}")
+                release_data = self._make_request(f"releases/{discogs_id}")
+                master_data = None
             
-            if not data:
+            if not release_data and not master_data:
                 logger.error(f"Album not found on Discogs: {discogs_id}")
                 return None
+            
+            # Use release data if available, otherwise use master data
+            data = release_data or master_data
             
             # Get the main artist name
             artist_name = "Unknown Artist"
             if 'artists' in data and data['artists']:
                 artist_name = data['artists'][0].get('name', "Unknown Artist")
             
-            # Format the album data
+            # Get the tracklist with more details
+            tracklist = []
+            if 'tracklist' in data:
+                for track in data['tracklist']:
+                    if track.get('type_') != 'heading':  # Skip headings
+                        tracklist.append({
+                            'position': track.get('position', ''),
+                            'title': track.get('title', ''),
+                            'duration': track.get('duration', ''),
+                            'artists': track.get('artists', []),
+                            'extraartists': track.get('extraartists', [])
+                        })
+            
+            # Get credits
+            credits = []
+            if 'extraartists' in data:
+                for artist in data['extraartists']:
+                    credits.append({
+                        'name': artist.get('name', ''),
+                        'role': artist.get('role', ''),
+                        'id': artist.get('id', '')
+                    })
+            
             album_data = {
                 'title': data.get('title', ''),
                 'artist': artist_name,
@@ -131,7 +164,8 @@ class ExternalMusicService:
                 'styles': data.get('styles', []),
                 'cover_image': '',
                 'discogs_id': discogs_id,
-                'tracklist': []
+                'tracklist': tracklist,
+                'credits': credits
             }
             
             # Get the cover image
@@ -142,20 +176,7 @@ class ExternalMusicService:
                 else:
                     album_data['cover_image'] = data['images'][0].get('uri', '')
             
-            # Get the tracklist
-            if 'tracklist' in data:
-                album_data['tracklist'] = [
-                    {
-                        'position': track.get('position', ''),
-                        'title': track.get('title', ''),
-                        'duration': track.get('duration', '')
-                    }
-                    for track in data['tracklist']
-                    if track.get('type_') != 'heading'  # Skip headings
-                ]
-            
             return album_data
-            
         except Exception as e:
             logger.error(f"Error fetching album details from Discogs: {str(e)}")
             return None 

@@ -13,6 +13,8 @@ class Album(models.Model):
     discogs_id = models.CharField(max_length=50, unique=True)
     genres = models.JSONField(default=list, blank=True)
     styles = models.JSONField(default=list, blank=True)
+    tracklist = models.JSONField(default=list, blank=True)
+    credits = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -24,7 +26,7 @@ class Album(models.Model):
             models.Index(fields=['title']),
             models.Index(fields=['artist']),
             models.Index(fields=['discogs_id']),
-        ] 
+        ]
 
 class Review(models.Model):
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='reviews')
