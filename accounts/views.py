@@ -156,3 +156,14 @@ def user_following(request, username):
         return Response(serializer.data)
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_feed(request):
+    following_users = request.user.following.all()
+    reviews = Review.objects.filter(
+        user__in=following_users
+    ).order_by('-created_at')
+    serializer = ReviewSerializer(reviews, many=True)
+    return Response(serializer.data)

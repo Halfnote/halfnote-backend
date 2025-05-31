@@ -1,6 +1,6 @@
 from pathlib import Path
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 from datetime import timedelta
 
 load_dotenv()
@@ -138,7 +138,7 @@ SESSION_COOKIE_SECURE = True
 # Discogs API
 DISCOGS_CONSUMER_KEY = os.getenv('DISCOGS_CONSUMER_KEY')
 DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET')
-DISCOGS_TOKEN = os.getenv('DISCOGS_TOKEN', DISCOGS_CONSUMER_KEY)  # Use token if available, fallback to consumer key
+DISCOGS_TOKEN = os.getenv('DISCOGS_TOKEN', DISCOGS_CONSUMER_KEY)
 
 # Whitenoise static file storage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
