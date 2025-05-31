@@ -1,4 +1,5 @@
 from rest_framework import status
+import requests
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Avg
@@ -7,6 +8,7 @@ from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSer
 from .services import ExternalMusicService
 import logging
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
 
@@ -16,24 +18,23 @@ DISCOGS_URL = "https://api.discogs.com"
 
 def search_discogs(query):
     headers = {
-        'User-Agent': 'BoomboxdApp/1.0'
+        'User-Agent': 'BoomboxdApp/1.0',
+        'Authorization': f'Discogs token={settings.DISCOGS_TOKEN}'
     }
-    
+
     response = requests.get(
         f"{DISCOGS_URL}/database/search",
         params={
             "q": query,
-            "type": "master",  # Changed to master instead of release
-            "token": settings.DISCOGS_CONSUMER_KEY,
+            "type": "master",
             "per_page": 10
         },
         headers=headers
     )
-    
-    # Print response for debugging
+
     print(f"Discogs API Response Status: {response.status_code}")
     print(f"Discogs API Response: {response.text}")
-    
+
     if not response.ok:
         logger.error(f"Discogs API error: {response.status_code} - {response.text}")
         return []
@@ -47,13 +48,14 @@ def search_discogs(query):
         # Transform the results to match our expected format
         transformed_results = []
         for result in data['results'][:10]:
+            full_title = result.get('title', '')
+            artist, album_title = full_title.split(" - ", 1) if " - " in full_title else ("", full_title)
             transformed_results.append({
-                'title': result.get('title', ''),
-                'artist': result.get('artist', ''),
-                'year': result.get('year', ''),
-                'cover_image': result.get('cover_image', ''),
-                'master_id': result.get('master_id', ''),
-                'id': result.get('id', '')
+                "discogs_id": str(result['id']),
+                "title": album_title,
+                "artist": artist,
+                "year": result.get('year'),
+                "cover_image": result.get('cover_image')
             })
         return transformed_results
     except Exception as e:
@@ -67,21 +69,20 @@ def get_album_from_discogs(discogs_id):
     )
     return response.json()
 
+
 @api_view(['GET'])
 def search(request):
-    """Search for albums on Discogs"""
     query = request.GET.get('q')
     if not query:
         return Response({'error': 'Query parameter required'}, status=400)
-    
     try:
-        service = ExternalMusicService()
-        results = service.search_discogs(query)
+        results = search_discogs(query)
         serializer = AlbumSearchResultSerializer(results, many=True)
         return Response({'results': serializer.data})
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return Response({'error': 'Search failed', 'details': str(e)}, status=500)
+
 
 @api_view(['GET', 'POST'])
 def import_album(request, discogs_id):
