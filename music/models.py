@@ -4,6 +4,25 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
+class Genre(models.Model):
+    # Simple predefined genres list
+    PREDEFINED_GENRES = [
+        'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 
+        'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 
+        'Soundtrack', 'World'
+    ]
+    
+    name = models.CharField(max_length=50, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        ordering = ['name']
+
+
+
 class Album(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     title = models.CharField(max_length=255)
@@ -11,8 +30,14 @@ class Album(models.Model):
     year = models.IntegerField(null=True, blank=True)
     cover_url = models.URLField(max_length=500, null=True, blank=True)
     discogs_id = models.CharField(max_length=50, unique=True)
-    genres = models.JSONField(default=list, blank=True)
-    styles = models.JSONField(default=list, blank=True)
+    
+    # User-assigned genres (from predefined list)
+    genres = models.ManyToManyField(Genre, blank=True, related_name='albums')
+    
+    # Discogs metadata (for reference)
+    discogs_genres = models.JSONField(default=list, blank=True, help_text="Original genres from Discogs")
+    discogs_styles = models.JSONField(default=list, blank=True, help_text="Original styles from Discogs")
+    
     tracklist = models.JSONField(default=list, blank=True)
     credits = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -35,7 +60,11 @@ class Review(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
     content = models.TextField(blank=True)
-    genres = models.JSONField(default=list, blank=True)  # Store list of genre strings
+    
+    # User selects genres for this album when creating review
+    user_genres = models.ManyToManyField(Genre, blank=True, related_name='reviews', 
+                                        help_text="User-selected genres for this album")
+    
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 

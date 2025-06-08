@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import Album, Review
+from .models import Album, Review, Genre
 from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer
 from .services import ExternalMusicService
 
@@ -132,18 +132,20 @@ def import_album_from_discogs(discogs_id):
     if not album_data:
         return None
         
-    # Create the album record with only tracklist and credits as new metadata
+    # Create the album record with Discogs metadata
     album = Album.objects.create(
         title=album_data['title'],
         artist=album_data['artist'],
         year=album_data.get('year'),
         cover_url=album_data.get('cover_image'),
         discogs_id=discogs_id,
-        genres=album_data.get('genres', []),
-        styles=album_data.get('styles', []),
+        discogs_genres=album_data.get('genres', []),
+        discogs_styles=album_data.get('styles', []),
         tracklist=album_data.get('tracklist', []),
         credits=album_data.get('credits', [])
     )
+    
+    # Note: User genres will be assigned when creating reviews
     
     return album
 
@@ -167,6 +169,35 @@ def create_review(request, discogs_id):
             rating=request.data.get('rating'),
             content=request.data.get('content', '')
         )
+        
+        # Handle user-selected genres for this review
+        user_genres = request.data.get('genres', [])
+        if user_genres:
+            valid_genres = []
+            invalid_genres = []
+            
+            for genre_name in user_genres:
+                try:
+                    genre = Genre.objects.get(name=genre_name)
+                    review.user_genres.add(genre)
+                    # Also add to album's genres (aggregate from all reviews)
+                    album.genres.add(genre)
+                    valid_genres.append(genre_name)
+                except Genre.DoesNotExist:
+                    invalid_genres.append(genre_name)
+            
+            # Log invalid genres for debugging
+            if invalid_genres:
+                logger.warning(f"Invalid genres submitted: {invalid_genres}. Valid genres: {[g.name for g in Genre.objects.all()]}")
+                
+            # Return info about genre validation
+            response_data = ReviewSerializer(review).data
+            if invalid_genres:
+                response_data['warnings'] = {
+                    'invalid_genres': invalid_genres,
+                    'valid_genres_accepted': valid_genres
+                }
+            return Response(response_data, status=201)
         
         return Response(ReviewSerializer(review).data, status=201)
     except Exception as e:

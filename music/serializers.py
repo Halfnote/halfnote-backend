@@ -1,21 +1,29 @@
 from rest_framework import serializers
-from .models import Album, Review
+from .models import Album, Review, Genre
+
+class GenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Genre
+        fields = ['id', 'name']
 
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_genres = GenreSerializer(many=True, read_only=True)
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'rating', 'content', 'created_at']
+        fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class AlbumSerializer(serializers.ModelSerializer):
+    genres = GenreSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Album
         fields = [
             'id', 'title', 'artist', 'year', 'cover_url',
-            'discogs_id', 'genres', 'styles', 'tracklist', 'credits',
-            'created_at', 'updated_at'
+            'discogs_id', 'genres', 'discogs_genres', 'discogs_styles', 
+            'tracklist', 'credits', 'created_at', 'updated_at'
         ]
 
 class AlbumSearchResultSerializer(serializers.Serializer):
