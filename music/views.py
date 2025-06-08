@@ -14,8 +14,6 @@ from rest_framework.decorators import permission_classes
 
 logger = logging.getLogger(__name__)
 
-DISCOGS_URL = "https://api.discogs.com"
-
 def search_discogs(query):
     headers = {
         'User-Agent': 'BoomboxdApp/1.0',
@@ -23,7 +21,7 @@ def search_discogs(query):
     }
 
     response = requests.get(
-        f"{DISCOGS_URL}/database/search",
+        f"{settings.DISCOGS_API_URL}/database/search",
         params={
             "q": query,
             "type": "master",
@@ -38,33 +36,12 @@ def search_discogs(query):
     if not response.ok:
         logger.error(f"Discogs API error: {response.status_code} - {response.text}")
         return []
-        
-    try:
-        data = response.json()
-        if 'results' not in data:
-            logger.error(f"Unexpected Discogs API response format: {data}")
-            return []
-            
-        # Transform the results to match our expected format
-        transformed_results = []
-        for result in data['results'][:10]:
-            full_title = result.get('title', '')
-            artist, album_title = full_title.split(" - ", 1) if " - " in full_title else ("", full_title)
-            transformed_results.append({
-                "discogs_id": str(result['id']),
-                "title": album_title,
-                "artist": artist,
-                "year": result.get('year'),
-                "cover_image": result.get('cover_image')
-            })
-        return transformed_results
-    except Exception as e:
-        logger.error(f"Error parsing Discogs response: {str(e)}")
-        return []
+
+    return response.json().get('results', [])
 
 def get_album_from_discogs(discogs_id):
     response = requests.get(
-        f"{DISCOGS_URL}/releases/{discogs_id}",
+        f"{settings.DISCOGS_API_URL}/releases/{discogs_id}",
         params={"token": settings.DISCOGS_CONSUMER_KEY}
     )
     return response.json()

@@ -1,54 +1,48 @@
 import requests
 import logging
 import time
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 class ExternalMusicService:
-    BASE_URL = "https://api.discogs.com"
-    
     def __init__(self):
-        self.user_agent = "BoomboxdApp/1.0 +http://boomboxd.com"
+        self.base_url = settings.DISCOGS_API_URL
         self.consumer_key = settings.DISCOGS_CONSUMER_KEY
         self.consumer_secret = settings.DISCOGS_CONSUMER_SECRET
+        self.token = settings.DISCOGS_TOKEN
+        self.user_agent = "BoomboxdApp/1.0 +http://boomboxd.com"
         self.last_request_time = 0
         self.min_request_interval = 1.0  # Minimum seconds between requests
         
-    def _make_request(self, endpoint, params=None):
-        """Make a rate-limited request to Discogs API"""
-        # Rate limiting - ensure minimum time between requests
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        if elapsed < self.min_request_interval:
-            time.sleep(self.min_request_interval - elapsed)
-        
+    def _make_request(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make a request to the Discogs API
+        """
+        headers = {
+            'User-Agent': 'BoomboxdApp/1.0',
+            'Authorization': f'Discogs token={self.token}'
+        }
+
+        # Add authentication
         if params is None:
             params = {}
-            
-        # Add authentication
-        headers = {'User-Agent': self.user_agent}
         params.update({
             'key': self.consumer_key,
             'secret': self.consumer_secret
         })
-        
-        url = f"{self.BASE_URL}/{endpoint}"
+
+        url = f"{self.base_url}/{endpoint}"
         logger.info(f"Making Discogs API request to: {url}")
-        
+
         try:
             response = requests.get(url, params=params, headers=headers)
-            self.last_request_time = time.time()
-            
-            if response.status_code != 200:
-                logger.error(f"Discogs API error: {response.status_code} - {response.text}")
-                return None
-                
+            response.raise_for_status()
             return response.json()
-        except Exception as e:
-            logger.error(f"Error making Discogs API request: {str(e)}")
-            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error making request to Discogs API: {str(e)}")
+            raise
     
     def search_discogs(self, query):
         """Search for albums on Discogs"""

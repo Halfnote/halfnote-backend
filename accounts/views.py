@@ -6,7 +6,7 @@ import json
 from .models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
-from .serializers import UserSerializer
+from .serializers import UserProfileSerializer, UserFollowSerializer
 from music.models import Review
 from music.serializers import ReviewSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,6 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
@@ -98,65 +99,68 @@ def user_reviews(request, username):
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_profile(request, username=None):
+    """Get user profile information"""
+    if username:
+        user = get_object_or_404(User, username=username)
+    else:
+        user = request.user
+    
+    serializer = UserProfileSerializer(user)
+    return Response(serializer.data)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    """Update user profile information"""
+    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def follow_user(request, username):
-    try:
-        user_to_follow = User.objects.get(username=username)
-        if user_to_follow == request.user:
-            return Response({'error': "Can't follow yourself!"}, status=400)
-        request.user.following.add(user_to_follow)
-        return Response({'message': f'Now following {username}'})
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-
+    """Follow a user"""
+    user_to_follow = get_object_or_404(User, username=username)
+    
+    if user_to_follow == request.user:
+        return Response(
+            {'error': 'You cannot follow yourself'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    request.user.following.add(user_to_follow)
+    return Response({'status': 'following'})
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def unfollow_user(request, username):
-    try:
-        user_to_unfollow = User.objects.get(username=username)
-        request.user.following.remove(user_to_unfollow)
-        return Response({'message': f'Unfollowed {username}'})
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-
+    """Unfollow a user"""
+    user_to_unfollow = get_object_or_404(User, username=username)
+    request.user.following.remove(user_to_unfollow)
+    return Response({'status': 'unfollowed'})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def check_following(request, username):
-    try:
-        user = User.objects.get(username=username)
-        is_following = request.user.following.filter(id=user.id).exists()
-        return Response({'is_following': is_following})
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-
+def get_followers(request, username):
+    """Get list of user's followers"""
+    user = get_object_or_404(User, username=username)
+    followers = user.followers.all()
+    serializer = UserFollowSerializer(followers, many=True)
+    return Response(serializer.data)
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
-def user_followers(request, username):
-    try:
-        user = User.objects.get(username=username)
-        followers = user.followers.all()
-        serializer = UserSerializer(followers, many=True)
-        return Response(serializer.data)
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def user_following(request, username):
-    try:
-        user = User.objects.get(username=username)
-        following = user.following.all()
-        serializer = UserSerializer(following, many=True)
-        return Response(serializer.data)
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-
+@permission_classes([IsAuthenticated])
+def get_following(request, username):
+    """Get list of users that the user is following"""
+    user = get_object_or_404(User, username=username)
+    following = user.following.all()
+    serializer = UserFollowSerializer(following, many=True)
+    return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
