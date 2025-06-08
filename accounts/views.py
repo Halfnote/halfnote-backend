@@ -1,24 +1,17 @@
-from django.contrib.auth import authenticate
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
-import json
-from .models import User
+from django.contrib.auth import authenticate, get_user_model
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth import get_user_model
-from .serializers import UserProfileSerializer, UserFollowSerializer
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .serializers import UserProfileSerializer, UserFollowSerializer, UserSerializer
 from music.models import Review
 from music.serializers import ReviewSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
@@ -49,7 +42,6 @@ def register(request):
     except Exception as e:
         return Response({'error': str(e)}, status=400)
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):

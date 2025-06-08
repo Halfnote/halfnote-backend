@@ -1,7 +1,14 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from django.shortcuts import render
+
+def frontend(request):
+    """Serve the frontend interface"""
+    return render(request, 'index.html')
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def api_root(request):
     return Response({
         'status': 'ok',

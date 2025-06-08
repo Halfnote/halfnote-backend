@@ -20,9 +20,9 @@ class AlbumSerializer(serializers.ModelSerializer):
 
 class AlbumSearchResultSerializer(serializers.Serializer):
     title = serializers.CharField()
-    artist = serializers.CharField()
+    artist = serializers.CharField(required=False)
     year = serializers.IntegerField(required=False)
     cover_image = serializers.URLField(required=False)
-    discogs_id = serializers.CharField()
-    genres = serializers.ListField(child=serializers.CharField(), required=False)
-    styles = serializers.ListField(child=serializers.CharField(), required=False) 
+    discogs_id = serializers.CharField(source='id')
+    genres = serializers.ListField(child=serializers.CharField(), required=False, source='genre')
+    styles = serializers.ListField(child=serializers.CharField(), required=False, source='style') 

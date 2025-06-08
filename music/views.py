@@ -1,23 +1,22 @@
-from rest_framework import status
+import logging
 import requests
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+
+from django.conf import settings
 from django.db.models import Avg
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 from .models import Album, Review
 from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer
 from .services import ExternalMusicService
-import logging
-from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
-from rest_framework.permissions import AllowAny
-from rest_framework.decorators import permission_classes
 
 logger = logging.getLogger(__name__)
 
 def search_discogs(query):
     headers = {
-        'User-Agent': 'BoomboxdApp/1.0',
-        'Authorization': f'Discogs token={settings.DISCOGS_TOKEN}'
+        'User-Agent': 'BoomboxdApp/1.0'
     }
 
     response = requests.get(
@@ -25,26 +24,18 @@ def search_discogs(query):
         params={
             "q": query,
             "type": "master",
-            "per_page": 10
+            "per_page": 10,
+            "key": settings.DISCOGS_CONSUMER_KEY,
+            "secret": settings.DISCOGS_CONSUMER_SECRET
         },
         headers=headers
     )
-
-    print(f"Discogs API Response Status: {response.status_code}")
-    print(f"Discogs API Response: {response.text}")
 
     if not response.ok:
         logger.error(f"Discogs API error: {response.status_code} - {response.text}")
         return []
 
     return response.json().get('results', [])
-
-def get_album_from_discogs(discogs_id):
-    response = requests.get(
-        f"{settings.DISCOGS_API_URL}/releases/{discogs_id}",
-        params={"token": settings.DISCOGS_CONSUMER_KEY}
-    )
-    return response.json()
 
 
 @api_view(['GET'])
@@ -54,51 +45,43 @@ def search(request):
         return Response({'error': 'Query parameter required'}, status=400)
     try:
         results = search_discogs(query)
-        serializer = AlbumSearchResultSerializer(results, many=True)
+        
+        # Process results for album search - keep it simple
+        processed_results = []
+        for result in results:
+            # Parse artist and title more intelligently
+            title = result.get('title', '')
+            artist = 'Various Artists'  # Default fallback
+            album_title = title
+            
+            # Try to extract artist - but don't assume format
+            if ' - ' in title:
+                parts = title.split(' - ', 1)
+                if len(parts) == 2:
+                    potential_artist, potential_title = parts
+                    # Only use if the first part looks like an artist (not too long)
+                    if len(potential_artist.strip()) < 100:
+                        artist = potential_artist.strip()
+                        album_title = potential_title.strip()
+            
+            processed_results.append({
+                'id': result.get('id'),
+                'title': album_title,
+                'artist': artist,
+                'year': result.get('year'),
+                'genre': result.get('genre', []),
+                'style': result.get('style', []),
+                'cover_image': result.get('cover_image', ''),
+                'thumb': result.get('thumb', ''),
+            })
+        
+        serializer = AlbumSearchResultSerializer(processed_results, many=True)
         return Response({'results': serializer.data})
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return Response({'error': 'Search failed', 'details': str(e)}, status=500)
 
 
-@api_view(['GET', 'POST'])
-def import_album(request, discogs_id):
-    try:
-        # Check if already imported
-        album = Album.objects.filter(discogs_id=discogs_id).first()
-        if album:
-            return Response(album_to_dict(album))
-            
-        # Get from Discogs and create
-        data = get_album_from_discogs(discogs_id)
-        album = Album.objects.create(
-            title=data['title'],
-            artist=data['artists'][0]['name'],
-            year=data.get('year'),
-            cover_url=data.get('images', [{}])[0].get('uri', ''),
-            discogs_id=discogs_id
-        )
-        return Response(album_to_dict(album), status=201)
-    except Exception as e:
-        return Response({'error': str(e)}, status=400)
-
-@api_view(['GET'])
-def album_detail(request, album_id):
-    try:
-        album = Album.objects.get(id=album_id)
-        return Response(album_to_dict(album))
-    except Album.DoesNotExist:
-        return Response({'error': 'Album not found'}, status=404)
-
-def album_to_dict(album):
-    return {
-        'id': str(album.id),
-        'title': album.title,
-        'artist': album.artist,
-        'year': album.year,
-        'cover_url': album.cover_url,
-        'discogs_id': album.discogs_id
-    }
 
 @api_view(['GET'])
 def unified_album_view(request, discogs_id):
@@ -164,9 +147,7 @@ def import_album_from_discogs(discogs_id):
     
     return album
 
-@csrf_exempt
 @api_view(['POST'])
-@permission_classes([AllowAny])
 def create_review(request, discogs_id):
     """Create a review for an album, importing the album if needed"""
     if not request.user.is_authenticated:

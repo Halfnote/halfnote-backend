@@ -21,11 +21,10 @@ class ExternalMusicService:
         Make a request to the Discogs API
         """
         headers = {
-            'User-Agent': 'BoomboxdApp/1.0',
-            'Authorization': f'Discogs token={self.token}'
+            'User-Agent': 'BoomboxdApp/1.0'
         }
 
-        # Add authentication
+        # Add authentication via query parameters (simpler approach)
         if params is None:
             params = {}
         params.update({

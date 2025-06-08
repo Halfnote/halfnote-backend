@@ -81,7 +81,7 @@ fetch('http://localhost:8000/api/accounts/profile/', {
 
 ### Get Another User's Profile
 ```javascript
-fetch('http://localhost:8000/api/accounts/profile/otheruser/', {
+fetch('http://127.0.0.1:8000/api/accounts/profile/otheruser/', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
@@ -90,7 +90,7 @@ fetch('http://localhost:8000/api/accounts/profile/otheruser/', {
 
 ### Update Your Profile
 ```javascript
-fetch('http://localhost:8000/api/accounts/profile/update/', {
+fetch('http://127.0.0.1:8000/api/accounts/profile/update/', {
   method: 'PUT',
   headers: {
     'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
@@ -105,12 +105,12 @@ fetch('http://localhost:8000/api/accounts/profile/update/', {
 ### Follow/Unfollow Users
 ```javascript
 // Follow
-fetch('http://localhost:8000/api/accounts/follow/otheruser/', {
+fetch('http://127.0.0.1:8000/api/accounts/follow/otheruser/', {
   method: 'POST',
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 });
 // Unfollow
-fetch('http://localhost:8000/api/accounts/unfollow/otheruser/', {
+fetch('http://127.0.0.1:8000/api/accounts/unfollow/otheruser/', {
   method: 'POST',
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 });
@@ -119,13 +119,13 @@ fetch('http://localhost:8000/api/accounts/unfollow/otheruser/', {
 ### Get Followers/Following
 ```javascript
 // Followers
-fetch('http://localhost:8000/api/accounts/followers/otheruser/', {
+fetch('http://127.0.0.1:8000/api/accounts/followers/otheruser/', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
 .then(console.log);
 // Following
-fetch('http://localhost:8000/api/accounts/following/otheruser/', {
+fetch('http://127.0.0.1:8000/api/accounts/following/otheruser/', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
@@ -138,7 +138,7 @@ fetch('http://localhost:8000/api/accounts/following/otheruser/', {
 
 ### Search Albums
 ```javascript
-fetch('http://localhost:8000/api/music/search/?q=Lorde+Melodrama', {
+fetch('http://127.0.0.1:8000/api/music/search/?q=Lorde+Melodrama', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
@@ -147,7 +147,7 @@ fetch('http://localhost:8000/api/music/search/?q=Lorde+Melodrama', {
 
 ### Get Album Details
 ```javascript
-fetch('http://localhost:8000/api/music/albums/1196330/', {
+fetch('http://127.0.0.1:8000/api/music/albums/1196330/', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
@@ -160,7 +160,7 @@ fetch('http://localhost:8000/api/music/albums/1196330/', {
 
 ### Create a Review
 ```javascript
-fetch('http://localhost:8000/api/music/albums/1196330/review/', {
+fetch('http://127.0.0.1:8000/api/music/albums/1196330/review/', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
@@ -174,7 +174,7 @@ fetch('http://localhost:8000/api/music/albums/1196330/review/', {
 
 ### Get User's Reviews
 ```javascript
-fetch('http://localhost:8000/api/accounts/users/viv360/reviews/', {
+fetch('http://127.0.0.1:8000/api/accounts/users/viv360/reviews/', {
   headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
 })
 .then(res => res.json())
@@ -188,7 +188,7 @@ fetch('http://localhost:8000/api/accounts/users/viv360/reviews/', {
 All endpoints return appropriate HTTP status codes and error messages. Example:
 
 ```javascript
-fetch('http://localhost:8000/api/music/albums/1196330/review/', {
+fetch('http://127.0.0.1:8000/api/music/albums/1196330/review/', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
@@ -257,7 +257,6 @@ DB_PORT=5432
 DISCOGS_CONSUMER_KEY=your_discogs_key
 DISCOGS_CONSUMER_SECRET=your_discogs_secret
 DISCOGS_TOKEN=your_discogs_token
-REDIS_URL=redis://127.0.0.1:6379/1
 ```
 4. Run migrations:
 ```bash
@@ -267,7 +266,7 @@ python manage.py migrate
 ```bash
 python manage.py runserver
 ```
-The API will be available at `http://localhost:8000/`
+The API will be available at `http://127.0.0.1:8000/`
 
 ---
 

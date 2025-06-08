@@ -6,6 +6,7 @@ from . import views as root_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('frontend/', root_views.frontend, name='frontend'),
     path('', root_views.api_root, name='api-root'),
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),
