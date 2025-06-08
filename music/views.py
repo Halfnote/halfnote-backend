@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def search_discogs(query):
     headers = {
-        'User-Agent': 'BoomboxdApp/1.0'
+                        'User-Agent': 'HalfnoteApp/1.0'
     }
 
     response = requests.get(

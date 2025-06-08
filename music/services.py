@@ -12,7 +12,7 @@ class ExternalMusicService:
         self.consumer_key = settings.DISCOGS_CONSUMER_KEY
         self.consumer_secret = settings.DISCOGS_CONSUMER_SECRET
         self.token = settings.DISCOGS_TOKEN
-        self.user_agent = "BoomboxdApp/1.0 +http://boomboxd.com"
+        self.user_agent = "HalfnoteApp/1.0 +http://halfnote.com"
         self.last_request_time = 0
         self.min_request_interval = 1.0  # Minimum seconds between requests
         
@@ -21,7 +21,7 @@ class ExternalMusicService:
         Make a request to the Discogs API
         """
         headers = {
-            'User-Agent': 'BoomboxdApp/1.0'
+            'User-Agent': 'HalfnoteApp/1.0'
         }
 
         # Add authentication via query parameters (simpler approach)

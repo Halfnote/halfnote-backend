@@ -12,7 +12,7 @@ def frontend(request):
 def api_root(request):
     return Response({
         'status': 'ok',
-        'message': 'Boomboxd API is running',
+        'message': 'Halfnote API is running',
         'version': '1.0.0',
         'endpoints': {
             'auth': {

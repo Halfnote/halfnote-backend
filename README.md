@@ -1,4 +1,4 @@
-# Boomboxd API Documentation
+# Halfnote API Documentation
 
 ## Base URL
 ```
