@@ -3,165 +3,635 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boomboxd - Music Review Platform</title>
+    <title>Boomboxd - Music Reviews</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* Navigation */
+        .navbar {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 50px;
+            margin: 20px;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            font-style: italic;
+            color: #333;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .nav-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 25px;
+            background: #f3f4f6;
+            color: #374151;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-btn.active {
+            background: #111827;
+            color: white;
+        }
+        
+        .nav-btn:hover {
+            background: #e5e7eb;
+        }
+        
+        .nav-btn.active:hover {
+            background: #374151;
+        }
+        
+        .search-nav {
+            display: flex;
+            align-items: center;
+            background: #f3f4f6;
+            border-radius: 25px;
+            padding: 8px 16px;
+            min-width: 200px;
+        }
+        
+        .search-nav input {
+            border: none;
+            background: none;
+            outline: none;
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+        
+        .search-nav::before {
+            content: "🔍";
+            margin-right: 8px;
+        }
+        
+        /* Main Layout */
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-            background: #1a1a1a;
-            color: #fff;
         }
-        .container {
-            background: #2a2a2a;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        h1 {
-            color: #ff6b35;
-            text-align: center;
-            margin-bottom: 30px;
+        
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #111827;
         }
-        .section {
-            margin: 30px 0;
-            padding: 20px;
-            background: #333;
-            border-radius: 8px;
+        
+        /* Auth */
+        .auth-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
         }
-        input, button {
-            padding: 12px;
-            margin: 5px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        input {
-            background: #444;
-            color: #fff;
-            width: 200px;
-        }
-        button {
-            background: #ff6b35;
-            color: white;
+        
+        .tab-btn {
+            padding: 8px 20px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 25px;
             cursor: pointer;
-            transition: background 0.3s;
+            font-weight: 500;
+            transition: all 0.2s ease;
         }
-        button:hover {
-            background: #e55a2b;
+        
+        .tab-btn.active {
+            background: #111827;
+            border-color: #111827;
+            color: white;
         }
-        .result {
-            margin: 10px 0;
-            padding: 15px;
-            background: #444;
-            border-radius: 5px;
-            border-left: 4px solid #ff6b35;
+        
+        .form-group {
+            margin: 16px 0;
         }
-        .error {
-            color: #ff4444;
-            background: #441111;
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #374151;
         }
-        .success {
-            color: #44ff44;
-            background: #114411;
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
         }
-        .token-display {
-            word-break: break-all;
-            font-family: monospace;
+        
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-primary {
+            background: #111827;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            background: #374151;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+        
+        /* Search Results */
+        .album-result {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .album-result:hover {
+            background: #f3f4f6;
+        }
+        
+        .album-cover {
+            width: 64px;
+            height: 64px;
+            border-radius: 6px;
+            background: #e5e7eb;
+            margin-right: 16px;
+            object-fit: cover;
+        }
+        
+        .album-info {
+            flex: 1;
+        }
+        
+        .album-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #111827;
+        }
+        
+        .album-artist {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .album-year {
+            color: #9ca3af;
             font-size: 12px;
-            background: #555;
-            padding: 10px;
-            border-radius: 5px;
+        }
+        
+        .album-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .album-actions button {
+            padding: 8px 16px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        /* Reviews */
+        .review-item {
+            display: flex;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            gap: 16px;
+        }
+        
+        .review-album-cover {
+            width: 64px;
+            height: 64px;
+            border-radius: 6px;
+            background: #e5e7eb;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        
+        .review-content-wrapper {
+            flex: 1;
+        }
+        
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .review-album-info {
+            flex: 1;
+        }
+        
+        .review-album-title {
+            font-weight: 600;
+            color: #111827;
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        
+        .review-album-artist {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .review-album-year {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+        
+        .review-rating {
+            background: #111827;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .review-content {
+            color: #4b5563;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .review-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            padding: 24px 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .rating-input {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .rating-slider {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: #e5e7eb;
+            outline: none;
+            appearance: none;
+        }
+        
+        .rating-display {
+            font-weight: 600;
+            color: #111827;
+            min-width: 40px;
+        }
+        
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .genre-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .genre-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .genre-option label {
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        /* Messages */
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+        
+        .message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        
+        /* User Welcome */
+        .user-welcome {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-welcome-text {
+            color: #16a34a;
+            font-weight: 500;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .navbar {
+                margin: 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            
+            .album-result {
+                flex-direction: column;
+                text-align: center;
+                gap: 12px;
+            }
+            
+            .album-actions {
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎵 Boomboxd API Test Interface</h1>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="logo">boomboxd.</div>
         
-        <div class="section">
-            <h3>🔐 Authentication</h3>
-            <div>
-                <input type="text" id="username" placeholder="Username">
-                <input type="password" id="password" placeholder="Password">
-                <button onclick="register()">Register</button>
-                <button onclick="login()">Login</button>
+        <div class="nav-buttons">
+            <button class="nav-btn active">API Testing Interface</button>
+        </div>
+        
+        <div class="search-nav">
+            <input type="text" id="main-search" placeholder="Search" onkeypress="handleMainSearchEnter(event)">
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Authentication Section -->
+        <div id="auth-section" class="card">
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="showAuthTab('login')">Login</button>
+                <button class="tab-btn" onclick="showAuthTab('register')">Register</button>
             </div>
-            <div id="auth-result" class="result" style="display:none;"></div>
-        </div>
-
-        <div class="section">
-            <h3>🎵 Music Search</h3>
-            <div>
-                <input type="text" id="search-query" placeholder="Search for music...">
-                <button onclick="searchMusic()">Search</button>
+            
+            <div id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="login-username" placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" placeholder="Enter your password">
+                </div>
+                <button class="btn-primary" onclick="login()">Login</button>
             </div>
-            <div id="search-result" class="result" style="display:none;"></div>
+            
+            <div id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="register-username" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="register-password" placeholder="Choose a password">
+                </div>
+                <button class="btn-primary" onclick="register()">Register</button>
+            </div>
+            
+            <div id="auth-message"></div>
         </div>
 
-        <div class="section">
-            <h3>👤 Profile</h3>
-            <button onclick="getProfile()">Get My Profile</button>
-            <div id="profile-result" class="result" style="display:none;"></div>
+        <!-- Welcome Section -->
+        <div id="welcome-section" class="user-welcome" style="display: none;">
+            <span id="welcome-text" class="user-welcome-text"></span>
+            <button class="btn-secondary" onclick="logout()">Logout</button>
         </div>
 
-        <div class="section">
-            <h3>📊 API Status</h3>
-            <button onclick="checkStatus()">Check API Status</button>
-            <div id="status-result" class="result" style="display:none;"></div>
+        <!-- Search Section -->
+        <div id="search-section" class="card" style="display: none;">
+            <h3 class="card-title">Search Albums</h3>
+            <div class="form-group">
+                <input type="text" id="search-input" placeholder="Search for albums or artists..." onkeypress="handleSearchEnter(event)">
+                <button class="btn-primary" onclick="searchAlbums()">Search</button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+
+        <!-- My Reviews Section -->
+        <div id="reviews-section" class="card" style="display: none;">
+            <h3 class="card-title">My Reviews</h3>
+            <div id="my-reviews"></div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="review-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Leave a Review</h2>
+                <button class="close-btn" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="review-album-info"></div>
+                
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div class="rating-input">
+                        <input type="range" id="rating-slider" class="rating-slider" min="1" max="10" value="5" oninput="updateRatingDisplay()">
+                        <span id="rating-display" class="rating-display">5/10</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Review</label>
+                    <textarea id="review-content" placeholder="Share your thoughts about this album..." rows="4"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Genres</label>
+                    <div id="genre-selection" class="genre-grid"></div>
+                </div>
+                
+                <button class="btn-primary" onclick="submitReview()">Submit Review</button>
+                <div id="review-message"></div>
+            </div>
         </div>
     </div>
 
     <script>
         let authToken = localStorage.getItem('authToken');
+        let currentUser = localStorage.getItem('currentUser');
+        let currentAlbum = null;
         
-        function showResult(elementId, content, isError = false) {
-            const element = document.getElementById(elementId);
-            element.style.display = 'block';
-            element.className = `result ${isError ? 'error' : 'success'}`;
-            element.innerHTML = content;
-        }
-
-        async function register() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            try {
-                const response = await fetch('/api/accounts/register/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    authToken = data.access_token;
-                    localStorage.setItem('authToken', authToken);
-                    showResult('auth-result', `✅ Registration successful!<br>Username: ${data.username}<br><div class="token-display">Token: ${authToken}</div>`);
-                } else {
-                    showResult('auth-result', `❌ Registration failed: ${data.error || JSON.stringify(data)}`, true);
-                }
-            } catch (error) {
-                showResult('auth-result', `❌ Error: ${error.message}`, true);
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            if (authToken && currentUser) {
+                showLoggedInState();
+                loadMyReviews();
             }
+            initializeGenres();
+        });
+
+        // Auth tab switching
+        function showAuthTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
         }
 
+        // Authentication functions
         async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!username || !password) {
+                showMessage('auth-message', 'Please enter both username and password', 'error');
+                return;
+            }
             
             try {
                 const response = await fetch('/api/accounts/login/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
                 
@@ -169,103 +639,340 @@
                 
                 if (response.ok) {
                     authToken = data.access_token;
+                    currentUser = data.username;
                     localStorage.setItem('authToken', authToken);
-                    showResult('auth-result', `✅ Login successful!<br>Username: ${data.username}<br><div class="token-display">Token: ${authToken}</div>`);
+                    localStorage.setItem('currentUser', currentUser);
+                    showLoggedInState();
+                    loadMyReviews();
+                    showMessage('auth-message', 'Login successful!', 'success');
                 } else {
-                    showResult('auth-result', `❌ Login failed: ${data.error || JSON.stringify(data)}`, true);
+                    showMessage('auth-message', data.error || 'Login failed', 'error');
                 }
             } catch (error) {
-                showResult('auth-result', `❌ Error: ${error.message}`, true);
+                showMessage('auth-message', 'Network error. Please try again.', 'error');
             }
         }
 
-        async function searchMusic() {
-            const query = document.getElementById('search-query').value;
+        async function register() {
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
             
-            if (!authToken) {
-                showResult('search-result', '❌ Please login first', true);
+            if (!username || !password) {
+                showMessage('auth-message', 'Please enter both username and password', 'error');
                 return;
             }
+            
+            try {
+                const response = await fetch('/api/accounts/register/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.access_token;
+                    currentUser = data.username;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', currentUser);
+                    showLoggedInState();
+                    showMessage('auth-message', 'Registration successful!', 'success');
+                } else {
+                    showMessage('auth-message', data.error || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                showMessage('auth-message', 'Network error. Please try again.', 'error');
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            showLoggedOutState();
+        }
+
+        function showLoggedInState() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('welcome-section').style.display = 'flex';
+            document.getElementById('search-section').style.display = 'block';
+            document.getElementById('reviews-section').style.display = 'block';
+            document.getElementById('welcome-text').textContent = `Welcome back, ${currentUser}!`;
+        }
+
+        function showLoggedOutState() {
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('welcome-section').style.display = 'none';
+            document.getElementById('search-section').style.display = 'none';
+            document.getElementById('reviews-section').style.display = 'none';
+            document.getElementById('search-results').innerHTML = '';
+            document.getElementById('my-reviews').innerHTML = '';
+        }
+
+        // Search functions
+        function handleMainSearchEnter(event) {
+            if (event.key === 'Enter') {
+                const query = event.target.value;
+                document.getElementById('search-input').value = query;
+                searchAlbums();
+            }
+        }
+
+        function handleSearchEnter(event) {
+            if (event.key === 'Enter') {
+                searchAlbums();
+            }
+        }
+
+        async function searchAlbums() {
+            const query = document.getElementById('search-input').value.trim();
+            
+            if (!query) {
+                showMessage('search-results', 'Please enter a search term', 'error');
+                return;
+            }
+            
+            if (!authToken) {
+                showMessage('search-results', 'Please login to search for albums', 'error');
+                return;
+            }
+            
+            document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
             
             try {
                 const response = await fetch(`/api/music/search/?q=${encodeURIComponent(query)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
+                    headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showResult('search-result', `✅ Search results for "${query}":<br><pre>${JSON.stringify(data, null, 2)}</pre>`);
+                    displaySearchResults(data.results);
                 } else {
-                    showResult('search-result', `❌ Search failed: ${data.error || JSON.stringify(data)}`, true);
+                    showMessage('search-results', data.error || 'Search failed', 'error');
                 }
             } catch (error) {
-                showResult('search-result', `❌ Error: ${error.message}`, true);
+                showMessage('search-results', 'Network error. Please try again.', 'error');
             }
         }
 
-        async function getProfile() {
+        function displaySearchResults(results) {
+            const container = document.getElementById('search-results');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="message error">No albums found. Try a different search term.</div>';
+                return;
+            }
+            
+            container.innerHTML = results.map(album => `
+                <div class="album-result">
+                    <img src="${album.cover_image || '/static/default-album.png'}" alt="${album.title}" class="album-cover" onerror="this.src='/static/default-album.png'">
+                    <div class="album-info">
+                        <div class="album-title">${album.title}</div>
+                        <div class="album-artist">${album.artist}</div>
+                        <div class="album-year">${album.year || 'Unknown Year'}</div>
+                    </div>
+                    <div class="album-actions">
+                        <button class="btn-primary" onclick="openReviewModal('${album.discogs_id}', '${album.title}', '${album.artist}', '${album.cover_image || ''}')">
+                            Review
+                        </button>
+                        <button class="btn-secondary" onclick="viewAlbum('${album.discogs_id}')">
+                            Details
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Review functions
+        function openReviewModal(discogsId, title, artist, coverImage) {
             if (!authToken) {
-                showResult('profile-result', '❌ Please login first', true);
+                alert('Please login to leave a review');
+                return;
+            }
+            
+            currentAlbum = { discogs_id: discogsId, title, artist, cover_image: coverImage };
+            
+            document.getElementById('review-album-info').innerHTML = `
+                <div class="album-result" style="margin-bottom: 20px;">
+                    <img src="${coverImage || '/static/default-album.png'}" alt="${title}" class="album-cover">
+                    <div class="album-info">
+                        <div class="album-title">${title}</div>
+                        <div class="album-artist">${artist}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Reset form
+            document.getElementById('rating-slider').value = 5;
+            document.getElementById('rating-display').textContent = '5/10';
+            document.getElementById('review-content').value = '';
+            document.getElementById('review-message').innerHTML = '';
+            
+            // Reset genre checkboxes
+            document.querySelectorAll('#genre-selection input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            document.getElementById('review-modal').style.display = 'block';
+        }
+
+        function closeReviewModal() {
+            document.getElementById('review-modal').style.display = 'none';
+            currentAlbum = null;
+        }
+
+        function updateRatingDisplay() {
+            const rating = document.getElementById('rating-slider').value;
+            document.getElementById('rating-display').textContent = `${rating}/10`;
+        }
+
+        async function submitReview() {
+            if (!currentAlbum) return;
+            
+            const rating = parseInt(document.getElementById('rating-slider').value);
+            const content = document.getElementById('review-content').value.trim();
+            
+            const selectedGenres = Array.from(document.querySelectorAll('#genre-selection input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            if (!content) {
+                showMessage('review-message', 'Please write a review', 'error');
                 return;
             }
             
             try {
-                const response = await fetch('/api/accounts/profile/', {
+                const response = await fetch(`/api/music/albums/${currentAlbum.discogs_id}/review/`, {
+                    method: 'POST',
                     headers: {
+                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`,
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
+                    },
+                    body: JSON.stringify({ rating, content, genres: selectedGenres })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showResult('profile-result', `✅ Profile data:<br><pre>${JSON.stringify(data, null, 2)}</pre>`);
+                    showMessage('review-message', 'Review submitted successfully!', 'success');
+                    setTimeout(() => {
+                        closeReviewModal();
+                        loadMyReviews();
+                    }, 1500);
                 } else {
-                    showResult('profile-result', `❌ Profile fetch failed: ${data.error || JSON.stringify(data)}`, true);
+                    showMessage('review-message', data.error || 'Failed to submit review', 'error');
                 }
             } catch (error) {
-                showResult('profile-result', `❌ Error: ${error.message}`, true);
+                showMessage('review-message', 'Network error. Please try again.', 'error');
             }
         }
 
-        async function checkStatus() {
+        async function loadMyReviews() {
+            if (!authToken || !currentUser) return;
+            
             try {
-                const response = await fetch('/');
+                const response = await fetch(`/api/accounts/users/${currentUser}/reviews/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showResult('status-result', `✅ API Status: ${data.status}<br>Message: ${data.message}<br>Version: ${data.version}<br><pre>${JSON.stringify(data.endpoints, null, 2)}</pre>`);
+                    displayMyReviews(data);
                 } else {
-                    showResult('status-result', `❌ Status check failed: ${JSON.stringify(data)}`, true);
+                    document.getElementById('my-reviews').innerHTML = '<div class="message error">Failed to load reviews</div>';
                 }
             } catch (error) {
-                showResult('status-result', `❌ Error: ${error.message}`, true);
+                document.getElementById('my-reviews').innerHTML = '<div class="message error">Failed to load reviews</div>';
             }
         }
 
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
+        function displayMyReviews(reviews) {
+            const container = document.getElementById('my-reviews');
+            
+            if (reviews.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No reviews yet. Search for albums and leave your first review!</div>';
+                return;
+            }
+            
+            container.innerHTML = reviews.map(review => `
+                <div class="review-item">
+                    <img src="${review.album_cover || '/static/default-album.png'}" 
+                         alt="${review.album_title || 'Unknown Album'}" 
+                         class="review-album-cover" 
+                         onerror="this.src='/static/default-album.png'">
+                    <div class="review-content-wrapper">
+                        <div class="review-header">
+                            <div class="review-album-info">
+                                <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
+                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
+                                ${review.album_year ? `<div class="review-album-year">${review.album_year}</div>` : ''}
+                            </div>
+                            <div class="review-rating">${review.rating}/10</div>
+                        </div>
+                        <div class="review-content">${review.content}</div>
+                        <div class="review-meta">
+                            Reviewed on ${new Date(review.created_at).toLocaleDateString()}
+                            ${review.user_genres && review.user_genres.length > 0 ? 
+                                ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function viewAlbum(discogsId) {
+            if (!authToken) {
+                alert('Please login to view album details');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/albums/${discogsId}/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Album: ${data.album.title}\nArtist: ${data.album.artist}\nYear: ${data.album.year}\nReviews: ${data.review_count}\nAverage Rating: ${data.average_rating ? data.average_rating.toFixed(1) : 'No ratings'}/10`);
                 }
+            } catch (error) {
+                alert('Failed to load album details');
             }
-            return cookieValue;
         }
 
-        // Load saved token on page load
-        if (authToken) {
-            showResult('auth-result', `🔑 Saved token loaded<br><div class="token-display">${authToken}</div>`);
+        // Genre management
+        function initializeGenres() {
+            const genres = [
+                'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 
+                'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 
+                'Soundtrack', 'World'
+            ];
+            
+            const container = document.getElementById('genre-selection');
+            container.innerHTML = genres.map(genre => `
+                <div class="genre-option">
+                    <input type="checkbox" id="genre-${genre}" value="${genre}">
+                    <label for="genre-${genre}">${genre}</label>
+                </div>
+            `).join('');
+        }
+
+        // Utility functions
+        function showMessage(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="message ${type}">${message}</div>`;
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('review-modal');
+            if (event.target === modal) {
+                closeReviewModal();
+            }
         }
     </script>
 </body>

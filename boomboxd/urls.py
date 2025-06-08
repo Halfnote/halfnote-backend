@@ -6,8 +6,8 @@ from . import views as root_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('frontend/', root_views.frontend, name='frontend'),
-    path('', root_views.api_root, name='api-root'),
+    path('api/', root_views.api_root, name='api-root'),  # Move JSON API info to /api/
+    path('', root_views.frontend, name='frontend'),       # HTML landing page at root
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),
 ]

@@ -9,10 +9,15 @@ class GenreSerializer(serializers.ModelSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_genres = GenreSerializer(many=True, read_only=True)
+    album_title = serializers.CharField(source='album.title', read_only=True)
+    album_artist = serializers.CharField(source='album.artist', read_only=True)
+    album_cover = serializers.CharField(source='album.cover_url', read_only=True)
+    album_year = serializers.IntegerField(source='album.year', read_only=True)
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at']
+        fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at', 
+                  'album_title', 'album_artist', 'album_cover', 'album_year']
         read_only_fields = ['id', 'created_at']
 
 class AlbumSerializer(serializers.ModelSerializer):
