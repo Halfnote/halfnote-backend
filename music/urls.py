@@ -10,4 +10,7 @@ urlpatterns = [
     
     # Create review endpoint - imports album if needed
     path('albums/<str:discogs_id>/review/', views.create_review, name='create-review'),
+    
+    # Edit/delete review endpoint
+    path('reviews/<int:review_id>/', views.edit_review, name='edit-review'),
 ] 

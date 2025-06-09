@@ -61,7 +61,10 @@ def search(request):
                     potential_artist, potential_title = parts
                     # Only use if the first part looks like an artist (not too long)
                     if len(potential_artist.strip()) < 100:
-                        artist = potential_artist.strip()
+                        # Clean up Discogs disambiguation numbers like (2), (3)
+                        import re
+                        clean_artist = re.sub(r'\s*\(\d+\)$', '', potential_artist.strip()).strip()
+                        artist = clean_artist if clean_artist else potential_artist.strip()
                         album_title = potential_title.strip()
             
             processed_results.append({
@@ -201,4 +204,72 @@ def create_review(request, discogs_id):
         
         return Response(ReviewSerializer(review).data, status=201)
     except Exception as e:
-        return Response({"error": str(e)}, status=400) 
+        return Response({"error": str(e)}, status=400)
+
+@api_view(['PUT', 'DELETE'])
+def edit_review(request, review_id):
+    """Edit or delete a review - only by the review author"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
+    
+    try:
+        review = Review.objects.get(id=review_id)
+    except Review.DoesNotExist:
+        return Response({"error": "Review not found"}, status=404)
+    
+    # Check if user owns this review
+    if review.user != request.user:
+        return Response({"error": "You can only edit your own reviews"}, status=403)
+    
+    if request.method == 'PUT':
+        # Update the review
+        review.rating = request.data.get('rating', review.rating)
+        review.content = request.data.get('content', review.content)
+        review.save()
+        
+        # Handle genre updates
+        user_genres = request.data.get('genres', [])
+        if user_genres is not None:  # Allow empty list to clear genres
+            # Clear existing genres
+            review.user_genres.clear()
+            
+            # Add new genres
+            valid_genres = []
+            invalid_genres = []
+            
+            for genre_name in user_genres:
+                try:
+                    genre = Genre.objects.get(name=genre_name)
+                    review.user_genres.add(genre)
+                    valid_genres.append(genre_name)
+                except Genre.DoesNotExist:
+                    invalid_genres.append(genre_name)
+            
+            # Update album's genres (reaggregate from all reviews)
+            album = review.album
+            album.genres.clear()
+            all_review_genres = Genre.objects.filter(reviews__album=album).distinct()
+            album.genres.set(all_review_genres)
+            
+            # Return response with warnings if needed
+            response_data = ReviewSerializer(review).data
+            if invalid_genres:
+                response_data['warnings'] = {
+                    'invalid_genres': invalid_genres,
+                    'valid_genres_accepted': valid_genres
+                }
+            return Response(response_data)
+        
+        return Response(ReviewSerializer(review).data)
+    
+    elif request.method == 'DELETE':
+        # Delete the review
+        album = review.album
+        review.delete()
+        
+        # Update album's genres after deletion
+        album.genres.clear()
+        all_review_genres = Genre.objects.filter(reviews__album=album).distinct()
+        album.genres.set(all_review_genres)
+        
+        return Response({"message": "Review deleted successfully"}, status=200) 

@@ -65,19 +65,15 @@ def login(request):
 @permission_classes([IsAuthenticated])
 def profile(request):
     if request.method == "GET":
-        serializer = UserSerializer(request.user)
+        serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
     
     # PUT
-    data = request.data
-    request.user.bio = data.get('bio', request.user.bio)
-    request.user.avatar_url = data.get('avatar_url', request.user.avatar_url)
-    request.user.save()
-    return Response({
-        'username': request.user.username,
-        'bio': request.user.bio,
-        'avatar_url': request.user.avatar_url
-    })
+    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -163,3 +159,35 @@ def user_feed(request):
     ).order_by('-created_at')
     serializer = ReviewSerializer(reviews, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_users(request):
+    """Search for users by username"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return Response({'error': 'Query parameter required'}, status=400)
+    
+    # Search for users whose username contains the query (case-insensitive)
+    users = User.objects.filter(
+        username__icontains=query
+    ).exclude(
+        id=request.user.id  # Exclude the current user from results
+    )[:10]  # Limit to 10 results
+    
+    # Get users that the current user is already following
+    following_usernames = set(request.user.following.values_list('username', flat=True))
+    
+    results = []
+    for user in users:
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'bio': user.bio or '',
+            'avatar_url': user.avatar_url or '',
+            'is_following': user.username in following_usernames,
+        }
+        results.append(user_data)
+    
+    return Response({'results': results})

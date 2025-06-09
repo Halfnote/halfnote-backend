@@ -15,6 +15,20 @@ class ExternalMusicService:
         self.user_agent = "HalfnoteApp/1.0 +http://halfnote.com"
         self.last_request_time = 0
         self.min_request_interval = 1.0  # Minimum seconds between requests
+    
+    def _clean_artist_name(self, artist_name: str) -> str:
+        """
+        Clean up artist names by removing Discogs disambiguation numbers like (2), (3), etc.
+        But keep meaningful parentheses like band names: "Earth, Wind & Fire"
+        """
+        if not artist_name:
+            return artist_name
+            
+        # Remove disambiguation numbers: (2), (3), (10), etc.
+        # This regex matches ( followed by digits followed by )
+        import re
+        cleaned = re.sub(r'\s*\(\d+\)$', '', artist_name).strip()
+        return cleaned if cleaned else artist_name
         
     def _make_request(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -77,7 +91,7 @@ class ExternalMusicService:
                     
                     formatted_results.append({
                         'title': item.get('title', '').split(' - ')[-1].strip(),
-                        'artist': item_artist,
+                        'artist': self._clean_artist_name(item_artist),
                         'year': item.get('year'),
                         'genres': item.get('genre', []),
                         'styles': item.get('style', []),
@@ -124,7 +138,8 @@ class ExternalMusicService:
             # Get the main artist name
             artist_name = "Unknown Artist"
             if 'artists' in data and data['artists']:
-                artist_name = data['artists'][0].get('name', "Unknown Artist")
+                raw_artist_name = data['artists'][0].get('name', "Unknown Artist")
+                artist_name = self._clean_artist_name(raw_artist_name)
             
             # Get the tracklist with more details
             tracklist = []
