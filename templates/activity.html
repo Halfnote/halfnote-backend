@@ -391,6 +391,33 @@
             padding: 12px;
             font-style: italic;
         }
+
+        .comment-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .comment-action-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .comment-action-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .comment-action-btn.delete:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -736,13 +763,21 @@
             // Render comments (newest first)
             html += state.comments.map(comment => {
                 const timeAgo = getTimeAgo(new Date(comment.created_at));
+                const isOwnComment = currentUser && comment.username === currentUser;
+                
                 return `
-                    <div class="comment-item">
+                    <div class="comment-item" data-comment-id="${comment.id}">
                         <div class="comment-header">
                             <span class="comment-username">${comment.username}</span>
                             <span class="comment-time">${timeAgo}</span>
                         </div>
-                        <div class="comment-content">${comment.content}</div>
+                        <div class="comment-content" id="comment-content-${comment.id}">${comment.content}</div>
+                        ${isOwnComment ? `
+                            <div class="comment-actions">
+                                <button class="comment-action-btn" onclick="editComment(${comment.id}, '${comment.content.replace(/'/g, "\\'")}')">Edit</button>
+                                <button class="comment-action-btn delete" onclick="deleteComment(${comment.id}, ${reviewId})">Delete</button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -794,6 +829,85 @@
         function handleCommentKeypress(event, reviewId) {
             if (event.key === 'Enter') {
                 submitComment(reviewId);
+            }
+        }
+
+        async function editComment(commentId, currentContent) {
+            const newContent = prompt('Edit your comment:', currentContent);
+            if (newContent === null || newContent.trim() === currentContent) return;
+            
+            if (!newContent.trim()) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/music/comments/${commentId}/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ content: newContent.trim() })
+                });
+
+                if (response.ok) {
+                    const updatedComment = await response.json();
+                    // Update the comment content in the DOM
+                    document.getElementById(`comment-content-${commentId}`).textContent = updatedComment.content;
+                    
+                    // Update the comment in state
+                    Object.values(commentsState).forEach(state => {
+                        const comment = state.comments.find(c => c.id === commentId);
+                        if (comment) {
+                            comment.content = updatedComment.content;
+                        }
+                    });
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating comment');
+                }
+            } catch (error) {
+                console.error('Error updating comment:', error);
+                alert('Error updating comment');
+            }
+        }
+
+        async function deleteComment(commentId, reviewId) {
+
+            try {
+                const response = await fetch(`/api/music/comments/${commentId}/`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    // Remove comment from DOM
+                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    if (commentElement) {
+                        commentElement.remove();
+                    }
+                    
+                    // Remove from state
+                    if (commentsState[reviewId]) {
+                        commentsState[reviewId].comments = commentsState[reviewId].comments.filter(c => c.id !== commentId);
+                    }
+                    
+                    // Update comment count
+                    const btn = document.querySelector(`button[onclick="toggleComments(${reviewId})"]`);
+                    const currentCount = parseInt(btn.textContent.match(/\d+/)[0]);
+                    btn.innerHTML = `💬 ${Math.max(0, currentCount - 1)}`;
+                    
+                    // Re-render if no comments left
+                    if (commentsState[reviewId] && commentsState[reviewId].comments.length === 0) {
+                        renderComments(reviewId);
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error deleting comment');
+                }
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                alert('Error deleting comment');
             }
         }
     </script>

@@ -237,7 +237,9 @@
         }
 
         .follow-btn.following:hover {
-            background: #f9fafb;
+            background: #fee2e2;
+            color: #dc2626;
+            border-color: #fca5a5;
         }
 
         /* Standard button classes to match other pages */
@@ -342,6 +344,12 @@
             margin-bottom: 8px;
         }
 
+        .review-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .review-album-title {
             font-size: 16px;
             font-weight: 600;
@@ -372,23 +380,24 @@
 
         /* Review management buttons for own profile */
         .review-actions {
-            position: absolute;
-            bottom: 20px;
-            right: 0;
             display: flex;
-            gap: 8px;
-            opacity: 1;
+            gap: 4px;
         }
 
         .review-action-btn {
             background: #f3f4f6;
             border: none;
             color: #6b7280;
-            padding: 6px 10px;
+            padding: 4px 6px;
             border-radius: 4px;
             font-size: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
+            min-width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .review-action-btn:hover {
@@ -549,6 +558,182 @@
             font-size: 12px;
             cursor: pointer;
         }
+
+        /* Remove avatar button styling */
+        #remove-avatar-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        #remove-avatar-btn:hover {
+            background: #fecaca;
+            color: #b91c1c;
+        }
+
+        /* Comment functionality styles */
+        .review-interactions {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .comments-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .comments-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .comments-section {
+            margin-top: 12px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .comments-container {
+            margin-bottom: 16px;
+        }
+
+        .comment-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .comment-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .comment-username {
+            font-weight: 600;
+            color: #111827;
+            font-size: 14px;
+        }
+
+        .comment-time {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .comment-content {
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .comment-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .comment-input:focus {
+            border-color: #3b82f6;
+        }
+
+        .submit-comment-btn {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .submit-comment-btn:hover {
+            background: #2563eb;
+        }
+
+        .load-more-comments-btn {
+            width: 100%;
+            padding: 8px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .load-more-comments-btn:hover {
+            background: #f9fafb;
+            color: #374151;
+        }
+
+        .loading-comments {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            padding: 16px;
+        }
+
+        .no-comments {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            padding: 16px;
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .comment-action-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .comment-action-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .comment-action-btn.delete:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -650,6 +835,11 @@
                     <input type="file" id="edit-avatar" accept="image/*" onchange="previewAvatar(event)">
                     <div id="avatar-preview" style="margin-top: 10px;">
                         <img id="preview-img" src="" alt="Avatar Preview" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; display: none;">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="btn-secondary btn-small" onclick="removeAvatar()" id="remove-avatar-btn" style="display: none;">
+                            Remove Profile Picture
+                        </button>
                     </div>
                 </div>
                 <div class="edit-form-group">
@@ -831,7 +1021,10 @@
                                 <div class="review-album-title">${review.album_title || 'Unknown Album'}${review.is_pinned ? ' 📌' : ''}</div>
                                 <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
                             </div>
-                            <div class="review-rating">${review.rating}/10</div>
+                            <div class="review-header-right">
+                                ${actionsHTML}
+                                <div class="review-rating">${review.rating}/10</div>
+                            </div>
                         </div>
                         <div class="review-content">${review.content}</div>
                         <div class="review-meta">
@@ -839,8 +1032,23 @@
                             ${review.user_genres && review.user_genres.length > 0 ? 
                                 ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
                         </div>
+                        <div class="review-interactions">
+                            <button class="comments-btn" onclick="toggleComments(${review.id})" title="View Comments">
+                                💬 ${review.comments_count || 0}
+                            </button>
+                        </div>
+                        <div class="comments-section" id="comments-${review.id}" style="display: none;">
+                            <div class="comments-container" id="comments-container-${review.id}">
+                                <div class="loading-comments">Loading comments...</div>
+                            </div>
+                            ${authToken ? `
+                                <div class="comment-form">
+                                    <input type="text" placeholder="Write a comment..." class="comment-input" id="comment-input-${review.id}" onkeypress="handleCommentKeypress(event, ${review.id})">
+                                    <button onclick="submitComment(${review.id})" class="submit-comment-btn">Post</button>
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
-                    ${actionsHTML}
                 </div>
             `;
         }
@@ -995,6 +1203,14 @@
                     // Load favorite genres
                     loadFavoriteGenresIntoModal(userData.favorite_genres || []);
                     
+                    // Show/hide remove avatar button based on whether user has a custom avatar
+                    const removeBtn = document.getElementById('remove-avatar-btn');
+                    if (userData.avatar && userData.avatar !== defaultAvatarUrl) {
+                        removeBtn.style.display = 'inline-block';
+                    } else {
+                        removeBtn.style.display = 'none';
+                    }
+                    
                     // Show modal
                     document.getElementById('edit-profile-modal').style.display = 'flex';
                 } else {
@@ -1008,7 +1224,38 @@
 
         function closeProfileEditModal() {
             document.getElementById('edit-profile-modal').style.display = 'none';
-            document.getElementById('preview-img').style.display = 'none';
+            // Reset the file input and preview
+            document.getElementById('edit-avatar').value = '';
+            const preview = document.getElementById('preview-img');
+            preview.style.display = 'none';
+            preview.src = '';
+        }
+
+        async function removeAvatar() {
+            if (!authToken || !isOwnProfile) return;
+
+            if (!confirm('Are you sure you want to remove your profile picture? This will delete it permanently and revert to the default avatar.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/accounts/profile/remove-avatar/', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    // Close modal and reload page to show changes
+                    closeProfileEditModal();
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error removing profile picture');
+                }
+            } catch (error) {
+                console.error('Error removing avatar:', error);
+                alert('Error removing profile picture');
+            }
         }
 
         function previewAvatar(event) {
@@ -1082,11 +1329,26 @@
 
         // Existing functions...
         async function checkFollowStatus() {
-            if (!authToken || !currentUser) return;
+            if (!authToken || !currentUser || !profileUsername) return;
 
-            // This would need an API endpoint to check follow status
-            // For now, default to not following
-            updateFollowButton(false);
+            try {
+                // Get the list of followers for the profile user
+                const response = await fetch(`/api/accounts/users/${profileUsername}/followers/`);
+                
+                if (response.ok) {
+                    const followers = await response.json();
+                    // Check if the current user is in the followers list
+                    const isCurrentlyFollowing = followers.some(follower => follower.username === currentUser);
+                    updateFollowButton(isCurrentlyFollowing);
+                } else {
+                    // If we can't check, default to not following
+                    updateFollowButton(false);
+                }
+            } catch (error) {
+                console.error('Error checking follow status:', error);
+                // If there's an error, default to not following
+                updateFollowButton(false);
+            }
         }
 
         async function toggleFollow() {
@@ -1121,7 +1383,7 @@
             isFollowing = following;
             
             if (following) {
-                btn.textContent = 'Following';
+                btn.textContent = 'Unfollow';
                 btn.classList.add('following');
             } else {
                 btn.textContent = 'Follow';
@@ -1190,6 +1452,264 @@
         function logout() {
             localStorage.removeItem('authToken');
             window.location.href = '/';
+        }
+
+        // Comments functionality
+        const commentsState = {};
+
+        async function toggleComments(reviewId) {
+            const commentsSection = document.getElementById(`comments-${reviewId}`);
+            
+            if (commentsSection.style.display === 'none') {
+                commentsSection.style.display = 'block';
+                
+                // Initialize comments state if not exists
+                if (!commentsState[reviewId]) {
+                    commentsState[reviewId] = {
+                        offset: 0,
+                        comments: [],
+                        hasMore: false,
+                        loading: false
+                    };
+                }
+                
+                // Load comments if not already loaded
+                if (commentsState[reviewId].comments.length === 0) {
+                    await loadComments(reviewId);
+                }
+            } else {
+                commentsSection.style.display = 'none';
+            }
+        }
+
+        async function loadComments(reviewId, loadMore = false) {
+            const state = commentsState[reviewId];
+            if (state.loading) return;
+            
+            state.loading = true;
+            const container = document.getElementById(`comments-container-${reviewId}`);
+            
+            if (!loadMore) {
+                container.innerHTML = '<div class="loading-comments">Loading comments...</div>';
+                state.offset = 0;
+                state.comments = [];
+            }
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/?offset=${state.offset}&limit=10`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (loadMore) {
+                        state.comments = [...state.comments, ...data.comments];
+                    } else {
+                        state.comments = data.comments;
+                    }
+                    
+                    state.hasMore = data.has_more;
+                    state.offset = data.next_offset || 0;
+                    
+                    renderComments(reviewId);
+                } else {
+                    container.innerHTML = '<div class="no-comments">Error loading comments</div>';
+                }
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                container.innerHTML = '<div class="no-comments">Error loading comments</div>';
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        function renderComments(reviewId) {
+            const state = commentsState[reviewId];
+            const container = document.getElementById(`comments-container-${reviewId}`);
+            
+            if (state.comments.length === 0) {
+                container.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
+                return;
+            }
+            
+            let html = '';
+            
+            // Add load more button if there are more comments
+            if (state.hasMore) {
+                html += `<button class="load-more-comments-btn" onclick="loadComments(${reviewId}, true)">
+                    Load more comments (${state.offset} more)
+                </button>`;
+            }
+            
+            // Render comments (newest first)
+            html += state.comments.map(comment => {
+                const timeAgo = getTimeAgo(new Date(comment.created_at));
+                const isOwnComment = currentUser && comment.username === currentUser;
+                
+                return `
+                    <div class="comment-item" data-comment-id="${comment.id}">
+                        <div class="comment-header">
+                            <span class="comment-username">${comment.username}</span>
+                            <span class="comment-time">${timeAgo}</span>
+                        </div>
+                        <div class="comment-content" id="comment-content-${comment.id}">${comment.content}</div>
+                        ${isOwnComment ? `
+                            <div class="comment-actions">
+                                <button class="comment-action-btn" onclick="editComment(${comment.id}, '${comment.content.replace(/'/g, "\\'")}')">Edit</button>
+                                <button class="comment-action-btn delete" onclick="deleteComment(${comment.id}, ${reviewId})">Delete</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+
+        async function submitComment(reviewId) {
+            if (!authToken) {
+                alert('Please login to comment');
+                return;
+            }
+
+            const input = document.getElementById(`comment-input-${reviewId}`);
+            const content = input.value.trim();
+            
+            if (!content) return;
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    const newComment = await response.json();
+                    
+                    // Add new comment to the beginning of the list
+                    if (!commentsState[reviewId]) {
+                        commentsState[reviewId] = { offset: 0, comments: [], hasMore: false, loading: false };
+                    }
+                    commentsState[reviewId].comments.unshift(newComment);
+                    
+                    // Update the comment count in the button
+                    const btn = document.querySelector(`button[onclick="toggleComments(${reviewId})"]`);
+                    const currentCount = parseInt(btn.textContent.match(/\d+/)[0]);
+                    btn.innerHTML = `💬 ${currentCount + 1}`;
+                    
+                    input.value = '';
+                    renderComments(reviewId);
+                } else {
+                    alert('Error posting comment');
+                }
+            } catch (error) {
+                console.error('Error posting comment:', error);
+                alert('Error posting comment');
+            }
+        }
+
+        function handleCommentKeypress(event, reviewId) {
+            if (event.key === 'Enter') {
+                submitComment(reviewId);
+            }
+        }
+
+        async function editComment(commentId, currentContent) {
+            const newContent = prompt('Edit your comment:', currentContent);
+            if (newContent === null || newContent.trim() === currentContent) return;
+            
+            if (!newContent.trim()) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/music/comments/${commentId}/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ content: newContent.trim() })
+                });
+
+                if (response.ok) {
+                    const updatedComment = await response.json();
+                    // Update the comment content in the DOM
+                    document.getElementById(`comment-content-${commentId}`).textContent = updatedComment.content;
+                    
+                    // Update the comment in state
+                    Object.values(commentsState).forEach(state => {
+                        const comment = state.comments.find(c => c.id === commentId);
+                        if (comment) {
+                            comment.content = updatedComment.content;
+                        }
+                    });
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating comment');
+                }
+            } catch (error) {
+                console.error('Error updating comment:', error);
+                alert('Error updating comment');
+            }
+        }
+
+        async function deleteComment(commentId, reviewId) {
+
+            try {
+                const response = await fetch(`/api/music/comments/${commentId}/`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    // Remove comment from DOM
+                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    if (commentElement) {
+                        commentElement.remove();
+                    }
+                    
+                    // Remove from state
+                    if (commentsState[reviewId]) {
+                        commentsState[reviewId].comments = commentsState[reviewId].comments.filter(c => c.id !== commentId);
+                    }
+                    
+                    // Update comment count
+                    const btn = document.querySelector(`button[onclick="toggleComments(${reviewId})"]`);
+                    const currentCount = parseInt(btn.textContent.match(/\d+/)[0]);
+                    btn.innerHTML = `💬 ${Math.max(0, currentCount - 1)}`;
+                    
+                    // Re-render if no comments left
+                    if (commentsState[reviewId] && commentsState[reviewId].comments.length === 0) {
+                        renderComments(reviewId);
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error deleting comment');
+                }
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                alert('Error deleting comment');
+            }
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
         }
     </script>
 </body>

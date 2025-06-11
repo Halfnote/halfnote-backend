@@ -5,6 +5,7 @@ urlpatterns = [
     path('register/', views.register, name='register'),
     path('login/', views.login, name='login'),
     path('profile/', views.profile, name='profile'),  # This handles both GET and PUT
+    path('profile/remove-avatar/', views.remove_avatar, name='remove-avatar'),
     path('users/<str:username>/reviews/', views.user_reviews, name='user-reviews'),
     path('users/<str:username>/follow/', views.follow_user, name='follow_user'),
     path('users/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),

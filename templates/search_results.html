@@ -347,11 +347,11 @@
                     </div>
                     <div class="result-actions" onclick="event.stopPropagation();">
                         {% if user.is_following %}
-                        <button class="btn-secondary" onclick="followUser('{{ user.username }}', false)">
-                            Unfollow
+                        <button class="btn-secondary following" onclick="followUser('{{ user.username }}', false, this)">
+                            Following
                         </button>
                         {% else %}
-                        <button class="btn-primary" onclick="followUser('{{ user.username }}', true)">
+                        <button class="btn-primary" onclick="followUser('{{ user.username }}', true, this)">
                             Follow
                         </button>
                         {% endif %}
@@ -634,11 +634,16 @@
             }
         }
 
-        async function followUser(username, shouldFollow) {
+        async function followUser(username, shouldFollow, buttonElement) {
             if (!authToken) {
                 alert('Please login to follow users');
                 return;
             }
+            
+            // Disable button during request
+            buttonElement.disabled = true;
+            const originalText = buttonElement.textContent;
+            buttonElement.textContent = shouldFollow ? 'Following...' : 'Unfollowing...';
             
             try {
                 const endpoint = shouldFollow ? 'follow' : 'unfollow';
@@ -648,13 +653,28 @@
                 });
                 
                 if (response.ok) {
-                    // Reload the page to update follow status
-                    window.location.reload();
+                    // Update button appearance based on new state
+                    if (shouldFollow) {
+                        buttonElement.textContent = 'Following';
+                        buttonElement.className = 'btn-secondary following';
+                        buttonElement.onclick = () => followUser(username, false, buttonElement);
+                    } else {
+                        buttonElement.textContent = 'Follow';
+                        buttonElement.className = 'btn-primary';
+                        buttonElement.onclick = () => followUser(username, true, buttonElement);
+                    }
                 } else {
+                    // Restore original state on error
+                    buttonElement.textContent = originalText;
                     alert('Failed to ' + (shouldFollow ? 'follow' : 'unfollow') + ' user');
                 }
             } catch (error) {
+                // Restore original state on error
+                buttonElement.textContent = originalText;
                 alert('Error ' + (shouldFollow ? 'following' : 'unfollowing') + ' user');
+            } finally {
+                // Re-enable button
+                buttonElement.disabled = false;
             }
         }
 

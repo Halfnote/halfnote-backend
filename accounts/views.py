@@ -263,3 +263,36 @@ def debug_storage(request):
             'CLOUDINARY_API_SECRET': bool(os.getenv('CLOUDINARY_API_SECRET')),
         }
     })
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_avatar(request):
+    """Remove user's avatar and delete from Cloudinary"""
+    user = request.user
+    
+    if user.avatar:
+        # Delete from Cloudinary if it's not the default avatar
+        try:
+            import cloudinary.uploader
+            # Extract public_id from the avatar URL
+            avatar_url = str(user.avatar)
+            if 'cloudinary.com' in avatar_url:
+                # Extract public_id from Cloudinary URL
+                # URL format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/public_id.ext
+                parts = avatar_url.split('/')
+                if len(parts) > 0:
+                    # Get the filename with extension and remove extension to get public_id
+                    filename_with_ext = parts[-1]
+                    public_id = filename_with_ext.split('.')[0]
+                    
+                    # Delete from Cloudinary
+                    cloudinary.uploader.destroy(public_id)
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"Error deleting from Cloudinary: {e}")
+        
+        # Clear the avatar field
+        user.avatar = None
+        user.save()
+    
+    return Response({'message': 'Avatar removed successfully'})
