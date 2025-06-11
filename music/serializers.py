@@ -8,12 +8,17 @@ class GenreSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
-    user_avatar = serializers.CharField(source='user.avatar_url', read_only=True)
+    user_avatar = serializers.SerializerMethodField()
     
     class Meta:
         model = Comment
         fields = ['id', 'username', 'user_avatar', 'content', 'created_at']
         read_only_fields = ['id', 'username', 'user_avatar', 'created_at']
+    
+    def get_user_avatar(self, obj):
+        if obj.user.avatar:
+            return obj.user.avatar.url
+        return None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -69,7 +74,7 @@ class AlbumSearchResultSerializer(serializers.Serializer):
 
 class ActivitySerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
-    user_avatar = serializers.CharField(source='user.avatar_url', read_only=True)
+    user_avatar = serializers.SerializerMethodField()
     target_username = serializers.CharField(source='target_user.username', read_only=True)
     
     # Review details if activity is review-related
@@ -80,6 +85,11 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = ['id', 'username', 'user_avatar', 'activity_type', 'target_username', 
                   'review_details', 'comment_details', 'created_at']
+    
+    def get_user_avatar(self, obj):
+        if obj.user.avatar:
+            return obj.user.avatar.url
+        return None
     
     def get_review_details(self, obj):
         if obj.review:

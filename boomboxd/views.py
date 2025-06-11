@@ -11,13 +11,29 @@ def frontend(request):
     """Serve the frontend interface"""
     return render(request, 'index.html')
 
+def activity_page(request):
+    """Display the activity feed page"""
+    return render(request, 'activity.html')
+
 def user_profile(request, username):
-    """Display a user's profile page"""
+    """Display a user's profile page - the main profile view like Letterboxd"""
     user = get_object_or_404(User, username=username)
+    
+    # Check if the current user is viewing their own profile
+    is_own_profile = request.user.is_authenticated and request.user.username == username
+    
+    # Get basic stats
+    review_count = user.album_reviews.count()
+    follower_count = user.followers.count()
+    following_count = user.following.count()
     
     return render(request, 'user_profile.html', {
         'profile_user': user,
         'username': username,
+        'is_own_profile': is_own_profile,
+        'review_count': review_count,
+        'follower_count': follower_count,
+        'following_count': following_count,
     })
 
 @api_view(['GET'])

@@ -374,18 +374,18 @@ def activity_feed(request):
     feed_type = request.GET.get('type', 'friends')  # friends, you, incoming
     
     if feed_type == 'you':
-        # User's own activities
-        activities = Activity.objects.filter(user=request.user)[:50]
+        # User's own activities (exclude pinned reviews)
+        activities = Activity.objects.filter(user=request.user).exclude(activity_type='review_pinned')[:50]
     elif feed_type == 'incoming':
-        # Activities targeting the current user
-        activities = Activity.objects.filter(target_user=request.user)[:50]
+        # Activities targeting the current user (exclude pinned reviews)
+        activities = Activity.objects.filter(target_user=request.user).exclude(activity_type='review_pinned')[:50]
     else:  # friends
-        # Activities from people the user follows
+        # Activities from people the user follows (exclude pinned reviews)
         from django.contrib.auth import get_user_model
         User = get_user_model()
         
         following_users = request.user.following.all()
-        activities = Activity.objects.filter(user__in=following_users)[:50]
+        activities = Activity.objects.filter(user__in=following_users).exclude(activity_type='review_pinned')[:50]
     
     serializer = ActivitySerializer(activities, many=True)
     return Response({'activities': serializer.data})
@@ -400,10 +400,20 @@ def review_comments(request, review_id):
         return Response({"error": "Review not found"}, status=404)
     
     if request.method == 'GET':
-        # Get all comments for this review
-        comments = Comment.objects.filter(review=review).order_by('created_at')
+        # Get comments for this review with pagination
+        offset = int(request.GET.get('offset', 0))
+        limit = int(request.GET.get('limit', 10))
+        
+        total_comments = Comment.objects.filter(review=review).count()
+        comments = Comment.objects.filter(review=review).order_by('-created_at')[offset:offset + limit]
         serializer = CommentSerializer(comments, many=True)
-        return Response({'comments': serializer.data})
+        
+        return Response({
+            'comments': serializer.data,
+            'total_count': total_comments,
+            'has_more': total_comments > offset + limit,
+            'next_offset': offset + limit if total_comments > offset + limit else None
+        })
     
     elif request.method == 'POST':
         # Add a new comment

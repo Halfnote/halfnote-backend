@@ -8,6 +8,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', root_views.api_root, name='api-root'),  # Move JSON API info to /api/
     path('search/', root_views.search_results, name='search_results'),  # Dedicated search results page
+    path('activity/', root_views.activity_page, name='activity_page'),  # Activity feed page
     path('users/<str:username>/', root_views.user_profile, name='user_profile'),  # User profile page
     path('', root_views.frontend, name='frontend'),       # HTML landing page at root
     path('api/accounts/', include('accounts.urls')),

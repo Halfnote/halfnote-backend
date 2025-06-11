@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ profile_user.username }} - halfnote</title>
+    <title>halfnote API Interface - {{ profile_user.username }}</title>
     <style>
         * {
             margin: 0;
@@ -17,41 +17,90 @@
             min-height: 100vh;
         }
 
-        .header {
+        /* Navigation */
+        .navbar {
             background: white;
+            padding: 16px 24px;
             border-bottom: 1px solid #e5e7eb;
-            padding: 0 30px;
-            height: 64px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-
+        
         .logo {
             font-size: 24px;
             font-weight: 700;
             color: #111827;
             text-decoration: none;
         }
-
-        .nav-links {
+        
+        .nav-buttons {
             display: flex;
-            gap: 32px;
-            align-items: center;
+            gap: 12px;
         }
-
-        .nav-link {
-            color: #6b7280;
-            text-decoration: none;
+        
+        .nav-btn {
+            padding: 8px 20px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
             font-weight: 500;
-            transition: color 0.2s ease;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #374151;
         }
-
-        .nav-link:hover {
-            color: #111827;
+        
+        .nav-btn:hover {
+            background: #f9fafb;
+        }
+        
+        .search-nav {
+            position: relative;
+            background: #f3f4f6;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            min-width: 200px;
+        }
+        
+        .search-nav input {
+            border: none;
+            background: none;
+            outline: none;
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+        
+        .search-nav::before {
+            content: "🔍";
+            margin-right: 8px;
+        }
+        
+        .search-nav input:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .logout-btn {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background: #f9fafb;
         }
 
         .container {
@@ -138,28 +187,89 @@
         }
 
         .follow-btn {
-            background: #667eea;
+            background: #111827;
             color: white;
             border: none;
             padding: 12px 24px;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .follow-btn:hover {
-            background: #5a67d8;
+            background: #374151;
         }
 
         .follow-btn.following {
-            background: #e5e7eb;
-            color: #6b7280;
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
         }
 
         .follow-btn.following:hover {
-            background: #ef4444;
+            background: #f9fafb;
+        }
+
+        /* Standard button classes to match other pages */
+        .btn-primary {
+            background: #111827;
             color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary:hover {
+            background: #374151;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        /* Profile management buttons */
+        .profile-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .edit-profile-btn {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .edit-profile-btn:hover {
+            background: #f9fafb;
         }
 
         .reviews-section {
@@ -181,6 +291,7 @@
             gap: 16px;
             padding: 20px 0;
             border-bottom: 1px solid #f3f4f6;
+            position: relative;
         }
 
         .review-item:last-child {
@@ -188,9 +299,9 @@
         }
 
         .review-album-cover {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
+            width: 240px;
+            height: 240px;
+            border-radius: 16px;
             object-fit: cover;
         }
 
@@ -231,6 +342,42 @@
         .review-meta {
             font-size: 12px;
             color: #9ca3af;
+        }
+
+        /* Review management buttons for own profile */
+        .review-actions {
+            position: absolute;
+            bottom: 20px;
+            right: 0;
+            display: flex;
+            gap: 8px;
+            opacity: 1;
+        }
+
+        .review-action-btn {
+            background: #f3f4f6;
+            border: none;
+            color: #6b7280;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .review-action-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .review-action-btn.pinned {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .review-action-btn.delete:hover {
+            background: #fee2e2;
+            color: #dc2626;
         }
 
         .no-reviews {
@@ -281,17 +428,115 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Edit review modal */
+        .edit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .edit-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .edit-modal h3 {
+            margin-bottom: 16px;
+            color: #111827;
+        }
+
+        .edit-form-group {
+            margin-bottom: 16px;
+        }
+
+        .edit-form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .edit-form-group input,
+        .edit-form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .edit-form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .edit-form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+
+        .genre-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+        }
+
+        .genre-option input {
+            width: auto !important;
+            margin: 0;
+        }
+
+        .genre-option label {
+            margin: 0 !important;
+            font-size: 12px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
+    <!-- Navigation -->
+    <div class="navbar">
         <a href="/" class="logo">halfnote.</a>
-        <div class="nav-links">
-            <a href="/search/" class="nav-link">Search</a>
-            <a href="/" class="nav-link">Activity</a>
-            <a href="/" class="nav-link">Profile</a>
-            <span class="nav-link" id="current-user"></span>
+        
+        <div class="nav-buttons">
+            <div class="search-nav">
+                <input type="text" placeholder="Login to search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
+            </div>
+            <a href="/activity/" class="nav-btn">Activity</a>
+            <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
+            <button class="logout-btn" onclick="logout()" id="logout-btn" style="display: none;">Logout</button>
         </div>
     </div>
 
@@ -314,28 +559,45 @@
                     {% endif %}
                     <div class="profile-stats">
                         <div class="stat">
-                            <span class="stat-number" id="reviews-count">...</span>
+                            <span class="stat-number">{{ review_count }}</span>
                             <span class="stat-label">Reviews</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number" id="followers-count">...</span>
+                            <span class="stat-number">{{ follower_count }}</span>
                             <span class="stat-label">Followers</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-number" id="following-count">...</span>
+                            <span class="stat-number">{{ following_count }}</span>
                             <span class="stat-label">Following</span>
                         </div>
                     </div>
+                    
+                    {% if is_own_profile %}
+                    <!-- Show edit profile button for own profile -->
+                    <div class="profile-actions">
+                        <button class="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
+                    </div>
+                    {% else %}
+                    <!-- Show follow button for other profiles -->
                     <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
                         Follow
                     </button>
+                    {% endif %}
                 </div>
+            </div>
+        </div>
+
+        <!-- Pinned Reviews Section -->
+        <div class="reviews-section" id="pinned-reviews-section" style="margin-bottom: 24px;">
+            <h2 class="section-title">Pinned Reviews</h2>
+            <div id="pinned-reviews-container">
+                <div class="loading">Loading pinned reviews...</div>
             </div>
         </div>
 
         <!-- Reviews Section -->
         <div class="reviews-section">
-            <h2 class="section-title">Reviews</h2>
+            <h2 class="section-title">All Reviews</h2>
             <div id="reviews-container">
                 <div class="loading">Loading reviews...</div>
             </div>
@@ -348,16 +610,45 @@
         <img src="" alt="" class="modal-image" id="modal-image">
     </div>
 
+    <!-- Edit Review Modal -->
+    <div class="edit-modal" id="edit-review-modal">
+        <div class="edit-modal-content">
+            <h3>Edit Review</h3>
+            <form id="edit-review-form">
+                <div class="edit-form-group">
+                    <label for="edit-rating">Rating (1-10)</label>
+                    <input type="number" id="edit-rating" min="1" max="10" required>
+                </div>
+                <div class="edit-form-group">
+                    <label for="edit-content">Review</label>
+                    <textarea id="edit-content" placeholder="Share your thoughts about this album..."></textarea>
+                </div>
+                <div class="edit-form-group">
+                    <label>Genres</label>
+                    <div id="edit-genres-grid" class="genre-grid"></div>
+                </div>
+                <div class="edit-form-actions">
+                    <button type="button" class="btn-secondary btn-small" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary btn-small">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const authToken = localStorage.getItem('authToken');
         const profileUsername = '{{ username }}';
+        let isOwnProfile = false; // Will be set dynamically
         let currentUser = null;
         let isFollowing = false;
+        let editingReviewId = null;
+        let genres = [];
 
         document.addEventListener('DOMContentLoaded', function() {
             loadCurrentUser();
+            loadPinnedReviews();
             loadUserReviews();
-            loadUserStats();
+            loadGenres();
         });
 
         async function loadCurrentUser() {
@@ -372,15 +663,50 @@
                     const userData = await response.json();
                     currentUser = userData.username;
                     document.getElementById('current-user').textContent = userData.username;
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                    
+                    // Enable search functionality
+                    const searchInput = document.getElementById('search-input');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Search albums, artists...';
+                    
+                    // Determine if this is the user's own profile
+                    isOwnProfile = (currentUser === profileUsername);
+                    console.log('Profile check:', { currentUser, profileUsername, isOwnProfile });
                     
                     // Show follow button if viewing someone else's profile
                     if (currentUser !== profileUsername) {
-                        document.getElementById('follow-btn').style.display = 'block';
-                        checkFollowStatus();
+                        const followBtn = document.getElementById('follow-btn');
+                        if (followBtn) {
+                            followBtn.style.display = 'block';
+                            checkFollowStatus();
+                        }
                     }
                 }
             } catch (error) {
                 console.error('Error loading current user:', error);
+            }
+        }
+
+        async function loadPinnedReviews() {
+            try {
+                const response = await fetch(`/api/accounts/users/${profileUsername}/reviews/`);
+                const allReviews = await response.json();
+                
+                // Filter for pinned reviews
+                const pinnedReviews = allReviews.filter(review => review.is_pinned);
+
+                const container = document.getElementById('pinned-reviews-container');
+
+                if (pinnedReviews.length === 0) {
+                    container.innerHTML = '<div class="no-reviews">No pinned reviews.</div>';
+                    return;
+                }
+
+                container.innerHTML = pinnedReviews.map(review => createReviewHTML(review, true)).join('');
+            } catch (error) {
+                console.error('Error loading pinned reviews:', error);
+                document.getElementById('pinned-reviews-container').innerHTML = '<div class="no-reviews">Error loading pinned reviews.</div>';
             }
         }
 
@@ -396,42 +722,194 @@
                     return;
                 }
 
-                container.innerHTML = reviews.map(review => `
-                    <div class="review-item">
-                        <img src="${review.album_cover || 'https://via.placeholder.com/80x80'}" 
-                             alt="${review.album_title || 'Unknown Album'}" 
-                             class="review-album-cover">
-                        <div class="review-content-wrapper">
-                            <div class="review-header">
-                                <div>
-                                    <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
-                                    <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
-                                </div>
-                                <div class="review-rating">${review.rating}/10</div>
-                            </div>
-                            <div class="review-content">${review.content}</div>
-                            <div class="review-meta">
-                                Reviewed on ${new Date(review.created_at).toLocaleDateString()}
-                                ${review.user_genres && review.user_genres.length > 0 ? 
-                                    ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                document.getElementById('reviews-count').textContent = reviews.length;
+                container.innerHTML = reviews.map(review => createReviewHTML(review, false)).join('');
             } catch (error) {
                 console.error('Error loading reviews:', error);
                 document.getElementById('reviews-container').innerHTML = '<div class="no-reviews">Error loading reviews.</div>';
             }
         }
 
-        async function loadUserStats() {
-            // For now, just load reviews count, followers/following would need separate API calls
-            document.getElementById('followers-count').textContent = '0';
-            document.getElementById('following-count').textContent = '0';
+        function createReviewHTML(review, isPinnedSection) {
+            const actionsHTML = isOwnProfile ? `
+                <div class="review-actions">
+                    <button class="review-action-btn ${review.is_pinned ? 'pinned' : ''}" 
+                            onclick="togglePin(${review.id}, ${review.is_pinned})"
+                            title="${review.is_pinned ? 'Unpin' : 'Pin'} Review">
+                        📌
+                    </button>
+                    <button class="review-action-btn" onclick="editReview(${review.id})" title="Edit Review">
+                        ✏️
+                    </button>
+                    <button class="review-action-btn delete" onclick="deleteReview(${review.id})" title="Delete Review">
+                        🗑️
+                    </button>
+                </div>
+            ` : '';
+
+            return `
+                <div class="review-item" data-review-id="${review.id}">
+                    <img src="${review.album_cover || '/static/default-avatar.svg'}" 
+                         alt="${review.album_title || 'Unknown Album'}" 
+                         class="review-album-cover">
+                    <div class="review-content-wrapper">
+                        <div class="review-header">
+                            <div>
+                                <div class="review-album-title">${review.album_title || 'Unknown Album'}${review.is_pinned ? ' 📌' : ''}</div>
+                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
+                            </div>
+                            <div class="review-rating">${review.rating}/10</div>
+                        </div>
+                        <div class="review-content">${review.content}</div>
+                        <div class="review-meta">
+                            Reviewed on ${new Date(review.created_at).toLocaleDateString()}
+                            ${review.user_genres && review.user_genres.length > 0 ? 
+                                ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
+                        </div>
+                    </div>
+                    ${actionsHTML}
+                </div>
+            `;
         }
 
+        // Review management functions
+        async function togglePin(reviewId, currentlyPinned) {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/pin/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    // Reload both sections to reflect changes
+                    loadPinnedReviews();
+                    loadUserReviews();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating pin status');
+                }
+            } catch (error) {
+                console.error('Error toggling pin:', error);
+                alert('Error updating pin status');
+            }
+        }
+
+        async function editReview(reviewId) {
+            if (!authToken) return;
+
+            // Get current review data
+            try {
+                const response = await fetch(`/api/accounts/users/${profileUsername}/reviews/`);
+                const reviews = await response.json();
+                const review = reviews.find(r => r.id === reviewId);
+                
+                if (!review) {
+                    alert('Review not found');
+                    return;
+                }
+
+                // Populate edit form
+                document.getElementById('edit-rating').value = review.rating;
+                document.getElementById('edit-content').value = review.content;
+                editingReviewId = reviewId;
+
+                // Load genres into modal with current selections
+                loadGenresIntoEditModal(review.user_genres || []);
+
+                // Show modal
+                document.getElementById('edit-review-modal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error loading review for edit:', error);
+                alert('Error loading review');
+            }
+        }
+
+        async function deleteReview(reviewId) {
+            if (!authToken) return;
+
+            if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    // Remove the review from the page
+                    const reviewElement = document.querySelector(`[data-review-id="${reviewId}"]`);
+                    if (reviewElement) {
+                        reviewElement.remove();
+                    }
+                    
+                    // Reload both sections to ensure consistency
+                    loadPinnedReviews();
+                    loadUserReviews();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error deleting review');
+                }
+            } catch (error) {
+                console.error('Error deleting review:', error);
+                alert('Error deleting review');
+            }
+        }
+
+        // Edit review form handling
+        document.getElementById('edit-review-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!authToken || !editingReviewId) return;
+
+            const rating = document.getElementById('edit-rating').value;
+            const content = document.getElementById('edit-content').value;
+            const selectedGenres = Array.from(document.querySelectorAll('#edit-genres-grid input:checked'))
+                .map(cb => cb.value);
+
+            try {
+                const response = await fetch(`/api/music/reviews/${editingReviewId}/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rating: parseInt(rating),
+                        content: content,
+                        genres: selectedGenres
+                    })
+                });
+
+                if (response.ok) {
+                    closeEditModal();
+                    // Reload reviews to show changes
+                    loadPinnedReviews();
+                    loadUserReviews();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating review');
+                }
+            } catch (error) {
+                console.error('Error updating review:', error);
+                alert('Error updating review');
+            }
+        });
+
+        function closeEditModal() {
+            document.getElementById('edit-review-modal').style.display = 'none';
+            editingReviewId = null;
+        }
+
+        function editProfile() {
+            // For now, redirect to a separate edit page or show an edit modal
+            // This would need additional implementation
+            alert('Profile editing functionality - to be implemented');
+        }
+
+        // Existing functions...
         async function checkFollowStatus() {
             if (!authToken || !currentUser) return;
 
@@ -467,6 +945,8 @@
 
         function updateFollowButton(following) {
             const btn = document.getElementById('follow-btn');
+            if (!btn) return;
+            
             isFollowing = following;
             
             if (following) {
@@ -485,6 +965,60 @@
 
         function closeImageModal() {
             document.getElementById('image-modal').style.display = 'none';
+        }
+
+        async function loadGenres() {
+            try {
+                const response = await fetch('/api/music/genres/', {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    genres = data.genres;
+                }
+            } catch (error) {
+                console.error('Error loading genres:', error);
+            }
+        }
+
+        function loadGenresIntoEditModal(currentGenres = []) {
+            const container = document.getElementById('edit-genres-grid');
+            container.innerHTML = genres.map(genre => {
+                const isChecked = currentGenres.some(g => g.name === genre.name);
+                return `
+                    <div class="genre-option">
+                        <input type="checkbox" id="edit-genre-${genre.id}" value="${genre.name}" ${isChecked ? 'checked' : ''}>
+                        <label for="edit-genre-${genre.id}">${genre.name}</label>
+                    </div>
+                                 `;
+             }).join('');
+         }
+
+        function goToMyProfile() {
+            if (currentUser) {
+                window.location.href = `/users/${currentUser}/`;
+            } else {
+                alert('Please log in to view your profile');
+            }
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                if (!currentUser) {
+                    alert('Please log in to search for music');
+                    return;
+                }
+                const query = event.target.value.trim();
+                if (query) {
+                    window.location.href = `/search/?q=${encodeURIComponent(query)}`;
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/';
         }
     </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results - halfnote -- API Frontend</title>
+    <title>halfnote API Interface - Search Results</title>
     <style>
         * {
             margin: 0;
@@ -81,6 +81,29 @@
             margin-right: 8px;
         }
         
+        .search-nav input:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .logout-btn {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background: #f9fafb;
+        }
+        
         /* Main Content */
         .container {
             max-width: 1000px;
@@ -135,11 +158,11 @@
         }
         
         .result-image {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
+            width: 240px;
+            height: 240px;
+            border-radius: 16px;
             background: #e5e7eb;
-            margin-right: 20px;
+            margin-right: 32px;
             object-fit: cover;
             flex-shrink: 0;
         }
@@ -278,19 +301,18 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar">
+    <div class="navbar">
         <a href="/" class="logo">halfnote.</a>
         
         <div class="nav-buttons">
-            <a href="/" class="nav-btn">Search</a>
-            <a href="/" class="nav-btn">Activity</a>
-            <a href="/" class="nav-btn">Profile</a>
+            <div class="search-nav">
+                <input type="text" placeholder="Login to search" id="search-input" value="{{ query }}" onkeypress="handleSearchEnter(event)" disabled>
+            </div>
+            <a href="/activity/" class="nav-btn">Activity</a>
+            <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
+            <button class="logout-btn" onclick="logout()" id="logout-btn" style="display: none;">Logout</button>
         </div>
-        
-        <div class="search-nav">
-            <input type="text" id="search-input" placeholder="Search" value="{{ query }}" onkeypress="handleSearchEnter(event)">
-        </div>
-    </nav>
+    </div>
 
     <div class="container">
         <a href="/" class="back-link">
@@ -560,14 +582,47 @@
         const authToken = localStorage.getItem('authToken');
         let currentAlbum = null;
         let genres = [];
+        let currentUser = null;
         
         // Load genres on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadGenres();
+            loadCurrentUser();
         });
+
+        async function loadCurrentUser() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    currentUser = userData.username;
+                    document.getElementById('current-user').textContent = userData.username;
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                    
+                    // Enable search functionality
+                    const searchInput = document.getElementById('search-input');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Search albums, artists...';
+                } else {
+                    localStorage.removeItem('authToken');
+                }
+            } catch (error) {
+                console.error('Error loading current user:', error);
+                localStorage.removeItem('authToken');
+            }
+        }
         
         function handleSearchEnter(event) {
             if (event.key === 'Enter') {
+                if (!currentUser) {
+                    alert('Please log in to search for music');
+                    return;
+                }
                 const query = event.target.value.trim();
                 if (query) {
                     window.location.href = `/search/?q=${encodeURIComponent(query)}`;
@@ -712,6 +767,19 @@
             element.style.color = type === 'error' ? '#ef4444' : '#10b981';
             element.style.marginTop = '8px';
             element.style.fontSize = '14px';
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/';
+        }
+
+        function goToMyProfile() {
+            if (currentUser) {
+                window.location.href = `/users/${currentUser}/`;
+            } else {
+                alert('Please log in to view your profile');
+            }
         }
 
         // Close modal when clicking outside

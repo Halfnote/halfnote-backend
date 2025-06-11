@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>halfnote -- API Frontend</title>
+    <title>halfnote API Interface - Home</title>
     <style>
         * {
             margin: 0;
@@ -12,66 +12,58 @@
         }
         
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #f8f9fa;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
             line-height: 1.6;
         }
         
         /* Navigation */
         .navbar {
             background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 50px;
-            margin: 20px;
-            padding: 12px 24px;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e7eb;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
         .logo {
             font-size: 24px;
-            font-weight: 600;
-            font-style: italic;
-            color: #333;
+            font-weight: 700;
+            color: #111827;
+            text-decoration: none;
         }
         
         .nav-buttons {
             display: flex;
             gap: 12px;
+            align-items: center;
         }
         
         .nav-btn {
             padding: 8px 20px;
-            border: none;
+            border: 1px solid #e5e7eb;
+            background: white;
             border-radius: 25px;
-            background: #f3f4f6;
-            color: #374151;
             cursor: pointer;
             font-weight: 500;
             transition: all 0.2s ease;
-        }
-        
-        .nav-btn.active {
-            background: #111827;
-            color: white;
+            text-decoration: none;
+            color: #374151;
         }
         
         .nav-btn:hover {
-            background: #e5e7eb;
-        }
-        
-        .nav-btn.active:hover {
-            background: #374151;
+            background: #f9fafb;
         }
         
         .search-nav {
-            display: flex;
-            align-items: center;
+            position: relative;
             background: #f3f4f6;
             border-radius: 25px;
+            display: flex;
+            align-items: center;
             padding: 8px 16px;
             min-width: 200px;
         }
@@ -85,42 +77,120 @@
             font-size: 14px;
         }
         
-        .search-nav {
-            position: relative;
-        }
-
         .search-nav::before {
             content: "🔍";
             margin-right: 8px;
         }
-
-
         
-        /* Main Layout */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 30px;
+        .search-nav input:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
         }
         
-        /* Cards */
-        .card {
+        /* Only show nav buttons when logged in */
+        .nav-links {
+            display: none;
+            gap: 12px;
+        }
+        
+        .nav-links.logged-in {
+            display: flex;
+        }
+        
+        .logout-btn {
             background: white;
-            border: 1px solid #e5e7eb;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background: #f9fafb;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+        
+        .main-card {
+            background: white;
+            padding: 40px;
             border-radius: 16px;
-            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: center;
             margin-bottom: 32px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         
-        .card-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #111827;
+        .title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
         }
         
-        /* Auth */
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+        
+        .links {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #111827;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #374151;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+        
+        /* Auth Section */
+        .auth-section {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .auth-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+        }
+        
         .auth-tabs {
             display: flex;
             gap: 12px;
@@ -135,12 +205,23 @@
             cursor: pointer;
             font-weight: 500;
             transition: all 0.2s ease;
+            color: #374151;
+            flex: 1;
+            text-align: center;
         }
         
         .tab-btn.active {
             background: #111827;
             border-color: #111827;
             color: white;
+        }
+        
+        .tab-btn:hover {
+            background: #f9fafb;
+        }
+        
+        .tab-btn.active:hover {
+            background: #374151;
         }
         
         .form-group {
@@ -155,7 +236,7 @@
             color: #374151;
         }
         
-        .form-group input, .form-group textarea {
+        .form-group input {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid #d1d5db;
@@ -164,2589 +245,260 @@
             transition: border-color 0.2s ease;
         }
         
-        .form-group input:focus, .form-group textarea:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        .btn-primary {
-            background: #111827;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            width: 100%;
-        }
-        
-        .btn-primary:hover {
-            background: #374151;
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-secondary:hover {
-            background: #f9fafb;
-        }
-        
-        /* Search Results */
-        .album-result {
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            transition: all 0.2s ease;
-        }
-        
-        .album-result:hover {
-            background: #f3f4f6;
-        }
-        
-        .album-cover {
-            width: 64px;
-            height: 64px;
-            border-radius: 6px;
-            background: #e5e7eb;
-            margin-right: 16px;
-            object-fit: cover;
-        }
-        
-        .album-info {
-            flex: 1;
-        }
-        
-        .album-title {
-            font-weight: 600;
-            font-size: 16px;
-            margin-bottom: 4px;
-            color: #111827;
-        }
-        
-        .album-artist {
-            color: #6b7280;
-            font-size: 14px;
-            margin-bottom: 2px;
-        }
-        
-        .album-year {
-            color: #9ca3af;
-            font-size: 12px;
-        }
-        
-        .album-actions {
-            display: flex;
-            gap: 8px;
-        }
-        
-        .album-actions button {
-            padding: 8px 16px;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        
-        /* Reviews */
-        .review-item {
-            display: flex;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            gap: 16px;
-        }
-        
-        .review-album-cover {
-            width: 64px;
-            height: 64px;
-            border-radius: 6px;
-            background: #e5e7eb;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-        
-        .review-content-wrapper {
-            flex: 1;
-        }
-        
-        .review-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-        
-        .review-album-info {
-            flex: 1;
-        }
-        
-        .review-album-title {
-            font-weight: 600;
-            color: #111827;
-            font-size: 16px;
-            margin-bottom: 2px;
-        }
-        
-        .review-album-artist {
-            color: #6b7280;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .review-album-year {
-            color: #9ca3af;
-            font-size: 12px;
-        }
-        
-        .review-rating {
-            background: #111827;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-        
-        .review-content {
-            color: #4b5563;
-            margin-bottom: 8px;
-            line-height: 1.5;
-        }
-        
-        .review-meta {
-            font-size: 12px;
-            color: #9ca3af;
-        }
-        
-        .review-header-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .review-actions {
-            display: flex;
-            gap: 5px;
-            opacity: 0.7;
-            transition: opacity 0.2s ease;
-        }
-        
-        .review-item:hover .review-actions {
-            opacity: 1;
-        }
-        
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-            font-size: 14px;
-        }
-        
-        .action-btn:hover {
-            background-color: #f3f4f6;
-        }
-        
-        .review-edit-form {
-            margin-top: 15px;
-            padding: 20px;
-            background-color: #f9fafb;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .form-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        
-        .modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-        }
-        
-        .modal-header {
-            padding: 24px 24px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #111827;
-        }
-        
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6b7280;
-        }
-        
-        .modal-body {
-            padding: 24px;
-        }
-        
-        /* Image Modal */
-        .image-modal {
-            display: none;
-            position: fixed;
-            z-index: 1001;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.9);
-            cursor: pointer;
-        }
-        
-        .image-modal img {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-        
-        .image-modal .close-image {
-            position: absolute;
-            top: 20px;
-            right: 40px;
-            color: white;
-            font-size: 40px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 1002;
-        }
-        
-        .image-modal .close-image:hover {
-            opacity: 0.7;
-        }
-        
-        .rating-input {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 16px 0;
-        }
-        
-        .rating-slider {
-            flex: 1;
-            height: 4px;
-            border-radius: 2px;
-            background: #e5e7eb;
-            outline: none;
-            appearance: none;
-        }
-        
-        .rating-display {
-            font-weight: 600;
-            color: #111827;
-            min-width: 40px;
-        }
-        
-        .genre-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 12px;
-            margin: 16px 0;
-        }
-        
-        .genre-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .genre-option input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-        }
-        
-        .genre-option label {
-            font-size: 12px;
-            cursor: pointer;
-        }
-        
-        /* Messages */
-        .message {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 12px 0;
-            font-size: 14px;
-        }
-        
-        .message.error {
-            background: #fef2f2;
+        .error-message {
             color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-        
-        .message.success {
-            background: #f0fdf4;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
-        
-        /* User Welcome */
-        .user-welcome {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .user-welcome-text {
-            color: #16a34a;
-            font-weight: 500;
-        }
-
-        /* Profile Styles */
-        .profile-header {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-            margin-bottom: 24px;
-        }
-
-        .profile-avatar {
-            flex-shrink: 0;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        
-        .profile-avatar:hover {
-            transform: scale(1.05);
-        }
-
-        .avatar-img {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            object-fit: cover;
-        }
-
-        .profile-info {
-            flex: 1;
-        }
-
-        .profile-info h2 {
-            margin: 0 0 8px 0;
-            color: #111827;
-        }
-
-        .profile-info p {
-            color: #6b7280;
-            margin: 0 0 16px 0;
-        }
-
-        .profile-stats {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 16px;
-        }
-
-        .profile-stats span {
-            color: #374151;
-            font-weight: 500;
             font-size: 14px;
-        }
-
-        .profile-genres {
-            color: #374151;
-            font-size: 14px;
-        }
-
-        .profile-genres strong {
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        .profile-favorite-genres {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .genre-tag {
-            background: #f3f4f6;
-            color: #374151;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-        }
-
-        .profile-edit-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .profile-edit-actions button {
-            width: auto;
-        }
-
-        .profile-social {
-            margin-top: 32px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 24px;
-        }
-
-        .social-section {
-            margin-bottom: 24px;
-        }
-
-        .social-section h4 {
-            margin: 0 0 16px 0;
-            color: #111827;
-        }
-
-        .social-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .social-tab-btn {
-            padding: 8px 16px;
-            border: 1px solid #e5e7eb;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .social-tab-btn.active {
-            background: #111827;
-            border-color: #111827;
-            color: white;
-        }
-
-        .social-list {
-            min-height: 100px;
-        }
-
-        .user-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 8px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            margin-right: 12px;
-            object-fit: cover;
-        }
-
-        .user-info {
-            flex: 1;
-        }
-
-        .user-name {
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 2px;
-        }
-
-        .user-meta {
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        .user-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .user-actions button {
-            padding: 6px 12px;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-
-        /* Pinned Reviews */
-        .pinned-reviews-section {
-            margin-top: 24px;
-        }
-
-        .my-reviews-section {
-            margin-top: 24px;
-        }
-
-        .my-reviews-section h4 {
-            margin-bottom: 16px;
-            color: #111827;
-            font-weight: 600;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 24px;
-        }
-
-        .pinned-reviews-section h4 {
-            margin: 0 0 16px 0;
-            color: #111827;
-        }
-
-        .pinned-review-item {
-            display: flex;
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            gap: 12px;
-            border: 2px solid #fbbf24;
-        }
-
-        .pinned-review-item .review-album-cover {
-            width: 48px;
-            height: 48px;
-        }
-
-        .pinned-badge {
-            background: #fbbf24;
-            color: #92400e;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .pin-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-            font-size: 16px;
-            color: #6b7280;
-        }
-
-        .pin-btn:hover {
-            background-color: #f3f4f6;
-        }
-
-        .pin-btn.pinned {
-            color: #fbbf24;
-        }
-
-        .empty-pinned {
-            text-align: center;
-            color: #9ca3af;
-            font-style: italic;
-            padding: 20px;
-        }
-
-        /* Activity Feed */
-        .activity-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 8px;
-        }
-
-        .activity-tab-btn {
-            padding: 8px 16px;
-            border: none;
-            background: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            color: #6b7280;
-        }
-
-        .activity-tab-btn.active {
-            background: #111827;
-            color: white;
-        }
-
-        .activity-item {
-            display: flex;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            gap: 12px;
-            border-left: 3px solid #3b82f6;
-        }
-
-        .activity-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-text {
-            color: #374151;
-            margin-bottom: 4px;
-            line-height: 1.4;
-        }
-
-        .activity-text .username {
-            font-weight: 600;
-            color: #111827;
-        }
-
-        .activity-text .album-title {
-            font-weight: 500;
-            color: #111827;
-        }
-
-        .activity-time {
-            font-size: 12px;
-            color: #9ca3af;
-        }
-
-        .activity-review-preview {
-            margin-top: 12px;
-            padding: 16px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-            display: flex;
-            gap: 16px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .activity-album-cover {
-            width: 80px;
-            height: 80px;
-            border-radius: 6px;
-            background: #e5e7eb;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .activity-review-text {
-            flex: 1;
-        }
-
-        .activity-review-header {
-            margin-bottom: 8px;
-        }
-
-        .activity-review-preview .review-rating {
-            display: inline-block;
-            background: #111827;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 10px;
-        }
-
-        .activity-review-content {
-            font-size: 14px;
-            color: #4b5563;
-            margin-top: 8px;
-            line-height: 1.5;
-        }
-
-        .like-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-            font-size: 16px;
-            color: #6b7280;
-        }
-
-        .like-btn:hover {
-            background-color: #f3f4f6;
-        }
-
-        .like-btn.liked {
-            color: #ef4444;
-        }
-
-        .likes-count {
-            font-size: 12px;
-            color: #6b7280;
-            margin-left: 4px;
-        }
-
-        /* Comments */
-        .review-actions-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #f3f4f6;
-        }
-
-        .review-action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-            font-size: 12px;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .review-action-btn:hover {
-            background-color: #f3f4f6;
-        }
-
-        .comments-section {
-            margin-top: 12px;
-            border-top: 1px solid #f3f4f6;
-            padding-top: 12px;
-        }
-
-        .comment-item {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
-            padding: 8px;
-            background: #f9fafb;
-            border-radius: 6px;
-        }
-
-        .comment-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .comment-content {
-            flex: 1;
-        }
-
-        .comment-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 2px;
-        }
-
-        .comment-username {
-            font-weight: 600;
-            font-size: 12px;
-            color: #111827;
-        }
-
-        .comment-time {
-            font-size: 11px;
-            color: #9ca3af;
-        }
-
-        .comment-text {
-            font-size: 13px;
-            color: #4b5563;
-            line-height: 1.4;
-        }
-
-        .add-comment {
-            display: flex;
-            gap: 8px;
             margin-top: 8px;
         }
-
-        .comment-input {
-            flex: 1;
-            padding: 6px 8px;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            font-size: 12px;
-            resize: none;
-        }
-
-        .comment-submit {
-            padding: 6px 12px;
-            background: #111827;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .comment-submit:hover {
-            background: #374151;
-        }
-
-        .comment-highlight {
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            border-radius: 6px;
-            padding: 10px;
-            margin: 6px 0;
-        }
-
-        .comment-highlight-header {
-            font-size: 12px;
+        
+        .success-message {
             color: #059669;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .comment-author {
-            color: #047857;
-        }
-
-        .comment-highlight-content {
             font-size: 14px;
-            color: #065f46;
-            font-style: italic;
-            line-height: 1.4;
-            margin: 0;
+            margin-top: 8px;
         }
         
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 16px;
-            }
-            
-            .navbar {
-                margin: 16px;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-            
-            .album-result {
-                flex-direction: column;
-                text-align: center;
-                gap: 12px;
-            }
-            
-            .album-actions {
-                justify-content: center;
-            }
+        /* Hide sections based on auth state */
+        .logged-out {
+            display: block;
+        }
+        
+        .logged-in {
+            display: none;
+        }
+        
+        .logged-out.hidden {
+            display: none;
+        }
+        
+        .logged-in.visible {
+            display: block;
         }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar">
-        <div class="logo">halfnote.</div>
+    <div class="navbar">
+        <a href="/" class="logo">halfnote.</a>
         
         <div class="nav-buttons">
-            <button class="nav-btn active" onclick="showSection('activity')">Activity</button>
-            <button class="nav-btn" onclick="showSection('profile')">Profile</button>
+            <div class="nav-links" id="nav-links">
+                <div class="search-nav">
+                    <input type="text" placeholder="Login to search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
+                </div>
+                <a href="/activity/" class="nav-btn">Activity</a>
+                <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
-        
-        <div class="search-nav">
-            <input type="text" id="main-search" placeholder="Search" onkeypress="handleMainSearchEnter(event)">
-        </div>
-    </nav>
+    </div>
 
     <div class="container">
-        <!-- Authentication Section -->
-        <div id="auth-section" class="card">
-            <div class="auth-tabs">
-                <button class="tab-btn active" onclick="showAuthTab('login')">Login</button>
-                <button class="tab-btn" onclick="showAuthTab('register')">Register</button>
-            </div>
-            
-            <div id="login-form">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="login-username" placeholder="Enter your username">
+        <!-- Main Content for Logged In Users -->
+        <div id="logged-in-content" class="logged-in">
+            <div class="main-card">
+                <h1 class="title">halfnote API Frontend</h1>
+                <p class="subtitle">Welcome back! Use the interface to test the halfnote music review API</p>
+                
+                <div class="links">
+                    <a href="/search/" class="btn btn-primary">Search Music</a>
+                    <a href="/activity/" class="btn btn-secondary">Activity Feed</a>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="login-password" placeholder="Enter your password">
-                </div>
-                <button class="btn-primary" onclick="login()">Login</button>
-            </div>
-            
-            <div id="register-form" style="display: none;">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="register-username" placeholder="Choose a username">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="register-password" placeholder="Choose a password">
-                </div>
-                <button class="btn-primary" onclick="register()">Register</button>
-            </div>
-            
-            <div id="auth-message"></div>
-        </div>
-
-        <!-- Welcome Section -->
-        <div id="welcome-section" class="user-welcome" style="display: none;">
-            <span id="welcome-text" class="user-welcome-text"></span>
-            <button class="btn-secondary" onclick="logout()">Logout</button>
-        </div>
-
-
-
-
-
-        <!-- Activity Section -->
-        <div id="activity-section" class="card" style="display: none;">
-            <h3 class="card-title">Activity Feed</h3>
-            
-            <!-- Activity Tabs -->
-            <div class="activity-tabs">
-                <button class="activity-tab-btn active" onclick="showActivityTab('friends')">Friends</button>
-                <button class="activity-tab-btn" onclick="showActivityTab('you')">You</button>
-                <button class="activity-tab-btn" onclick="showActivityTab('incoming')">Incoming</button>
-            </div>
-            
-            <!-- Activity Feed -->
-            <div id="activity-feed">
-                <!-- Activity items will be loaded here -->
             </div>
         </div>
 
-        <!-- Profile Section -->
-        <div id="profile-section" class="card" style="display: none;">
-            <h3 class="card-title">My Profile</h3>
-            
-            <!-- Profile View -->
-            <div id="profile-view">
-                <div class="profile-header">
-                    <div class="profile-avatar" onclick="expandAvatar()">
-                        <img id="profile-avatar-img" src="" alt="Avatar" class="avatar-img">
+        <!-- Auth Section for Logged Out Users -->
+        <div id="logged-out-content" class="logged-out">
+            <div class="main-card">
+                <h1 class="title">halfnote API Frontend</h1>
+                <p class="subtitle">A simple interface for testing the halfnote music review API</p>
+            </div>
+
+            <div class="auth-section">
+                <div class="auth-card">
+                    <div class="auth-tabs">
+                        <button class="tab-btn active" onclick="showAuthTab('login')">Login</button>
+                        <button class="tab-btn" onclick="showAuthTab('register')">Sign Up</button>
                     </div>
-                    <div class="profile-info">
-                        <h2 id="profile-username"></h2>
-                        <p id="profile-bio"></p>
-                        <div class="profile-stats">
-                            <span id="profile-reviews">0 Reviews</span>
-                            <span id="profile-following">0 Following</span>
-                            <span id="profile-followers">0 Followers</span>
+                    
+                    <!-- Login Form -->
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Username</label>
+                            <input type="text" id="login-username" required>
                         </div>
-                        <div class="profile-genres">
-                            <strong>Favorite Genres:</strong>
-                            <div id="profile-favorite-genres"></div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" required>
                         </div>
-                    </div>
-                    <button class="btn-secondary" onclick="showEditProfile()">Edit Profile</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                        <div id="login-message"></div>
+                    </form>
+                    
+                    <!-- Register Form -->
+                    <form id="register-form" style="display: none;">
+                        <div class="form-group">
+                            <label for="register-username">Username</label>
+                            <input type="text" id="register-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">Password</label>
+                            <input type="password" id="register-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-bio">Bio (optional)</label>
+                            <input type="text" id="register-bio" placeholder="Tell us about your music taste...">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+                        <div id="register-message"></div>
+                    </form>
                 </div>
-                
-                <!-- Pinned Reviews -->
-                <div class="pinned-reviews-section">
-                    <h4>Pinned Reviews</h4>
-                    <div id="pinned-reviews-container">
-                        <!-- Pinned reviews will be loaded here -->
-                    </div>
-                </div>
-                
-                <!-- My Reviews -->
-                <div class="my-reviews-section">
-                    <h4>My Reviews</h4>
-                    <div id="my-reviews">
-                        <!-- My reviews will be loaded here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Profile Edit -->
-            <div id="profile-edit" style="display: none;">
-                <div class="form-group">
-                    <label>Bio</label>
-                    <textarea id="edit-bio" placeholder="Tell us about yourself..." rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Profile Picture</label>
-                    <input type="file" id="edit-avatar" accept="image/*">
-                    <small style="color: #666; font-size: 12px;">Upload a profile picture (JPG, PNG, etc.)</small>
-                </div>
-                <div class="form-group">
-                    <label>Favorite Genres</label>
-                    <div id="edit-favorite-genres" class="genre-grid"></div>
-                </div>
-                <div class="profile-edit-actions">
-                    <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
-                    <button class="btn-secondary" onclick="cancelEditProfile()">Cancel</button>
-                </div>
-                <div id="profile-edit-message"></div>
-            </div>
-
-
-        </div>
-    </div>
-
-    <!-- Review Modal -->
-    <div id="review-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Leave a Review</h2>
-                <button class="close-btn" onclick="closeReviewModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="review-album-info"></div>
-                
-                <div class="form-group">
-                    <label>Rating</label>
-                    <div class="rating-input">
-                        <input type="range" id="rating-slider" class="rating-slider" min="1" max="10" value="5" oninput="updateRatingDisplay()">
-                        <span id="rating-display" class="rating-display">5/10</span>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Review</label>
-                    <textarea id="review-content" placeholder="Share your thoughts about this album..." rows="4"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Genres</label>
-                    <div id="genre-selection" class="genre-grid"></div>
-                </div>
-                
-                <button class="btn-primary" onclick="submitReview()">Submit Review</button>
-                <div id="review-message"></div>
             </div>
         </div>
-    </div>
-
-    <!-- Image Modal -->
-    <div id="image-modal" class="image-modal" onclick="closeImageModal()">
-        <span class="close-image">&times;</span>
-        <img id="expanded-image" src="" alt="Expanded Image">
     </div>
 
     <script>
-        let authToken = localStorage.getItem('authToken');
-        let currentUser = localStorage.getItem('currentUser');
-        let currentAlbum = null;
-        
-        // Initialize app
+        const authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+
         document.addEventListener('DOMContentLoaded', function() {
-            if (authToken && currentUser) {
-                showLoggedInState();
-                loadMyReviews();
-                
-                // Check if we need to open review modal from search results
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('action') === 'review') {
-                    const artist = urlParams.get('artist');
-                    const title = urlParams.get('title');
-                    const image = urlParams.get('image');
-                    const rating = urlParams.get('rating');
-                    const content = urlParams.get('content');
-                    const genres = urlParams.get('genres');
-                    
-                    if (artist && title) {
-                        // Clean up the URL
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        
-                        // Open the review modal with pre-filled data
-                        setTimeout(() => {
-                            openReviewModal(artist, title, image);
-                            
-                            // Pre-fill the form if data was provided
-                            if (rating) {
-                                document.getElementById('rating-slider').value = rating;
-                                updateRatingDisplay();
-                            }
-                            if (content) {
-                                document.getElementById('review-content').value = content;
-                            }
-                            if (genres) {
-                                const genreList = genres.split(',');
-                                setTimeout(() => {
-                                    genreList.forEach(genreName => {
-                                        const checkbox = document.querySelector(`#genre-checkboxes input[value="${genreName}"]`);
-                                        if (checkbox) checkbox.checked = true;
-                                    });
-                                }, 100);
-                            }
-                        }, 500); // Small delay to ensure page is loaded
-                    }
-                }
+            if (authToken) {
+                loadCurrentUser();
             }
-            initializeGenres();
+            
+            // Setup form handlers
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            document.getElementById('register-form').addEventListener('submit', handleRegister);
         });
 
-        // Auth tab switching
-        function showAuthTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
-            document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    currentUser = userData.username;
+                    
+                    // Show logged in state
+                    document.getElementById('current-user').textContent = userData.username;
+                    document.getElementById('nav-links').classList.add('logged-in');
+                    document.getElementById('logged-out-content').classList.add('hidden');
+                    document.getElementById('logged-in-content').classList.add('visible');
+                    
+                    // Enable search functionality
+                    const searchInput = document.getElementById('search-input');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Search albums, artists...';
+                } else {
+                    localStorage.removeItem('authToken');
+                }
+            } catch (error) {
+                console.error('Error loading current user:', error);
+                localStorage.removeItem('authToken');
+            }
         }
 
-        // Authentication functions
-        async function login() {
+        async function handleLogin(e) {
+            e.preventDefault();
+            
             const username = document.getElementById('login-username').value;
             const password = document.getElementById('login-password').value;
-            
-            if (!username || !password) {
-                showMessage('auth-message', 'Please enter both username and password', 'error');
-                return;
-            }
-            
+            const messageEl = document.getElementById('login-message');
+
             try {
                 const response = await fetch('/api/accounts/login/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    authToken = data.access_token;
-                    currentUser = data.username;
-                    localStorage.setItem('authToken', authToken);
-                    localStorage.setItem('currentUser', currentUser);
-                    showLoggedInState();
-                    loadMyReviews();
-                    showMessage('auth-message', 'Login successful!', 'success');
+                    localStorage.setItem('authToken', data.access_token);
+                    messageEl.innerHTML = '<div class="success-message">Login successful! Redirecting...</div>';
+                    setTimeout(() => window.location.reload(), 1000);
                 } else {
-                    showMessage('auth-message', data.error || 'Login failed', 'error');
+                    messageEl.innerHTML = `<div class="error-message">${data.error || 'Login failed'}</div>`;
                 }
             } catch (error) {
-                showMessage('auth-message', 'Network error. Please try again.', 'error');
+                messageEl.innerHTML = '<div class="error-message">Login error. Please try again.</div>';
             }
         }
 
-        async function register() {
+        async function handleRegister(e) {
+            e.preventDefault();
+            
             const username = document.getElementById('register-username').value;
             const password = document.getElementById('register-password').value;
-            
-            if (!username || !password) {
-                showMessage('auth-message', 'Please enter both username and password', 'error');
-                return;
-            }
-            
+            const bio = document.getElementById('register-bio').value;
+            const messageEl = document.getElementById('register-message');
+
             try {
                 const response = await fetch('/api/accounts/register/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, bio })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    authToken = data.access_token;
-                    currentUser = data.username;
-                    localStorage.setItem('authToken', authToken);
-                    localStorage.setItem('currentUser', currentUser);
-                    showLoggedInState();
-                    showMessage('auth-message', 'Registration successful!', 'success');
+                    localStorage.setItem('authToken', data.access_token);
+                    messageEl.innerHTML = '<div class="success-message">Registration successful! Welcome to halfnote!</div>';
+                    setTimeout(() => window.location.reload(), 1000);
                 } else {
-                    showMessage('auth-message', data.error || 'Registration failed', 'error');
+                    messageEl.innerHTML = `<div class="error-message">${data.error || 'Registration failed'}</div>`;
                 }
             } catch (error) {
-                showMessage('auth-message', 'Network error. Please try again.', 'error');
+                messageEl.innerHTML = '<div class="error-message">Registration error. Please try again.</div>';
+            }
+        }
+
+        function showAuthTab(tab) {
+            // Update tab appearance
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide forms
+            document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+            
+            // Clear messages
+            document.getElementById('login-message').innerHTML = '';
+            document.getElementById('register-message').innerHTML = '';
+        }
+
+        function goToMyProfile() {
+            if (currentUser) {
+                window.location.href = `/users/${currentUser}/`;
+            } else {
+                alert('Please log in first');
             }
         }
 
         function logout() {
-            authToken = null;
-            currentUser = null;
             localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-            showLoggedOutState();
+            window.location.reload();
         }
 
-        function showLoggedInState() {
-            document.getElementById('auth-section').style.display = 'none';
-            document.getElementById('welcome-section').style.display = 'flex';
-            document.getElementById('activity-section').style.display = 'block';
-            document.getElementById('welcome-text').textContent = `Welcome back, ${currentUser}!`;
-            loadUserProfile();
-            initializeFavoriteGenres();
-        }
-
-        function showLoggedOutState() {
-            document.getElementById('auth-section').style.display = 'block';
-            document.getElementById('welcome-section').style.display = 'none';
-            document.getElementById('activity-section').style.display = 'none';
-            document.getElementById('profile-section').style.display = 'none';
-            document.getElementById('my-reviews').innerHTML = '';
-        }
-
-        // Navigation
-        function showSection(section) {
-            // Update nav buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Hide all sections
-            document.getElementById('activity-section').style.display = 'none';
-            document.getElementById('profile-section').style.display = 'none';
-            
-            // Show selected section
-            if (section === 'activity') {
-                document.getElementById('activity-section').style.display = 'block';
-                loadActivityFeed(currentActivityType);
-            } else if (section === 'profile') {
-                document.getElementById('profile-section').style.display = 'block';
-                loadUserProfile();
-                loadMyReviews();
-            }
-        }
-
-        // Search functions
-        function handleMainSearchEnter(event) {
+        function handleSearchKeypress(event) {
             if (event.key === 'Enter') {
-                const query = event.target.value;
-                document.getElementById('search-input').value = query;
-                searchAlbums();
-            }
-        }
-
-        function handleSearchEnter(event) {
-            if (event.key === 'Enter') {
-                searchAlbums();
-            }
-        }
-        
-        function handleUserSearchEnter(event) {
-            if (event.key === 'Enter') {
-                searchUsers();
-            }
-        }
-
-        async function searchAlbums() {
-            const query = document.getElementById('search-input').value.trim();
-            
-            if (!query) {
-                showMessage('search-results', 'Please enter a search term', 'error');
-                return;
-            }
-            
-            if (!authToken) {
-                showMessage('search-results', 'Please login to search for albums', 'error');
-                return;
-            }
-            
-            document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
-            
-            try {
-                const response = await fetch(`/api/music/search/?q=${encodeURIComponent(query)}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displaySearchResults(data.results);
-                } else {
-                    showMessage('search-results', data.error || 'Search failed', 'error');
+                if (!currentUser) {
+                    alert('Please log in to search for music');
+                    return;
                 }
-            } catch (error) {
-                showMessage('search-results', 'Network error. Please try again.', 'error');
-            }
-        }
-
-        function displaySearchResults(results) {
-            const container = document.getElementById('search-results');
-            
-            if (results.length === 0) {
-                container.innerHTML = '<div class="message error">No albums found. Try a different search term.</div>';
-                return;
-            }
-            
-            container.innerHTML = results.map(album => `
-                <div class="album-result">
-                    <img src="${album.cover_image || '/static/default-album.png'}" alt="${album.title}" class="album-cover" onerror="this.src='/static/default-album.png'">
-                    <div class="album-info">
-                        <div class="album-title">${album.title}</div>
-                        <div class="album-artist">${album.artist}</div>
-                        <div class="album-year">${album.year || 'Unknown Year'}</div>
-                    </div>
-                    <div class="album-actions">
-                        <button class="btn-primary" onclick="openReviewModal('${album.discogs_id}', '${album.title}', '${album.artist}', '${album.cover_image || ''}')">
-                            Review
-                        </button>
-                        <button class="btn-secondary" onclick="viewAlbum('${album.discogs_id}')">
-                            Details
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Review functions
-        function openReviewModal(discogsId, title, artist, coverImage) {
-            if (!authToken) {
-                alert('Please login to leave a review');
-                return;
-            }
-            
-            currentAlbum = { discogs_id: discogsId, title, artist, cover_image: coverImage };
-            
-            document.getElementById('review-album-info').innerHTML = `
-                <div class="album-result" style="margin-bottom: 20px;">
-                    <img src="${coverImage || '/static/default-album.png'}" alt="${title}" class="album-cover">
-                    <div class="album-info">
-                        <div class="album-title">${title}</div>
-                        <div class="album-artist">${artist}</div>
-                    </div>
-                </div>
-            `;
-            
-            // Reset form
-            document.getElementById('rating-slider').value = 5;
-            document.getElementById('rating-display').textContent = '5/10';
-            document.getElementById('review-content').value = '';
-            document.getElementById('review-message').innerHTML = '';
-            
-            // Load and display genres
-            displayGenresInModal();
-            
-            // Reset genre checkboxes
-            document.querySelectorAll('#genre-selection input[type="checkbox"]').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            
-            document.getElementById('review-modal').style.display = 'block';
-        }
-
-        function closeReviewModal() {
-            document.getElementById('review-modal').style.display = 'none';
-            currentAlbum = null;
-        }
-
-        function updateRatingDisplay() {
-            const rating = document.getElementById('rating-slider').value;
-            document.getElementById('rating-display').textContent = `${rating}/10`;
-        }
-
-        async function submitReview() {
-            if (!currentAlbum) return;
-            
-            const rating = parseInt(document.getElementById('rating-slider').value);
-            const content = document.getElementById('review-content').value.trim();
-            
-            const selectedGenres = Array.from(document.querySelectorAll('#genre-selection input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-            
-            if (!content) {
-                showMessage('review-message', 'Please write a review', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/albums/${currentAlbum.discogs_id}/review/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`,
-                    },
-                    body: JSON.stringify({ rating, content, genres: selectedGenres })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showMessage('review-message', 'Review submitted successfully!', 'success');
-                    setTimeout(() => {
-                        closeReviewModal();
-                        loadMyReviews();
-                    }, 1500);
-                } else {
-                    showMessage('review-message', data.error || 'Failed to submit review', 'error');
-                }
-            } catch (error) {
-                showMessage('review-message', 'Network error. Please try again.', 'error');
-            }
-        }
-
-        async function loadMyReviews() {
-            if (!authToken || !currentUser) return;
-            
-            try {
-                const response = await fetch(`/api/accounts/users/${currentUser}/reviews/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayMyReviews(data);
-                } else {
-                    document.getElementById('my-reviews').innerHTML = '<div class="message error">Failed to load reviews</div>';
-                }
-            } catch (error) {
-                document.getElementById('my-reviews').innerHTML = '<div class="message error">Failed to load reviews</div>';
-            }
-        }
-
-        function displayMyReviews(reviews) {
-            const container = document.getElementById('my-reviews');
-            
-            if (reviews.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No reviews yet. Search for albums and leave your first review!</div>';
-                return;
-            }
-            
-            container.innerHTML = reviews.map(review => `
-                <div class="review-item" id="review-${review.id}">
-                    <img src="${review.album_cover || '/static/default-album.png'}" 
-                         alt="${review.album_title || 'Unknown Album'}" 
-                         class="review-album-cover" 
-                         onerror="this.src='/static/default-album.png'">
-                    <div class="review-content-wrapper">
-                        <div class="review-header">
-                            <div class="review-album-info">
-                                <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
-                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
-                                ${review.album_year ? `<div class="review-album-year">${review.album_year}</div>` : ''}
-                            </div>
-                            <div class="review-header-right">
-                                <div class="review-rating">${review.rating}/10</div>
-                                <div class="review-actions">
-                                    <button class="action-btn like-btn ${review.is_liked_by_user ? 'liked' : ''}" onclick="toggleLike(${review.id})" title="${review.is_liked_by_user ? 'Unlike' : 'Like'}">
-                                        ❤️ <span class="likes-count">${review.likes_count || 0}</span>
-                                    </button>
-                                    <button class="action-btn comment-btn" onclick="toggleMyReviewComments(${review.id})" title="View Comments">
-                                        💬 <span class="comments-count">${review.comments_count || 0}</span>
-                                    </button>
-                                    <button class="action-btn pin-btn ${review.is_pinned ? 'pinned' : ''}" onclick="togglePin(${review.id})" title="${review.is_pinned ? 'Unpin Review' : 'Pin Review'}">📌</button>
-                                    <button class="action-btn edit-btn" onclick="editReview(${review.id})" title="Edit Review">✏️</button>
-                                    <button class="action-btn delete-btn" onclick="deleteReview(${review.id})" title="Delete Review">🗑️</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="review-content" id="review-content-${review.id}">${review.content}</div>
-                        <div class="review-meta">
-                            Reviewed on ${new Date(review.created_at).toLocaleDateString()}
-                            ${review.user_genres && review.user_genres.length > 0 ? 
-                                ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
-                        </div>
-                        
-                        <!-- Comments section -->
-                        <div class="comments-section" id="my-review-comments-${review.id}" style="display: none;">
-                            <div class="add-comment">
-                                <textarea placeholder="Add a comment..." 
-                                         class="comment-input" 
-                                         id="my-review-comment-input-${review.id}"
-                                         rows="2"></textarea>
-                                <button class="comment-submit" onclick="submitMyReviewComment(${review.id})">Post</button>
-                            </div>
-                            <div id="my-review-comment-list-${review.id}"></div>
-                        </div>
-
-                        <!-- Hidden edit form -->
-                        <div class="review-edit-form" id="edit-form-${review.id}" style="display: none;">
-                            <div class="form-group">
-                                <label>Rating (1-10):</label>
-                                <select id="edit-rating-${review.id}">
-                                    ${[1,2,3,4,5,6,7,8,9,10].map(num => 
-                                        `<option value="${num}" ${num == review.rating ? 'selected' : ''}>${num}</option>`
-                                    ).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Review:</label>
-                                <textarea id="edit-content-${review.id}" rows="4">${review.content}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Genres:</label>
-                                <div class="genre-selection" id="edit-genres-${review.id}">
-                                    ${['Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 'Soundtrack', 'World'].map(genre => `
-                                        <div class="genre-option">
-                                            <input type="checkbox" id="edit-genre-${review.id}-${genre}" value="${genre}" 
-                                                   ${review.user_genres && review.user_genres.some(g => g.name === genre) ? 'checked' : ''}>
-                                            <label for="edit-genre-${review.id}-${genre}">${genre}</label>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button onclick="saveReviewEdit(${review.id})" class="btn-primary">Save Changes</button>
-                                <button onclick="cancelReviewEdit(${review.id})" class="btn-secondary">Cancel</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function viewAlbum(discogsId) {
-            if (!authToken) {
-                alert('Please login to view album details');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/albums/${discogsId}/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    alert(`Album: ${data.album.title}\nArtist: ${data.album.artist}\nYear: ${data.album.year}\nReviews: ${data.review_count}\nAverage Rating: ${data.average_rating ? data.average_rating.toFixed(1) : 'No ratings'}/10`);
-                }
-            } catch (error) {
-                alert('Failed to load album details');
-            }
-        }
-
-        // Genre management
-        let availableGenres = [];
-
-        async function initializeGenres() {
-            try {
-                const response = await fetch('/api/music/genres/');
-                const data = await response.json();
-                
-                if (response.ok) {
-                    availableGenres = data.genres;
-                    displayGenresInModal();
-                } else {
-                    console.error('Failed to load genres:', data);
-                    // Fallback to hardcoded genres
-                    availableGenres = [
-                        {id: 1, name: 'Pop'}, {id: 2, name: 'Hip-Hop'}, {id: 3, name: 'Rock'}, 
-                        {id: 4, name: 'Latin'}, {id: 5, name: 'Country'}, {id: 6, name: 'Electronic'}, 
-                        {id: 7, name: 'Jazz'}, {id: 8, name: 'Reggae'}, {id: 9, name: 'Gospel'}, 
-                        {id: 10, name: 'Classical'}, {id: 11, name: 'Funk'}, {id: 12, name: 'Folk'}, 
-                        {id: 13, name: 'Soundtrack'}, {id: 14, name: 'World'}
-                    ];
-                    displayGenresInModal();
-                }
-            } catch (error) {
-                console.error('Error loading genres:', error);
-                // Fallback to hardcoded genres
-                availableGenres = [
-                    {id: 1, name: 'Pop'}, {id: 2, name: 'Hip-Hop'}, {id: 3, name: 'Rock'}, 
-                    {id: 4, name: 'Latin'}, {id: 5, name: 'Country'}, {id: 6, name: 'Electronic'}, 
-                    {id: 7, name: 'Jazz'}, {id: 8, name: 'Reggae'}, {id: 9, name: 'Gospel'}, 
-                    {id: 10, name: 'Classical'}, {id: 11, name: 'Funk'}, {id: 12, name: 'Folk'}, 
-                    {id: 13, name: 'Soundtrack'}, {id: 14, name: 'World'}
-                ];
-                displayGenresInModal();
-            }
-        }
-
-        function displayGenresInModal() {
-            const container = document.getElementById('genre-selection');
-            if (container) {
-                container.innerHTML = availableGenres.map(genre => `
-                    <div class="genre-option">
-                        <input type="checkbox" id="genre-${genre.id}" value="${genre.name}">
-                        <label for="genre-${genre.id}">${genre.name}</label>
-                    </div>
-                `).join('');
-            }
-        }
-
-        // Utility functions
-        function showMessage(containerId, message, type) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="message ${type}">${message}</div>`;
-        }
-
-        // Profile functions
-        async function loadUserProfile() {
-            if (!authToken || !currentUser) return;
-            
-            try {
-                const response = await fetch('/api/accounts/profile/', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayUserProfile(data);
-                } else {
-                    console.error('Failed to load profile');
-                }
-            } catch (error) {
-                console.error('Error loading profile:', error);
-            }
-        }
-
-        function displayUserProfile(profile) {
-            document.getElementById('profile-username').textContent = profile.username;
-            document.getElementById('profile-bio').textContent = profile.bio || 'No bio yet';
-            document.getElementById('profile-reviews').textContent = `${profile.review_count} Reviews`;
-            document.getElementById('profile-following').textContent = `${profile.following_count} Following`;
-            document.getElementById('profile-followers').textContent = `${profile.followers_count} Followers`;
-            
-            // Set avatar
-            const avatarImg = document.getElementById('profile-avatar-img');
-            if (profile.avatar) {
-                avatarImg.src = profile.avatar;
-            } else {
-                avatarImg.src = '/static/default-avatar.svg';
-            }
-            
-            // Display favorite genres
-            const genresContainer = document.getElementById('profile-favorite-genres');
-            if (profile.favorite_genres && profile.favorite_genres.length > 0) {
-                genresContainer.innerHTML = profile.favorite_genres.map(genre => 
-                    `<span class="genre-tag">${genre}</span>`
-                ).join('');
-            } else {
-                genresContainer.innerHTML = '<span style="color: #9ca3af;">No favorite genres selected</span>';
-            }
-            
-            // Display pinned reviews
-            displayPinnedReviews(profile.pinned_reviews);
-        }
-
-        function showEditProfile() {
-            // Populate edit form with current data
-            const bio = document.getElementById('profile-bio').textContent;
-            
-            document.getElementById('edit-bio').value = bio === 'No bio yet' ? '' : bio;
-            // Note: File input can't be pre-populated for security reasons
-            
-            // Initialize favorite genres
-            initializeFavoriteGenres();
-            
-            // Hide view, show edit
-            document.getElementById('profile-view').style.display = 'none';
-            document.getElementById('profile-edit').style.display = 'block';
-        }
-
-        function cancelEditProfile() {
-            document.getElementById('profile-view').style.display = 'block';
-            document.getElementById('profile-edit').style.display = 'none';
-        }
-
-        function initializeFavoriteGenres() {
-            const container = document.getElementById('edit-favorite-genres');
-            if (container && availableGenres.length > 0) {
-                container.innerHTML = availableGenres.map(genre => `
-                    <div class="genre-option">
-                        <input type="checkbox" id="fav-genre-${genre.id}" value="${genre.name}">
-                        <label for="fav-genre-${genre.id}">${genre.name}</label>
-                    </div>
-                `).join('');
-            }
-        }
-
-        async function saveProfile() {
-            const bio = document.getElementById('edit-bio').value.trim();
-            const avatarFile = document.getElementById('edit-avatar').files[0];
-            
-            const selectedGenres = Array.from(document.querySelectorAll('#edit-favorite-genres input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-            
-            try {
-                // Use FormData for file upload
-                const formData = new FormData();
-                formData.append('bio', bio);
-                formData.append('favorite_genres', JSON.stringify(selectedGenres));
-                
-                if (avatarFile) {
-                    formData.append('avatar', avatarFile);
-                }
-                
-                const response = await fetch('/api/accounts/profile/', {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                    },
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showMessage('profile-edit-message', 'Profile updated successfully!', 'success');
-                    setTimeout(() => {
-                        loadUserProfile();
-                        cancelEditProfile();
-                    }, 1000);
-                } else {
-                    showMessage('profile-edit-message', data.error || 'Failed to update profile', 'error');
-                }
-            } catch (error) {
-                showMessage('profile-edit-message', 'Network error. Please try again.', 'error');
-            }
-        }
-
-        // Review editing functions
-        function editReview(reviewId) {
-            // Hide the review content and show the edit form
-            document.getElementById(`review-content-${reviewId}`).style.display = 'none';
-            document.getElementById(`edit-form-${reviewId}`).style.display = 'block';
-        }
-        
-        function cancelReviewEdit(reviewId) {
-            // Show the review content and hide the edit form
-            document.getElementById(`review-content-${reviewId}`).style.display = 'block';
-            document.getElementById(`edit-form-${reviewId}`).style.display = 'none';
-        }
-        
-        async function saveReviewEdit(reviewId) {
-            const rating = document.getElementById(`edit-rating-${reviewId}`).value;
-            const content = document.getElementById(`edit-content-${reviewId}`).value.trim();
-            
-            // Get selected genres
-            const selectedGenres = Array.from(document.querySelectorAll(`#edit-genres-${reviewId} input[type="checkbox"]:checked`))
-                .map(checkbox => checkbox.value);
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`,
-                    },
-                    body: JSON.stringify({
-                        rating: parseInt(rating),
-                        content: content,
-                        genres: selectedGenres
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Refresh the reviews list to show updated review
-                    loadMyReviews();
-                    loadUserProfile(); // Update review count if needed
-                } else {
-                    alert(data.error || 'Failed to update review');
-                }
-            } catch (error) {
-                alert('Network error. Please try again.');
-            }
-        }
-        
-        async function deleteReview(reviewId) {
-            if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                    }
-                });
-                
-                if (response.ok) {
-                    // Remove the review from the UI
-                    document.getElementById(`review-${reviewId}`).style.display = 'none';
-                    loadUserProfile(); // Update review count
-                } else {
-                    const data = await response.json();
-                    alert(data.error || 'Failed to delete review');
-                }
-            } catch (error) {
-                alert('Network error. Please try again.');
-            }
-        }
-
-        async function searchUsers() {
-            const query = document.getElementById('user-search').value.trim();
-            
-            if (!query) {
-                showMessage('user-search-results', 'Please enter a search term', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/accounts/users/search/?q=${encodeURIComponent(query)}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayUserSearchResults(data.users);
-                } else {
-                    showMessage('user-search-results', data.error || 'Search failed', 'error');
-                }
-            } catch (error) {
-                showMessage('user-search-results', 'Network error. Please try again.', 'error');
-            }
-        }
-        
-        function displayUserSearchResults(users) {
-            const container = document.getElementById('user-search-results');
-            
-            if (users.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No users found</div>';
-                return;
-            }
-            
-            container.innerHTML = users.map(user => `
-                <div class="user-item">
-                    <img src="${user.avatar_url || 'https://via.placeholder.com/40x40/e5e7eb/6b7280?text=' + user.username.charAt(0).toUpperCase()}" 
-                         alt="${user.username}" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">${user.username}</div>
-                        <div class="user-meta">${user.bio || 'No bio available'}</div>
-                    </div>
-                    <div class="user-actions">
-                        ${user.is_following ? 
-                            `<button class="btn-secondary" onclick="unfollowUserFromSearch('${user.username}')">Unfollow</button>` :
-                            `<button class="btn-primary" onclick="followUserFromSearch('${user.username}')">Follow</button>`
-                        }
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        async function followUserFromSearch(username) {
-            try {
-                const response = await fetch(`/api/accounts/users/${username}/follow/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (response.ok) {
-                    // Refresh search results to show updated follow status
-                    searchUsers();
-                    loadUserProfile(); // Update following count
-                } else {
-                    alert('Failed to follow user');
-                }
-            } catch (error) {
-                alert('Error following user');
-            }
-        }
-        
-        async function unfollowUserFromSearch(username) {
-            try {
-                const response = await fetch(`/api/accounts/users/${username}/unfollow/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (response.ok) {
-                    // Refresh search results to show updated follow status
-                    searchUsers();
-                    loadUserProfile(); // Update following count
-                } else {
-                    alert('Failed to unfollow user');
-                }
-            } catch (error) {
-                alert('Error unfollowing user');
-            }
-        }
-
-        function showSocialTab(tab) {
-            document.querySelectorAll('.social-tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            document.getElementById('following-list').style.display = tab === 'following' ? 'block' : 'none';
-            document.getElementById('followers-list').style.display = tab === 'followers' ? 'block' : 'none';
-        }
-
-        async function loadFollowing() {
-            if (!authToken || !currentUser) return;
-            
-            try {
-                const response = await fetch(`/api/accounts/users/${currentUser}/following/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayUserList(data, 'following-list', 'unfollow');
-                } else {
-                    document.getElementById('following-list').innerHTML = '<div class="message error">Failed to load following</div>';
-                }
-            } catch (error) {
-                document.getElementById('following-list').innerHTML = '<div class="message error">Failed to load following</div>';
-            }
-        }
-
-        async function loadFollowers() {
-            if (!authToken || !currentUser) return;
-            
-            try {
-                const response = await fetch(`/api/accounts/users/${currentUser}/followers/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayUserList(data, 'followers-list', 'follow');
-                } else {
-                    document.getElementById('followers-list').innerHTML = '<div class="message error">Failed to load followers</div>';
-                }
-            } catch (error) {
-                document.getElementById('followers-list').innerHTML = '<div class="message error">Failed to load followers</div>';
-            }
-        }
-
-        function displayUserList(users, containerId, actionType) {
-            const container = document.getElementById(containerId);
-            
-            if (users.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #6b7280; padding: 20px;">No ${actionType === 'follow' ? 'followers' : 'following'} yet</div>`;
-                return;
-            }
-            
-            container.innerHTML = users.map(user => `
-                <div class="user-item">
-                    <img src="${user.avatar_url || 'https://via.placeholder.com/40x40/e5e7eb/6b7280?text=' + user.username.charAt(0).toUpperCase()}" 
-                         alt="${user.username}" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">${user.username}</div>
-                        <div class="user-meta">User since recently</div>
-                    </div>
-                    <div class="user-actions">
-                        ${actionType === 'unfollow' ? 
-                            `<button class="btn-secondary" onclick="unfollowUser('${user.username}')">Unfollow</button>` :
-                            `<button class="btn-primary" onclick="followUser('${user.username}')">Follow Back</button>`
-                        }
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function followUser(username) {
-            try {
-                const response = await fetch(`/api/accounts/users/${username}/follow/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (response.ok) {
-                    loadUserProfile();
-                    loadFollowing();
-                    loadFollowers();
-                } else {
-                    alert('Failed to follow user');
-                }
-            } catch (error) {
-                alert('Error following user');
-            }
-        }
-
-        async function unfollowUser(username) {
-            try {
-                const response = await fetch(`/api/accounts/users/${username}/unfollow/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (response.ok) {
-                    loadUserProfile();
-                    loadFollowing();
-                    loadFollowers();
-                } else {
-                    alert('Failed to unfollow user');
-                }
-            } catch (error) {
-                alert('Error unfollowing user');
-            }
-        }
-
-        // Pin/Unpin functions
-        async function togglePin(reviewId) {
-            if (!authToken) {
-                alert('Please login to pin reviews');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/pin/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Refresh reviews and profile to show updated state
-                    loadMyReviews();
-                    loadUserProfile();
-                    showMessage('reviews-message', data.message, 'success');
-                } else {
-                    showMessage('reviews-message', data.error || 'Failed to pin review', 'error');
-                }
-            } catch (error) {
-                showMessage('reviews-message', 'Error pinning review', 'error');
-            }
-        }
-
-        // Like/Unlike functions
-        async function toggleLike(reviewId) {
-            if (!authToken) {
-                alert('Please login to like reviews');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/like/`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Refresh reviews to show updated like status
-                    loadMyReviews();
-                    if (currentActivityType) {
-                        loadActivityFeed(currentActivityType);
-                    }
-                } else {
-                    alert(data.error || 'Failed to like review');
-                }
-            } catch (error) {
-                alert('Error liking review');
-            }
-        }
-
-        function displayPinnedReviews(pinnedReviews) {
-            const container = document.getElementById('pinned-reviews-container');
-            
-            if (!pinnedReviews || pinnedReviews.length === 0) {
-                container.innerHTML = '<div class="empty-pinned">No pinned reviews yet. Pin your favorite reviews to showcase them here!</div>';
-                return;
-            }
-            
-            container.innerHTML = pinnedReviews.map(review => `
-                <div class="pinned-review-item">
-                    <img src="${review.album_cover || '/static/default-album.png'}" 
-                         alt="${review.album_title || 'Unknown Album'}" 
-                         class="review-album-cover" 
-                         onerror="this.src='/static/default-album.png'">
-                    <div class="review-content-wrapper">
-                        <div class="review-header">
-                            <div class="review-album-info">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                    <span class="pinned-badge">Pinned</span>
-                                    <div class="review-rating">${review.rating}/10</div>
-                                </div>
-                                <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
-                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
-                            </div>
-                        </div>
-                        <div class="review-content">${review.content}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Activity Feed functions
-        let currentActivityType = 'friends';
-
-        async function loadActivityFeed(type = 'friends') {
-            currentActivityType = type;
-            
-            if (!authToken) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/activity/?type=${type}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayActivityFeed(data.activities);
-                } else {
-                    document.getElementById('activity-feed').innerHTML = '<div class="message error">Failed to load activity feed</div>';
-                }
-            } catch (error) {
-                document.getElementById('activity-feed').innerHTML = '<div class="message error">Failed to load activity feed</div>';
-            }
-        }
-
-        function displayActivityFeed(activities) {
-            const container = document.getElementById('activity-feed');
-            
-            if (activities.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No recent activity</div>';
-                return;
-            }
-            
-            container.innerHTML = activities.map(activity => {
-                const timeAgo = getTimeAgo(activity.created_at);
-                let activityText = '';
-                let reviewPreview = '';
-                
-                switch (activity.activity_type) {
-                    case 'review_created':
-                        activityText = `<span class="username">${activity.username}</span> reviewed <span class="album-title">${activity.review_details.album_title}</span>`;
-                        reviewPreview = `
-                            <div class="activity-review-preview">
-                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
-                                     alt="${activity.review_details.album_title}" 
-                                     class="activity-album-cover" 
-                                     onerror="this.src='/static/default-album.png'">
-                                <div class="activity-review-text">
-                                    <div class="activity-review-header">
-                                        <span class="review-rating">${activity.review_details.rating}/10</span>
-                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
-                                    </div>
-                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
-                                    <div class="review-actions-bar">
-                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
-                                            💬 <span>${activity.review_details.comments_count || 0}</span>
-                                        </button>
-                                    </div>
-                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
-                                        <div class="add-comment">
-                                            <textarea placeholder="Add a comment..." 
-                                                     class="comment-input" 
-                                                     id="comment-input-${activity.review_details.id}"
-                                                     rows="2"></textarea>
-                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
-                                        </div>
-                                        <div id="comment-list-${activity.review_details.id}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        break;
-                    case 'review_liked':
-                        activityText = `<span class="username">${activity.username}</span> liked <span class="username">${activity.review_details.review_username}</span>'s review of <span class="album-title">${activity.review_details.album_title}</span>`;
-                        reviewPreview = `
-                            <div class="activity-review-preview">
-                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
-                                     alt="${activity.review_details.album_title}" 
-                                     class="activity-album-cover" 
-                                     onerror="this.src='/static/default-album.png'">
-                                <div class="activity-review-text">
-                                    <div class="activity-review-header">
-                                        <span class="review-rating">${activity.review_details.rating}/10</span>
-                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
-                                    </div>
-                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
-                                    <div class="review-actions-bar">
-                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
-                                            💬 <span>${activity.review_details.comments_count || 0}</span>
-                                        </button>
-                                    </div>
-                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
-                                        <div class="add-comment">
-                                            <textarea placeholder="Add a comment..." 
-                                                     class="comment-input" 
-                                                     id="comment-input-${activity.review_details.id}"
-                                                     rows="2"></textarea>
-                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
-                                        </div>
-                                        <div id="comment-list-${activity.review_details.id}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        break;
-                    case 'review_pinned':
-                        activityText = `<span class="username">${activity.username}</span> pinned their review of <span class="album-title">${activity.review_details.album_title}</span>`;
-                        reviewPreview = `
-                            <div class="activity-review-preview">
-                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
-                                     alt="${activity.review_details.album_title}" 
-                                     class="activity-album-cover" 
-                                     onerror="this.src='/static/default-album.png'">
-                                <div class="activity-review-text">
-                                    <div class="activity-review-header">
-                                        <span class="review-rating">${activity.review_details.rating}/10</span>
-                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
-                                    </div>
-                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
-                                    <div class="review-actions-bar">
-                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
-                                            💬 <span>${activity.review_details.comments_count || 0}</span>
-                                        </button>
-                                    </div>
-                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
-                                        <div class="add-comment">
-                                            <textarea placeholder="Add a comment..." 
-                                                     class="comment-input" 
-                                                     id="comment-input-${activity.review_details.id}"
-                                                     rows="2"></textarea>
-                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
-                                        </div>
-                                        <div id="comment-list-${activity.review_details.id}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        break;
-                    case 'user_followed':
-                        activityText = `<span class="username">${activity.username}</span> started following <span class="username">${activity.target_username}</span>`;
-                        break;
-                    case 'comment_created':
-                        activityText = `
-                            <div>
-                                <span class="username">${activity.username}</span> commented on <span class="username">${activity.review_details.review_username}</span>'s review of <span class="album-title">${activity.review_details.album_title}</span>
-                            </div>
-                            ${activity.comment_details ? `
-                                <div class="comment-highlight">
-                                    <div class="comment-highlight-content">"${activity.comment_details.content}"</div>
-                                </div>
-                            ` : ''}
-                        `;
-                        reviewPreview = `
-                            <div class="activity-review-preview">
-                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
-                                     alt="${activity.review_details.album_title}" 
-                                     class="activity-album-cover" 
-                                     onerror="this.src='/static/default-album.png'">
-                                <div class="activity-review-text">
-                                    <div class="activity-review-header">
-                                        <span class="review-rating">${activity.review_details.rating}/10</span>
-                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
-                                    </div>
-                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
-                                    <div class="review-actions-bar">
-                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
-                                            💬 <span>${activity.review_details.comments_count || 0}</span>
-                                        </button>
-                                    </div>
-                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
-                                        <div class="add-comment">
-                                            <textarea placeholder="Add a comment..." 
-                                                     class="comment-input" 
-                                                     id="comment-input-${activity.review_details.id}"
-                                                     rows="2"></textarea>
-                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
-                                        </div>
-                                        <div id="comment-list-${activity.review_details.id}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        break;
-                }
-                
-                return `
-                    <div class="activity-item">
-                        <img src="${activity.user_avatar || 'https://via.placeholder.com/40x40/e5e7eb/6b7280?text=' + activity.username.charAt(0).toUpperCase()}" 
-                             alt="${activity.username}" class="activity-avatar">
-                        <div class="activity-content">
-                            <div class="activity-text">${activityText}</div>
-                            <div class="activity-time">${timeAgo}</div>
-                            ${reviewPreview}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function showActivityTab(type) {
-            // Update tab appearance
-            document.querySelectorAll('.activity-tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Load activity feed for this type
-            loadActivityFeed(type);
-        }
-
-        function getTimeAgo(dateString) {
-            const now = new Date();
-            const date = new Date(dateString);
-            const diffInSeconds = Math.floor((now - date) / 1000);
-            
-            if (diffInSeconds < 60) return `${diffInSeconds}s`;
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-            if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d`;
-            return `${Math.floor(diffInSeconds / 2592000)}mo`;
-        }
-
-        // Comment functions
-        async function toggleComments(reviewId) {
-            const commentsSection = document.getElementById(`comments-${reviewId}`);
-            
-            if (commentsSection.style.display === 'none') {
-                commentsSection.style.display = 'block';
-                loadComments(reviewId);
-            } else {
-                commentsSection.style.display = 'none';
-            }
-        }
-
-        async function loadComments(reviewId) {
-            if (!authToken) return;
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayComments(reviewId, data.comments);
-                }
-            } catch (error) {
-                console.error('Error loading comments:', error);
-            }
-        }
-
-        function displayComments(reviewId, comments) {
-            const container = document.getElementById(`comment-list-${reviewId}`);
-            
-            if (comments.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 8px; font-size: 12px;">No comments yet</div>';
-                return;
-            }
-            
-            container.innerHTML = comments.map(comment => `
-                <div class="comment-item">
-                    <img src="${comment.user_avatar || '/static/default-avatar.svg'}" 
-                         alt="${comment.username}" class="comment-avatar">
-                    <div class="comment-content">
-                        <div class="comment-header">
-                            <span class="comment-username">${comment.username}</span>
-                            <span class="comment-time">${getTimeAgo(comment.created_at)}</span>
-                        </div>
-                        <div class="comment-text">${comment.content}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function submitComment(reviewId) {
-            if (!authToken) {
-                alert('Please login to comment');
-                return;
-            }
-            
-            const input = document.getElementById(`comment-input-${reviewId}`);
-            const content = input.value.trim();
-            
-            if (!content) {
-                alert('Please enter a comment');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ content })
-                });
-                
-                if (response.ok) {
-                    input.value = '';
-                    loadComments(reviewId);
-                    // Refresh activity feed to update comment count
-                    if (currentActivityType) {
-                        loadActivityFeed(currentActivityType);
-                    }
-                } else {
-                    const data = await response.json();
-                    alert(data.error || 'Failed to post comment');
-                }
-            } catch (error) {
-                alert('Error posting comment');
-            }
-        }
-
-        // My Reviews Comment functions
-        async function toggleMyReviewComments(reviewId) {
-            const commentsSection = document.getElementById(`my-review-comments-${reviewId}`);
-            
-            if (commentsSection.style.display === 'none') {
-                commentsSection.style.display = 'block';
-                loadMyReviewComments(reviewId);
-            } else {
-                commentsSection.style.display = 'none';
-            }
-        }
-
-        async function loadMyReviewComments(reviewId) {
-            if (!authToken) return;
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    displayMyReviewComments(reviewId, data.comments);
-                }
-            } catch (error) {
-                console.error('Error loading comments:', error);
-            }
-        }
-
-        function displayMyReviewComments(reviewId, comments) {
-            const container = document.getElementById(`my-review-comment-list-${reviewId}`);
-            
-            if (comments.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 8px; font-size: 12px;">No comments yet</div>';
-                return;
-            }
-            
-            container.innerHTML = comments.map(comment => `
-                <div class="comment-item">
-                    <img src="${comment.user_avatar || '/static/default-avatar.svg'}" 
-                         alt="${comment.username}" class="comment-avatar">
-                    <div class="comment-content">
-                        <div class="comment-header">
-                            <span class="comment-username">${comment.username}</span>
-                            <span class="comment-time">${getTimeAgo(comment.created_at)}</span>
-                        </div>
-                        <div class="comment-text">${comment.content}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function submitMyReviewComment(reviewId) {
-            if (!authToken) {
-                alert('Please login to comment');
-                return;
-            }
-            
-            const input = document.getElementById(`my-review-comment-input-${reviewId}`);
-            const content = input.value.trim();
-            
-            if (!content) {
-                alert('Please enter a comment');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ content })
-                });
-                
-                if (response.ok) {
-                    input.value = '';
-                    loadMyReviewComments(reviewId);
-                    // Refresh My Reviews to update comment count
-                    loadMyReviews();
-                } else {
-                    const data = await response.json();
-                    alert(data.error || 'Failed to post comment');
-                }
-            } catch (error) {
-                alert('Error posting comment');
-            }
-        }
-
-        // Unified Search Functions
-        function handleMainSearchEnter(event) {
-            console.log('Key pressed:', event.key);
-            if (event.key === 'Enter') {
-                event.preventDefault();
                 const query = event.target.value.trim();
                 if (query) {
-                    console.log('Redirecting to search results page with query:', query);
                     window.location.href = `/search/?q=${encodeURIComponent(query)}`;
                 }
-            }
-        }
-
-        // Image expansion functions
-        function expandAvatar() {
-            const avatarImg = document.getElementById('profile-avatar-img');
-            if (avatarImg.src && !avatarImg.src.includes('default-avatar.svg')) {
-                const modal = document.getElementById('image-modal');
-                const expandedImg = document.getElementById('expanded-image');
-                expandedImg.src = avatarImg.src;
-                modal.style.display = 'block';
-            }
-        }
-
-        function closeImageModal() {
-            document.getElementById('image-modal').style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('review-modal');
-            const imageModal = document.getElementById('image-modal');
-            if (event.target === modal) {
-                closeReviewModal();
-            }
-            if (event.target === imageModal) {
-                closeImageModal();
             }
         }
     </script>
