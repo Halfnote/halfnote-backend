@@ -533,7 +533,7 @@
         
         <div class="nav-buttons">
             <div class="search-nav">
-                <input type="text" placeholder="Login to search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
+                <input type="text" placeholder="Search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
             </div>
             <a href="/activity/" class="nav-btn">Activity</a>
             <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
@@ -644,6 +644,9 @@
         let isFollowing = false;
         let editingReviewId = null;
         let genres = [];
+        
+        // Global variable for default avatar URL
+        const defaultAvatarUrl = '{% static "accounts/default-avatar.svg" %}';
 
         document.addEventListener('DOMContentLoaded', function() {
             loadCurrentUser();
@@ -669,7 +672,7 @@
                     // Enable search functionality
                     const searchInput = document.getElementById('search-input');
                     searchInput.disabled = false;
-                    searchInput.placeholder = 'Search albums, artists...';
+                    searchInput.placeholder = 'Search';
                     
                     // Determine if this is the user's own profile
                     isOwnProfile = (currentUser === profileUsername);
@@ -749,7 +752,7 @@
 
             return `
                 <div class="review-item" data-review-id="${review.id}">
-                    <img src="${review.album_cover || '{% static "accounts/default-avatar.svg" %}'}" 
+                    <img src="${review.album_cover || defaultAvatarUrl}" 
                          alt="${review.album_title || 'Unknown Album'}" 
                          class="review-album-cover">
                     <div class="review-content-wrapper">

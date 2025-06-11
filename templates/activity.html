@@ -400,7 +400,7 @@
         
         <div class="nav-buttons">
             <div class="search-nav">
-                <input type="text" placeholder="Login to search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
+                <input type="text" placeholder="Search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
             </div>
             <a href="/activity/" class="nav-btn active">Activity</a>
             <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
@@ -428,6 +428,9 @@
         const authToken = localStorage.getItem('authToken');
         let currentUser = null;
         let currentTab = 'friends';
+        
+        // Global variable for default avatar URL
+        const defaultAvatarUrl = '{% static "accounts/default-avatar.svg" %}';
 
         document.addEventListener('DOMContentLoaded', function() {
             loadCurrentUser();
@@ -454,7 +457,7 @@
                     // Enable search functionality
                     const searchInput = document.getElementById('search-input');
                     searchInput.disabled = false;
-                    searchInput.placeholder = 'Search albums, artists...';
+                    searchInput.placeholder = 'Search';
                 } else {
                     window.location.href = '/';
                 }
@@ -502,7 +505,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
+                                <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -536,7 +539,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
+                                <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -551,7 +554,7 @@
                     case 'user_followed':
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
+                                <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -569,7 +572,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
+                                <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">

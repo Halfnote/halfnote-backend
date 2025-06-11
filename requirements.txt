@@ -8,3 +8,4 @@ djangorestframework-simplejwt
 cloudinary
 django-cloudinary-storage
 Pillow
+dj-database-url
