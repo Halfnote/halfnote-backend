@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile_user.username }} - halfnote</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 30px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link:hover {
+            color: #111827;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            text-decoration: none;
+            margin-bottom: 24px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: #111827;
+        }
+
+        .profile-header {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .profile-avatar:hover {
+            transform: scale(1.05);
+        }
+
+        .profile-details h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .profile-bio {
+            color: #6b7280;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .follow-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .follow-btn:hover {
+            background: #5a67d8;
+        }
+
+        .follow-btn.following {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+
+        .follow-btn.following:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .reviews-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 24px;
+        }
+
+        .review-item {
+            display: flex;
+            gap: 16px;
+            padding: 20px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .review-item:last-child {
+            border-bottom: none;
+        }
+
+        .review-album-cover {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .review-content-wrapper {
+            flex: 1;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .review-album-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .review-album-artist {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .review-rating {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .review-content {
+            color: #374151;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .review-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .no-reviews {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px;
+        }
+
+        /* Image modal styles */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-image {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 12px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <a href="/" class="logo">halfnote.</a>
+        <div class="nav-links">
+            <a href="/search/" class="nav-link">Search</a>
+            <a href="/" class="nav-link">Activity</a>
+            <a href="/" class="nav-link">Profile</a>
+            <span class="nav-link" id="current-user"></span>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="javascript:history.back()" class="back-link">
+            ← Back
+        </a>
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-info">
+                <img src="{% if profile_user.avatar %}{{ profile_user.avatar.url }}{% else %}/static/default-avatar.svg{% endif %}" 
+                     alt="{{ profile_user.username }}" 
+                     class="profile-avatar"
+                     onclick="expandAvatar(this.src)">
+                <div class="profile-details">
+                    <h1>{{ profile_user.username }}</h1>
+                    {% if profile_user.bio %}
+                    <p class="profile-bio">{{ profile_user.bio }}</p>
+                    {% endif %}
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="reviews-count">...</span>
+                            <span class="stat-label">Reviews</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="followers-count">...</span>
+                            <span class="stat-label">Followers</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="following-count">...</span>
+                            <span class="stat-label">Following</span>
+                        </div>
+                    </div>
+                    <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
+                        Follow
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="reviews-section">
+            <h2 class="section-title">Reviews</h2>
+            <div id="reviews-container">
+                <div class="loading">Loading reviews...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="image-modal" id="image-modal" onclick="closeImageModal()">
+        <button class="close-modal" onclick="closeImageModal()">&times;</button>
+        <img src="" alt="" class="modal-image" id="modal-image">
+    </div>
+
+    <script>
+        const authToken = localStorage.getItem('authToken');
+        const profileUsername = '{{ username }}';
+        let currentUser = null;
+        let isFollowing = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentUser();
+            loadUserReviews();
+            loadUserStats();
+        });
+
+        async function loadCurrentUser() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    currentUser = userData.username;
+                    document.getElementById('current-user').textContent = userData.username;
+                    
+                    // Show follow button if viewing someone else's profile
+                    if (currentUser !== profileUsername) {
+                        document.getElementById('follow-btn').style.display = 'block';
+                        checkFollowStatus();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading current user:', error);
+            }
+        }
+
+        async function loadUserReviews() {
+            try {
+                const response = await fetch(`/api/accounts/users/${profileUsername}/reviews/`);
+                const reviews = await response.json();
+
+                const container = document.getElementById('reviews-container');
+
+                if (reviews.length === 0) {
+                    container.innerHTML = '<div class="no-reviews">No reviews yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = reviews.map(review => `
+                    <div class="review-item">
+                        <img src="${review.album_cover || 'https://via.placeholder.com/80x80'}" 
+                             alt="${review.album_title || 'Unknown Album'}" 
+                             class="review-album-cover">
+                        <div class="review-content-wrapper">
+                            <div class="review-header">
+                                <div>
+                                    <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
+                                    <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
+                                </div>
+                                <div class="review-rating">${review.rating}/10</div>
+                            </div>
+                            <div class="review-content">${review.content}</div>
+                            <div class="review-meta">
+                                Reviewed on ${new Date(review.created_at).toLocaleDateString()}
+                                ${review.user_genres && review.user_genres.length > 0 ? 
+                                    ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('reviews-count').textContent = reviews.length;
+            } catch (error) {
+                console.error('Error loading reviews:', error);
+                document.getElementById('reviews-container').innerHTML = '<div class="no-reviews">Error loading reviews.</div>';
+            }
+        }
+
+        async function loadUserStats() {
+            // For now, just load reviews count, followers/following would need separate API calls
+            document.getElementById('followers-count').textContent = '0';
+            document.getElementById('following-count').textContent = '0';
+        }
+
+        async function checkFollowStatus() {
+            if (!authToken || !currentUser) return;
+
+            // This would need an API endpoint to check follow status
+            // For now, default to not following
+            updateFollowButton(false);
+        }
+
+        async function toggleFollow() {
+            if (!authToken) {
+                alert('Please login to follow users');
+                return;
+            }
+
+            try {
+                const endpoint = isFollowing ? 'unfollow' : 'follow';
+                const response = await fetch(`/api/accounts/users/${profileUsername}/${endpoint}/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    isFollowing = !isFollowing;
+                    updateFollowButton(isFollowing);
+                    // Update follower count (would need to reload stats)
+                } else {
+                    alert('Error updating follow status');
+                }
+            } catch (error) {
+                alert('Error updating follow status');
+            }
+        }
+
+        function updateFollowButton(following) {
+            const btn = document.getElementById('follow-btn');
+            isFollowing = following;
+            
+            if (following) {
+                btn.textContent = 'Following';
+                btn.classList.add('following');
+            } else {
+                btn.textContent = 'Follow';
+                btn.classList.remove('following');
+            }
+        }
+
+        function expandAvatar(src) {
+            document.getElementById('modal-image').src = src;
+            document.getElementById('image-modal').style.display = 'flex';
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html> 

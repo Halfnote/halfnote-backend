@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Album, Review, Genre, Activity, ReviewLike, Comment
-from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer
+from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer, GenreSerializer
 from .services import ExternalMusicService
 
 logger = logging.getLogger(__name__)
@@ -83,6 +83,14 @@ def search(request):
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return Response({'error': 'Search failed', 'details': str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_genres(request):
+    """Get all available genres"""
+    genres = Genre.objects.all().order_by('name')
+    serializer = GenreSerializer(genres, many=True)
+    return Response({'genres': serializer.data})
 
 
 

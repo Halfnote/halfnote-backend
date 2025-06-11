@@ -13,7 +13,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'bio', 'avatar_url',
+            'id', 'username', 'email', 'bio', 'avatar',
             'favorite_genres', 'followers_count', 'following_count',
             'review_count', 'pinned_reviews'
         ]
@@ -36,10 +36,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserFollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar_url']
+        fields = ['id', 'username', 'avatar']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'bio', 'avatar_url']
+        fields = ['id', 'username', 'email', 'bio', 'avatar']
         read_only_fields = ['id', 'email']

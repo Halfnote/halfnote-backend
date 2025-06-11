@@ -5,6 +5,9 @@ urlpatterns = [
     # Search endpoint - searches Discogs
     path('search/', views.search, name='album-search'),
     
+    # Genres endpoint
+    path('genres/', views.list_genres, name='genres-list'),
+    
     # Unified album view - handles both database and Discogs preview
     path('albums/<str:discogs_id>/', views.unified_album_view, name='album-detail'),
     

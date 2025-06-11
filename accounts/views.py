@@ -28,14 +28,16 @@ def register(request):
         user = User.objects.create_user(
             username=request.data['username'],
             password=request.data['password'],
-            bio=request.data.get('bio', ''),
-            avatar_url=request.data.get('avatar_url', '')
+            bio=request.data.get('bio', '')
         )
+        if 'avatar' in request.FILES:
+            user.avatar = request.FILES['avatar']
+            user.save()
         refresh = RefreshToken.for_user(user)
         return Response({
             'username': user.username,
             'bio': user.bio,
-            'avatar_url': user.avatar_url,
+            'avatar': user.avatar.url if user.avatar else None,
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh)
         }, status=201)
@@ -55,7 +57,7 @@ def login(request):
         return Response({
             'username': user.username,
             'bio': user.bio,
-            'avatar_url': user.avatar_url,
+            'avatar': user.avatar.url if user.avatar else None,
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh)
         })
@@ -196,9 +198,9 @@ def search_users(request):
             'id': user.id,
             'username': user.username,
             'bio': user.bio or '',
-            'avatar_url': user.avatar_url or '',
+            'avatar': user.avatar.url if user.avatar else None,
             'is_following': user.username in following_usernames,
         }
         results.append(user_data)
     
-    return Response({'results': results})
+    return Response({'users': results})

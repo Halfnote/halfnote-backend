@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halfnote - Music Reviews</title>
+    <title>halfnote -- API Frontend</title>
     <style>
         * {
             margin: 0;
@@ -85,26 +85,32 @@
             font-size: 14px;
         }
         
+        .search-nav {
+            position: relative;
+        }
+
         .search-nav::before {
             content: "🔍";
             margin-right: 8px;
         }
+
+
         
         /* Main Layout */
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 30px;
         }
         
         /* Cards */
         .card {
             background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         
         .card-title {
@@ -422,6 +428,45 @@
             padding: 24px;
         }
         
+        /* Image Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            cursor: pointer;
+        }
+        
+        .image-modal img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .image-modal .close-image {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1002;
+        }
+        
+        .image-modal .close-image:hover {
+            opacity: 0.7;
+        }
+        
         .rating-input {
             display: flex;
             align-items: center;
@@ -520,11 +565,17 @@
 
         .profile-avatar {
             flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .profile-avatar:hover {
+            transform: scale(1.05);
         }
 
         .avatar-img {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             background: #e5e7eb;
             object-fit: cover;
@@ -679,6 +730,16 @@
         /* Pinned Reviews */
         .pinned-reviews-section {
             margin-top: 24px;
+        }
+
+        .my-reviews-section {
+            margin-top: 24px;
+        }
+
+        .my-reviews-section h4 {
+            margin-bottom: 16px;
+            color: #111827;
+            font-weight: 600;
             border-top: 1px solid #e5e7eb;
             padding-top: 24px;
         }
@@ -1046,9 +1107,7 @@
         <div class="logo">halfnote.</div>
         
         <div class="nav-buttons">
-            <button class="nav-btn active" onclick="showSection('search')">Search</button>
-            <button class="nav-btn" onclick="showSection('reviews')">My Reviews</button>
-            <button class="nav-btn" onclick="showSection('activity')">Activity</button>
+            <button class="nav-btn active" onclick="showSection('activity')">Activity</button>
             <button class="nav-btn" onclick="showSection('profile')">Profile</button>
         </div>
         
@@ -1098,21 +1157,9 @@
             <button class="btn-secondary" onclick="logout()">Logout</button>
         </div>
 
-        <!-- Search Section -->
-        <div id="search-section" class="card" style="display: none;">
-            <h3 class="card-title">Search Albums</h3>
-            <div class="form-group">
-                <input type="text" id="search-input" placeholder="Search for albums or artists..." onkeypress="handleSearchEnter(event)">
-                <button class="btn-primary" onclick="searchAlbums()">Search</button>
-            </div>
-            <div id="search-results"></div>
-        </div>
 
-        <!-- My Reviews Section -->
-        <div id="reviews-section" class="card" style="display: none;">
-            <h3 class="card-title">My Reviews</h3>
-            <div id="my-reviews"></div>
-        </div>
+
+
 
         <!-- Activity Section -->
         <div id="activity-section" class="card" style="display: none;">
@@ -1138,7 +1185,7 @@
             <!-- Profile View -->
             <div id="profile-view">
                 <div class="profile-header">
-                    <div class="profile-avatar">
+                    <div class="profile-avatar" onclick="expandAvatar()">
                         <img id="profile-avatar-img" src="" alt="Avatar" class="avatar-img">
                     </div>
                     <div class="profile-info">
@@ -1164,6 +1211,14 @@
                         <!-- Pinned reviews will be loaded here -->
                     </div>
                 </div>
+                
+                <!-- My Reviews -->
+                <div class="my-reviews-section">
+                    <h4>My Reviews</h4>
+                    <div id="my-reviews">
+                        <!-- My reviews will be loaded here -->
+                    </div>
+                </div>
             </div>
 
             <!-- Profile Edit -->
@@ -1173,8 +1228,9 @@
                     <textarea id="edit-bio" placeholder="Tell us about yourself..." rows="3"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Avatar URL</label>
-                    <input type="url" id="edit-avatar" placeholder="https://example.com/avatar.jpg">
+                    <label>Profile Picture</label>
+                    <input type="file" id="edit-avatar" accept="image/*">
+                    <small style="color: #666; font-size: 12px;">Upload a profile picture (JPG, PNG, etc.)</small>
                 </div>
                 <div class="form-group">
                     <label>Favorite Genres</label>
@@ -1187,30 +1243,7 @@
                 <div id="profile-edit-message"></div>
             </div>
 
-            <!-- Following/Followers -->
-            <div class="profile-social">
-                <div class="social-section">
-                    <h4>Find Users</h4>
-                    <div class="form-group">
-                        <input type="text" id="user-search" placeholder="Search for users to follow..." onkeypress="handleUserSearchEnter(event)">
-                        <button class="btn-primary" onclick="searchUsers()">Search Users</button>
-                    </div>
-                    <div id="user-search-results"></div>
-                </div>
 
-                <div class="social-tabs">
-                    <button class="social-tab-btn active" onclick="showSocialTab('following')">Following</button>
-                    <button class="social-tab-btn" onclick="showSocialTab('followers')">Followers</button>
-                </div>
-
-                <div id="following-list" class="social-list">
-                    <!-- Following users will be loaded here -->
-                </div>
-
-                <div id="followers-list" class="social-list" style="display: none;">
-                    <!-- Followers will be loaded here -->
-                </div>
-            </div>
         </div>
     </div>
 
@@ -1248,6 +1281,12 @@
         </div>
     </div>
 
+    <!-- Image Modal -->
+    <div id="image-modal" class="image-modal" onclick="closeImageModal()">
+        <span class="close-image">&times;</span>
+        <img id="expanded-image" src="" alt="Expanded Image">
+    </div>
+
     <script>
         let authToken = localStorage.getItem('authToken');
         let currentUser = localStorage.getItem('currentUser');
@@ -1258,6 +1297,45 @@
             if (authToken && currentUser) {
                 showLoggedInState();
                 loadMyReviews();
+                
+                // Check if we need to open review modal from search results
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('action') === 'review') {
+                    const artist = urlParams.get('artist');
+                    const title = urlParams.get('title');
+                    const image = urlParams.get('image');
+                    const rating = urlParams.get('rating');
+                    const content = urlParams.get('content');
+                    const genres = urlParams.get('genres');
+                    
+                    if (artist && title) {
+                        // Clean up the URL
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        
+                        // Open the review modal with pre-filled data
+                        setTimeout(() => {
+                            openReviewModal(artist, title, image);
+                            
+                            // Pre-fill the form if data was provided
+                            if (rating) {
+                                document.getElementById('rating-slider').value = rating;
+                                updateRatingDisplay();
+                            }
+                            if (content) {
+                                document.getElementById('review-content').value = content;
+                            }
+                            if (genres) {
+                                const genreList = genres.split(',');
+                                setTimeout(() => {
+                                    genreList.forEach(genreName => {
+                                        const checkbox = document.querySelector(`#genre-checkboxes input[value="${genreName}"]`);
+                                        if (checkbox) checkbox.checked = true;
+                                    });
+                                }, 100);
+                            }
+                        }, 500); // Small delay to ensure page is loaded
+                    }
+                }
             }
             initializeGenres();
         });
@@ -1350,9 +1428,7 @@
         function showLoggedInState() {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('welcome-section').style.display = 'flex';
-            document.getElementById('search-section').style.display = 'block';
-            document.getElementById('reviews-section').style.display = 'block';
-            document.getElementById('profile-section').style.display = 'block';
+            document.getElementById('activity-section').style.display = 'block';
             document.getElementById('welcome-text').textContent = `Welcome back, ${currentUser}!`;
             loadUserProfile();
             initializeFavoriteGenres();
@@ -1361,10 +1437,8 @@
         function showLoggedOutState() {
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('welcome-section').style.display = 'none';
-            document.getElementById('search-section').style.display = 'none';
-            document.getElementById('reviews-section').style.display = 'none';
+            document.getElementById('activity-section').style.display = 'none';
             document.getElementById('profile-section').style.display = 'none';
-            document.getElementById('search-results').innerHTML = '';
             document.getElementById('my-reviews').innerHTML = '';
         }
 
@@ -1375,25 +1449,17 @@
             event.target.classList.add('active');
             
             // Hide all sections
-            document.getElementById('search-section').style.display = 'none';
-            document.getElementById('reviews-section').style.display = 'none';
             document.getElementById('activity-section').style.display = 'none';
             document.getElementById('profile-section').style.display = 'none';
             
             // Show selected section
-            if (section === 'search') {
-                document.getElementById('search-section').style.display = 'block';
-            } else if (section === 'reviews') {
-                document.getElementById('reviews-section').style.display = 'block';
-                loadMyReviews();
-            } else if (section === 'activity') {
+            if (section === 'activity') {
                 document.getElementById('activity-section').style.display = 'block';
                 loadActivityFeed(currentActivityType);
             } else if (section === 'profile') {
                 document.getElementById('profile-section').style.display = 'block';
                 loadUserProfile();
-                loadFollowing();
-                loadFollowers();
+                loadMyReviews();
             }
         }
 
@@ -1503,6 +1569,9 @@
             document.getElementById('review-content').value = '';
             document.getElementById('review-message').innerHTML = '';
             
+            // Load and display genres
+            displayGenresInModal();
+            
             // Reset genre checkboxes
             document.querySelectorAll('#genre-selection input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
@@ -1608,6 +1677,9 @@
                                     <button class="action-btn like-btn ${review.is_liked_by_user ? 'liked' : ''}" onclick="toggleLike(${review.id})" title="${review.is_liked_by_user ? 'Unlike' : 'Like'}">
                                         ❤️ <span class="likes-count">${review.likes_count || 0}</span>
                                     </button>
+                                    <button class="action-btn comment-btn" onclick="toggleMyReviewComments(${review.id})" title="View Comments">
+                                        💬 <span class="comments-count">${review.comments_count || 0}</span>
+                                    </button>
                                     <button class="action-btn pin-btn ${review.is_pinned ? 'pinned' : ''}" onclick="togglePin(${review.id})" title="${review.is_pinned ? 'Unpin Review' : 'Pin Review'}">📌</button>
                                     <button class="action-btn edit-btn" onclick="editReview(${review.id})" title="Edit Review">✏️</button>
                                     <button class="action-btn delete-btn" onclick="deleteReview(${review.id})" title="Delete Review">🗑️</button>
@@ -1621,6 +1693,18 @@
                                 ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
                         </div>
                         
+                        <!-- Comments section -->
+                        <div class="comments-section" id="my-review-comments-${review.id}" style="display: none;">
+                            <div class="add-comment">
+                                <textarea placeholder="Add a comment..." 
+                                         class="comment-input" 
+                                         id="my-review-comment-input-${review.id}"
+                                         rows="2"></textarea>
+                                <button class="comment-submit" onclick="submitMyReviewComment(${review.id})">Post</button>
+                            </div>
+                            <div id="my-review-comment-list-${review.id}"></div>
+                        </div>
+
                         <!-- Hidden edit form -->
                         <div class="review-edit-form" id="edit-form-${review.id}" style="display: none;">
                             <div class="form-group">
@@ -1679,20 +1763,52 @@
         }
 
         // Genre management
-        function initializeGenres() {
-            const genres = [
-                'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 
-                'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 
-                'Soundtrack', 'World'
-            ];
-            
+        let availableGenres = [];
+
+        async function initializeGenres() {
+            try {
+                const response = await fetch('/api/music/genres/');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    availableGenres = data.genres;
+                    displayGenresInModal();
+                } else {
+                    console.error('Failed to load genres:', data);
+                    // Fallback to hardcoded genres
+                    availableGenres = [
+                        {id: 1, name: 'Pop'}, {id: 2, name: 'Hip-Hop'}, {id: 3, name: 'Rock'}, 
+                        {id: 4, name: 'Latin'}, {id: 5, name: 'Country'}, {id: 6, name: 'Electronic'}, 
+                        {id: 7, name: 'Jazz'}, {id: 8, name: 'Reggae'}, {id: 9, name: 'Gospel'}, 
+                        {id: 10, name: 'Classical'}, {id: 11, name: 'Funk'}, {id: 12, name: 'Folk'}, 
+                        {id: 13, name: 'Soundtrack'}, {id: 14, name: 'World'}
+                    ];
+                    displayGenresInModal();
+                }
+            } catch (error) {
+                console.error('Error loading genres:', error);
+                // Fallback to hardcoded genres
+                availableGenres = [
+                    {id: 1, name: 'Pop'}, {id: 2, name: 'Hip-Hop'}, {id: 3, name: 'Rock'}, 
+                    {id: 4, name: 'Latin'}, {id: 5, name: 'Country'}, {id: 6, name: 'Electronic'}, 
+                    {id: 7, name: 'Jazz'}, {id: 8, name: 'Reggae'}, {id: 9, name: 'Gospel'}, 
+                    {id: 10, name: 'Classical'}, {id: 11, name: 'Funk'}, {id: 12, name: 'Folk'}, 
+                    {id: 13, name: 'Soundtrack'}, {id: 14, name: 'World'}
+                ];
+                displayGenresInModal();
+            }
+        }
+
+        function displayGenresInModal() {
             const container = document.getElementById('genre-selection');
-            container.innerHTML = genres.map(genre => `
-                <div class="genre-option">
-                    <input type="checkbox" id="genre-${genre}" value="${genre}">
-                    <label for="genre-${genre}">${genre}</label>
-                </div>
-            `).join('');
+            if (container) {
+                container.innerHTML = availableGenres.map(genre => `
+                    <div class="genre-option">
+                        <input type="checkbox" id="genre-${genre.id}" value="${genre.name}">
+                        <label for="genre-${genre.id}">${genre.name}</label>
+                    </div>
+                `).join('');
+            }
         }
 
         // Utility functions
@@ -1731,10 +1847,10 @@
             
             // Set avatar
             const avatarImg = document.getElementById('profile-avatar-img');
-            if (profile.avatar_url) {
-                avatarImg.src = profile.avatar_url;
+            if (profile.avatar) {
+                avatarImg.src = profile.avatar;
             } else {
-                avatarImg.src = 'https://via.placeholder.com/80x80/e5e7eb/6b7280?text=' + profile.username.charAt(0).toUpperCase();
+                avatarImg.src = '/static/default-avatar.svg';
             }
             
             // Display favorite genres
@@ -1754,10 +1870,12 @@
         function showEditProfile() {
             // Populate edit form with current data
             const bio = document.getElementById('profile-bio').textContent;
-            const avatarImg = document.getElementById('profile-avatar-img');
             
             document.getElementById('edit-bio').value = bio === 'No bio yet' ? '' : bio;
-            document.getElementById('edit-avatar').value = avatarImg.src.startsWith('https://via.placeholder.com') ? '' : avatarImg.src;
+            // Note: File input can't be pre-populated for security reasons
+            
+            // Initialize favorite genres
+            initializeFavoriteGenres();
             
             // Hide view, show edit
             document.getElementById('profile-view').style.display = 'none';
@@ -1770,40 +1888,40 @@
         }
 
         function initializeFavoriteGenres() {
-            const genres = [
-                'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 
-                'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 
-                'Soundtrack', 'World'
-            ];
-            
             const container = document.getElementById('edit-favorite-genres');
-            container.innerHTML = genres.map(genre => `
-                <div class="genre-option">
-                    <input type="checkbox" id="fav-genre-${genre}" value="${genre}">
-                    <label for="fav-genre-${genre}">${genre}</label>
-                </div>
-            `).join('');
+            if (container && availableGenres.length > 0) {
+                container.innerHTML = availableGenres.map(genre => `
+                    <div class="genre-option">
+                        <input type="checkbox" id="fav-genre-${genre.id}" value="${genre.name}">
+                        <label for="fav-genre-${genre.id}">${genre.name}</label>
+                    </div>
+                `).join('');
+            }
         }
 
         async function saveProfile() {
             const bio = document.getElementById('edit-bio').value.trim();
-            const avatarUrl = document.getElementById('edit-avatar').value.trim();
+            const avatarFile = document.getElementById('edit-avatar').files[0];
             
             const selectedGenres = Array.from(document.querySelectorAll('#edit-favorite-genres input[type="checkbox"]:checked'))
                 .map(checkbox => checkbox.value);
             
             try {
+                // Use FormData for file upload
+                const formData = new FormData();
+                formData.append('bio', bio);
+                formData.append('favorite_genres', JSON.stringify(selectedGenres));
+                
+                if (avatarFile) {
+                    formData.append('avatar', avatarFile);
+                }
+                
                 const response = await fetch('/api/accounts/profile/', {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`,
                     },
-                    body: JSON.stringify({
-                        bio: bio,
-                        avatar_url: avatarUrl,
-                        favorite_genres: selectedGenres
-                    })
+                    body: formData
                 });
                 
                 const data = await response.json();
@@ -1913,7 +2031,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    displayUserSearchResults(data.results);
+                    displayUserSearchResults(data.users);
                 } else {
                     showMessage('user-search-results', data.error || 'Search failed', 'error');
                 }
@@ -2448,7 +2566,7 @@
             
             container.innerHTML = comments.map(comment => `
                 <div class="comment-item">
-                    <img src="${comment.user_avatar || 'https://via.placeholder.com/24x24/e5e7eb/6b7280?text=' + comment.username.charAt(0).toUpperCase()}" 
+                    <img src="${comment.user_avatar || '/static/default-avatar.svg'}" 
                          alt="${comment.username}" class="comment-avatar">
                     <div class="comment-content">
                         <div class="comment-header">
@@ -2501,11 +2619,134 @@
             }
         }
 
+        // My Reviews Comment functions
+        async function toggleMyReviewComments(reviewId) {
+            const commentsSection = document.getElementById(`my-review-comments-${reviewId}`);
+            
+            if (commentsSection.style.display === 'none') {
+                commentsSection.style.display = 'block';
+                loadMyReviewComments(reviewId);
+            } else {
+                commentsSection.style.display = 'none';
+            }
+        }
+
+        async function loadMyReviewComments(reviewId) {
+            if (!authToken) return;
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayMyReviewComments(reviewId, data.comments);
+                }
+            } catch (error) {
+                console.error('Error loading comments:', error);
+            }
+        }
+
+        function displayMyReviewComments(reviewId, comments) {
+            const container = document.getElementById(`my-review-comment-list-${reviewId}`);
+            
+            if (comments.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 8px; font-size: 12px;">No comments yet</div>';
+                return;
+            }
+            
+            container.innerHTML = comments.map(comment => `
+                <div class="comment-item">
+                    <img src="${comment.user_avatar || '/static/default-avatar.svg'}" 
+                         alt="${comment.username}" class="comment-avatar">
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-username">${comment.username}</span>
+                            <span class="comment-time">${getTimeAgo(comment.created_at)}</span>
+                        </div>
+                        <div class="comment-text">${comment.content}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function submitMyReviewComment(reviewId) {
+            if (!authToken) {
+                alert('Please login to comment');
+                return;
+            }
+            
+            const input = document.getElementById(`my-review-comment-input-${reviewId}`);
+            const content = input.value.trim();
+            
+            if (!content) {
+                alert('Please enter a comment');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadMyReviewComments(reviewId);
+                    // Refresh My Reviews to update comment count
+                    loadMyReviews();
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to post comment');
+                }
+            } catch (error) {
+                alert('Error posting comment');
+            }
+        }
+
+        // Unified Search Functions
+        function handleMainSearchEnter(event) {
+            console.log('Key pressed:', event.key);
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const query = event.target.value.trim();
+                if (query) {
+                    console.log('Redirecting to search results page with query:', query);
+                    window.location.href = `/search/?q=${encodeURIComponent(query)}`;
+                }
+            }
+        }
+
+        // Image expansion functions
+        function expandAvatar() {
+            const avatarImg = document.getElementById('profile-avatar-img');
+            if (avatarImg.src && !avatarImg.src.includes('default-avatar.svg')) {
+                const modal = document.getElementById('image-modal');
+                const expandedImg = document.getElementById('expanded-image');
+                expandedImg.src = avatarImg.src;
+                modal.style.display = 'block';
+            }
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').style.display = 'none';
+        }
+
         // Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('review-modal');
+            const imageModal = document.getElementById('image-modal');
             if (event.target === modal) {
                 closeReviewModal();
+            }
+            if (event.target === imageModal) {
+                closeImageModal();
             }
         }
     </script>

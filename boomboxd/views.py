@@ -1,11 +1,24 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
+import requests
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def frontend(request):
     """Serve the frontend interface"""
     return render(request, 'index.html')
+
+def user_profile(request, username):
+    """Display a user's profile page"""
+    user = get_object_or_404(User, username=username)
+    
+    return render(request, 'user_profile.html', {
+        'profile_user': user,
+        'username': username,
+    })
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -29,4 +42,96 @@ def api_root(request):
                 'reviews': '/api/accounts/users/{username}/reviews/',
             }
         }
+    })
+
+def search_results(request):
+    """Dedicated search results page"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return render(request, 'search_results.html', {
+            'query': '',
+            'albums': [],
+            'users': [],
+            'total_results': 0
+        })
+    
+    albums = []
+    users = []
+    
+    try:
+        # Search albums using our existing Discogs search
+        from music.views import search_discogs
+        
+        discogs_results = search_discogs(query)
+        
+        # Process results similar to how music/views.py does it
+        albums = []
+        for result in discogs_results:
+            # Parse artist and title more intelligently
+            title = result.get('title', '')
+            artist = 'Various Artists'  # Default fallback
+            album_title = title
+            
+            # Try to extract artist - but don't assume format
+            if ' - ' in title:
+                parts = title.split(' - ', 1)
+                if len(parts) == 2:
+                    potential_artist, potential_title = parts
+                    # Only use if the first part looks like an artist (not too long)
+                    if len(potential_artist.strip()) < 100:
+                        # Clean up Discogs disambiguation numbers like (2), (3)
+                        import re
+                        clean_artist = re.sub(r'\s*\(\d+\)$', '', potential_artist.strip()).strip()
+                        artist = clean_artist if clean_artist else potential_artist.strip()
+                        album_title = potential_title.strip()
+            
+            albums.append({
+                'id': result.get('id'),
+                'title': album_title,
+                'artist': artist,
+                'year': result.get('year'),
+                'genre': result.get('genre', []),
+                'style': result.get('style', []),
+                'cover_image': result.get('cover_image', ''),
+                'thumb': result.get('thumb', ''),
+            })
+    except Exception as e:
+        print(f"Album search error: {e}")
+        pass  # Continue even if album search fails
+    
+    try:
+        # Search users from our database
+        users_queryset = User.objects.filter(
+            username__icontains=query
+        )[:10]
+        
+        users = []
+        for user in users_queryset:
+            # Handle avatar - use avatar.url if exists, otherwise default
+            avatar_url = ''
+            if user.avatar:
+                try:
+                    avatar_url = user.avatar.url
+                except:
+                    avatar_url = ''
+            
+            users.append({
+                'id': user.id,
+                'username': user.username,
+                'bio': user.bio or '',
+                'avatar_url': avatar_url,
+                'is_following': False  # We'll need authentication context for this
+            })
+    except Exception as e:
+        print(f"User search error: {e}")
+        pass  # Continue even if user search fails
+    
+    total_results = len(albums) + len(users)
+    
+    return render(request, 'search_results.html', {
+        'query': query,
+        'albums': albums,
+        'users': users,
+        'total_results': total_results
     }) 

@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from .validators import (
-    validate_username, validate_bio, validate_avatar_url,
+    validate_username, validate_bio,
     validate_favorite_genres
 )
 
@@ -16,10 +16,11 @@ class User(AbstractUser):
         null=True,
         validators=[validate_bio]
     )
-    avatar_url = models.URLField(
+    avatar = models.ImageField(
+        upload_to='avatars/',
         blank=True,
         null=True,
-        validators=[validate_avatar_url]
+        help_text='Profile picture'
     )
     favorite_genres = models.JSONField(
         default=list,
