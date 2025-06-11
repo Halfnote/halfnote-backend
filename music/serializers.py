@@ -1,10 +1,20 @@
 from rest_framework import serializers
-from .models import Album, Review, Genre
+from .models import Album, Review, Genre, ReviewLike, Activity, Comment
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name']
+
+class CommentSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_avatar = serializers.CharField(source='user.avatar_url', read_only=True)
+    
+    class Meta:
+        model = Comment
+        fields = ['id', 'username', 'user_avatar', 'content', 'created_at']
+        read_only_fields = ['id', 'username', 'user_avatar', 'created_at']
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -13,12 +23,28 @@ class ReviewSerializer(serializers.ModelSerializer):
     album_artist = serializers.CharField(source='album.artist', read_only=True)
     album_cover = serializers.CharField(source='album.cover_url', read_only=True)
     album_year = serializers.IntegerField(source='album.year', read_only=True)
+    likes_count = serializers.SerializerMethodField()
+    is_liked_by_user = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Review
         fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at', 
-                  'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned']
+                  'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned',
+                  'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
+    
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+    
+    def get_is_liked_by_user(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()
 
 class AlbumSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
@@ -38,4 +64,42 @@ class AlbumSearchResultSerializer(serializers.Serializer):
     cover_image = serializers.URLField(required=False)
     discogs_id = serializers.CharField(source='id')
     genres = serializers.ListField(child=serializers.CharField(), required=False, source='genre')
-    styles = serializers.ListField(child=serializers.CharField(), required=False, source='style') 
+    styles = serializers.ListField(child=serializers.CharField(), required=False, source='style')
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_avatar = serializers.CharField(source='user.avatar_url', read_only=True)
+    target_username = serializers.CharField(source='target_user.username', read_only=True)
+    
+    # Review details if activity is review-related
+    review_details = serializers.SerializerMethodField()
+    comment_details = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Activity
+        fields = ['id', 'username', 'user_avatar', 'activity_type', 'target_username', 
+                  'review_details', 'comment_details', 'created_at']
+    
+    def get_review_details(self, obj):
+        if obj.review:
+            return {
+                'id': obj.review.id,
+                'rating': obj.review.rating,
+                'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
+                'album_title': obj.review.album.title,
+                'album_artist': obj.review.album.artist,
+                'album_cover': obj.review.album.cover_url,
+                'review_username': obj.review.user.username,
+                'comments_count': obj.review.comments.count(),
+            }
+        return None
+    
+    def get_comment_details(self, obj):
+        if obj.comment:
+            return {
+                'id': obj.comment.id,
+                'content': obj.comment.content,
+                'created_at': obj.comment.created_at,
+            }
+        return None 

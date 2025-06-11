@@ -8,8 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre
-from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer
+from .models import Album, Review, Genre, Activity, ReviewLike, Comment
+from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer
 from .services import ExternalMusicService
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ def unified_album_view(request, discogs_id):
         
         return Response({
             'album': AlbumSerializer(album).data,
-            'reviews': ReviewSerializer(reviews, many=True).data,
+            'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
             'review_count': reviews.count(),
             'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
             'exists_in_db': True
@@ -192,17 +192,18 @@ def create_review(request, discogs_id):
             # Log invalid genres for debugging
             if invalid_genres:
                 logger.warning(f"Invalid genres submitted: {invalid_genres}. Valid genres: {[g.name for g in Genre.objects.all()]}")
-                
-            # Return info about genre validation
-            response_data = ReviewSerializer(review).data
-            if invalid_genres:
-                response_data['warnings'] = {
-                    'invalid_genres': invalid_genres,
-                    'valid_genres_accepted': valid_genres
-                }
-            return Response(response_data, status=201)
         
-        return Response(ReviewSerializer(review).data, status=201)
+        # Create activity for new review
+        create_activity('review_created', request.user, review=review)
+        
+        # Return info about genre validation
+        response_data = ReviewSerializer(review, context={'request': request}).data
+        if user_genres and invalid_genres:
+            response_data['warnings'] = {
+                'invalid_genres': invalid_genres,
+                'valid_genres_accepted': valid_genres if user_genres else []
+            }
+        return Response(response_data, status=201)
     except Exception as e:
         return Response({"error": str(e)}, status=400)
 
@@ -260,7 +261,7 @@ def edit_review(request, review_id):
                 }
             return Response(response_data)
         
-        return Response(ReviewSerializer(review).data)
+        return Response(ReviewSerializer(review, context={'request': request}).data)
     
     elif request.method == 'DELETE':
         # Delete the review
@@ -300,8 +301,153 @@ def pin_review(request, review_id):
     review.save()
     
     action = "pinned" if review.is_pinned else "unpinned"
+    
+    # Create activity for pinning
+    if review.is_pinned:
+        create_activity('review_pinned', request.user, review=review)
+    
     return Response({
         "message": f"Review {action} successfully",
         "is_pinned": review.is_pinned,
-        "review": ReviewSerializer(review).data
-    }) 
+        "review": ReviewSerializer(review, context={'request': request}).data
+    })
+
+
+# Activity utility functions
+def create_activity(activity_type, user, target_user=None, review=None):
+    """Create an activity record"""
+    Activity.objects.create(
+        user=user,
+        activity_type=activity_type,
+        target_user=target_user,
+        review=review
+    )
+
+
+@api_view(['POST'])
+def like_review(request, review_id):
+    """Like or unlike a review"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
+    
+    try:
+        review = Review.objects.get(id=review_id)
+    except Review.DoesNotExist:
+        return Response({"error": "Review not found"}, status=404)
+    
+    # Check if already liked
+    like, created = ReviewLike.objects.get_or_create(
+        user=request.user,
+        review=review
+    )
+    
+    if not created:
+        # Unlike - delete the like
+        like.delete()
+        action = "unliked"
+    else:
+        # Create activity for liking
+        create_activity('review_liked', request.user, target_user=review.user, review=review)
+        action = "liked"
+    
+    return Response({
+        "message": f"Review {action} successfully",
+        "is_liked": created,
+        "likes_count": review.likes.count()
+    })
+
+
+@api_view(['GET'])
+def activity_feed(request):
+    """Get activity feed based on type"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
+    
+    feed_type = request.GET.get('type', 'friends')  # friends, you, incoming
+    
+    if feed_type == 'you':
+        # User's own activities
+        activities = Activity.objects.filter(user=request.user)[:50]
+    elif feed_type == 'incoming':
+        # Activities targeting the current user
+        activities = Activity.objects.filter(target_user=request.user)[:50]
+    else:  # friends
+        # Activities from people the user follows
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        following_users = request.user.following.all()
+        activities = Activity.objects.filter(user__in=following_users)[:50]
+    
+    serializer = ActivitySerializer(activities, many=True)
+    return Response({'activities': serializer.data})
+
+
+@api_view(['GET', 'POST'])
+def review_comments(request, review_id):
+    """Get comments for a review or add a new comment"""
+    try:
+        review = Review.objects.get(id=review_id)
+    except Review.DoesNotExist:
+        return Response({"error": "Review not found"}, status=404)
+    
+    if request.method == 'GET':
+        # Get all comments for this review
+        comments = Comment.objects.filter(review=review).order_by('created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response({'comments': serializer.data})
+    
+    elif request.method == 'POST':
+        # Add a new comment
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=401)
+        
+        content = request.data.get('content', '').strip()
+        if not content:
+            return Response({"error": "Comment content is required"}, status=400)
+        
+        comment = Comment.objects.create(
+            review=review,
+            user=request.user,
+            content=content
+        )
+        
+        # Create activity for comment
+        Activity.objects.create(
+            user=request.user,
+            activity_type='comment_created',
+            target_user=review.user,
+            review=review,
+            comment=comment
+        )
+        
+        return Response(CommentSerializer(comment).data, status=201)
+
+
+@api_view(['PUT', 'DELETE'])
+def edit_comment(request, comment_id):
+    """Edit or delete a comment - only by the comment author"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
+    
+    try:
+        comment = Comment.objects.get(id=comment_id)
+    except Comment.DoesNotExist:
+        return Response({"error": "Comment not found"}, status=404)
+    
+    # Check if user owns this comment
+    if comment.user != request.user:
+        return Response({"error": "You can only edit your own comments"}, status=403)
+    
+    if request.method == 'PUT':
+        content = request.data.get('content', '').strip()
+        if not content:
+            return Response({"error": "Comment content is required"}, status=400)
+        
+        comment.content = content
+        comment.save()
+        return Response(CommentSerializer(comment).data)
+    
+    elif request.method == 'DELETE':
+        comment.delete()
+        return Response({"message": "Comment deleted successfully"}, status=200) 

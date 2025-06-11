@@ -121,7 +121,18 @@ def follow_user(request, username):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    request.user.following.add(user_to_follow)
+    # Check if already following
+    if not request.user.following.filter(id=user_to_follow.id).exists():
+        request.user.following.add(user_to_follow)
+        
+        # Create activity for following
+        from music.models import Activity
+        Activity.objects.create(
+            user=request.user,
+            activity_type='user_followed',
+            target_user=user_to_follow
+        )
+    
     return Response({'status': 'following'})
 
 @api_view(['POST'])

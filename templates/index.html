@@ -738,6 +738,283 @@
             font-style: italic;
             padding: 20px;
         }
+
+        /* Activity Feed */
+        .activity-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+
+        .activity-tab-btn {
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            color: #6b7280;
+        }
+
+        .activity-tab-btn.active {
+            background: #111827;
+            color: white;
+        }
+
+        .activity-item {
+            display: flex;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            gap: 12px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            color: #374151;
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .activity-text .username {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .activity-text .album-title {
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .activity-review-preview {
+            margin-top: 12px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            gap: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .activity-album-cover {
+            width: 80px;
+            height: 80px;
+            border-radius: 6px;
+            background: #e5e7eb;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .activity-review-text {
+            flex: 1;
+        }
+
+        .activity-review-header {
+            margin-bottom: 8px;
+        }
+
+        .activity-review-preview .review-rating {
+            display: inline-block;
+            background: #111827;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .activity-review-content {
+            font-size: 14px;
+            color: #4b5563;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .like-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-size: 16px;
+            color: #6b7280;
+        }
+
+        .like-btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .like-btn.liked {
+            color: #ef4444;
+        }
+
+        .likes-count {
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: 4px;
+        }
+
+        /* Comments */
+        .review-actions-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .review-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .review-action-btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .comments-section {
+            margin-top: 12px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 12px;
+        }
+
+        .comment-item {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .comment-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .comment-content {
+            flex: 1;
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 2px;
+        }
+
+        .comment-username {
+            font-weight: 600;
+            font-size: 12px;
+            color: #111827;
+        }
+
+        .comment-time {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+
+        .comment-text {
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.4;
+        }
+
+        .add-comment {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-size: 12px;
+            resize: none;
+        }
+
+        .comment-submit {
+            padding: 6px 12px;
+            background: #111827;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .comment-submit:hover {
+            background: #374151;
+        }
+
+        .comment-highlight {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 6px 0;
+        }
+
+        .comment-highlight-header {
+            font-size: 12px;
+            color: #059669;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .comment-author {
+            color: #047857;
+        }
+
+        .comment-highlight-content {
+            font-size: 14px;
+            color: #065f46;
+            font-style: italic;
+            line-height: 1.4;
+            margin: 0;
+        }
         
         /* Responsive */
         @media (max-width: 768px) {
@@ -771,6 +1048,7 @@
         <div class="nav-buttons">
             <button class="nav-btn active" onclick="showSection('search')">Search</button>
             <button class="nav-btn" onclick="showSection('reviews')">My Reviews</button>
+            <button class="nav-btn" onclick="showSection('activity')">Activity</button>
             <button class="nav-btn" onclick="showSection('profile')">Profile</button>
         </div>
         
@@ -834,6 +1112,23 @@
         <div id="reviews-section" class="card" style="display: none;">
             <h3 class="card-title">My Reviews</h3>
             <div id="my-reviews"></div>
+        </div>
+
+        <!-- Activity Section -->
+        <div id="activity-section" class="card" style="display: none;">
+            <h3 class="card-title">Activity Feed</h3>
+            
+            <!-- Activity Tabs -->
+            <div class="activity-tabs">
+                <button class="activity-tab-btn active" onclick="showActivityTab('friends')">Friends</button>
+                <button class="activity-tab-btn" onclick="showActivityTab('you')">You</button>
+                <button class="activity-tab-btn" onclick="showActivityTab('incoming')">Incoming</button>
+            </div>
+            
+            <!-- Activity Feed -->
+            <div id="activity-feed">
+                <!-- Activity items will be loaded here -->
+            </div>
         </div>
 
         <!-- Profile Section -->
@@ -1082,6 +1377,7 @@
             // Hide all sections
             document.getElementById('search-section').style.display = 'none';
             document.getElementById('reviews-section').style.display = 'none';
+            document.getElementById('activity-section').style.display = 'none';
             document.getElementById('profile-section').style.display = 'none';
             
             // Show selected section
@@ -1090,6 +1386,9 @@
             } else if (section === 'reviews') {
                 document.getElementById('reviews-section').style.display = 'block';
                 loadMyReviews();
+            } else if (section === 'activity') {
+                document.getElementById('activity-section').style.display = 'block';
+                loadActivityFeed(currentActivityType);
             } else if (section === 'profile') {
                 document.getElementById('profile-section').style.display = 'block';
                 loadUserProfile();
@@ -1306,6 +1605,9 @@
                             <div class="review-header-right">
                                 <div class="review-rating">${review.rating}/10</div>
                                 <div class="review-actions">
+                                    <button class="action-btn like-btn ${review.is_liked_by_user ? 'liked' : ''}" onclick="toggleLike(${review.id})" title="${review.is_liked_by_user ? 'Unlike' : 'Like'}">
+                                        ❤️ <span class="likes-count">${review.likes_count || 0}</span>
+                                    </button>
                                     <button class="action-btn pin-btn ${review.is_pinned ? 'pinned' : ''}" onclick="togglePin(${review.id})" title="${review.is_pinned ? 'Unpin Review' : 'Pin Review'}">📌</button>
                                     <button class="action-btn edit-btn" onclick="editReview(${review.id})" title="Edit Review">✏️</button>
                                     <button class="action-btn delete-btn" onclick="deleteReview(${review.id})" title="Delete Review">🗑️</button>
@@ -1824,6 +2126,35 @@
             }
         }
 
+        // Like/Unlike functions
+        async function toggleLike(reviewId) {
+            if (!authToken) {
+                alert('Please login to like reviews');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/like/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Refresh reviews to show updated like status
+                    loadMyReviews();
+                    if (currentActivityType) {
+                        loadActivityFeed(currentActivityType);
+                    }
+                } else {
+                    alert(data.error || 'Failed to like review');
+                }
+            } catch (error) {
+                alert('Error liking review');
+            }
+        }
+
         function displayPinnedReviews(pinnedReviews) {
             const container = document.getElementById('pinned-reviews-container');
             
@@ -1853,6 +2184,321 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        // Activity Feed functions
+        let currentActivityType = 'friends';
+
+        async function loadActivityFeed(type = 'friends') {
+            currentActivityType = type;
+            
+            if (!authToken) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/activity/?type=${type}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayActivityFeed(data.activities);
+                } else {
+                    document.getElementById('activity-feed').innerHTML = '<div class="message error">Failed to load activity feed</div>';
+                }
+            } catch (error) {
+                document.getElementById('activity-feed').innerHTML = '<div class="message error">Failed to load activity feed</div>';
+            }
+        }
+
+        function displayActivityFeed(activities) {
+            const container = document.getElementById('activity-feed');
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No recent activity</div>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(activity => {
+                const timeAgo = getTimeAgo(activity.created_at);
+                let activityText = '';
+                let reviewPreview = '';
+                
+                switch (activity.activity_type) {
+                    case 'review_created':
+                        activityText = `<span class="username">${activity.username}</span> reviewed <span class="album-title">${activity.review_details.album_title}</span>`;
+                        reviewPreview = `
+                            <div class="activity-review-preview">
+                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
+                                     alt="${activity.review_details.album_title}" 
+                                     class="activity-album-cover" 
+                                     onerror="this.src='/static/default-album.png'">
+                                <div class="activity-review-text">
+                                    <div class="activity-review-header">
+                                        <span class="review-rating">${activity.review_details.rating}/10</span>
+                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
+                                    </div>
+                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
+                                    <div class="review-actions-bar">
+                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
+                                            💬 <span>${activity.review_details.comments_count || 0}</span>
+                                        </button>
+                                    </div>
+                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
+                                        <div class="add-comment">
+                                            <textarea placeholder="Add a comment..." 
+                                                     class="comment-input" 
+                                                     id="comment-input-${activity.review_details.id}"
+                                                     rows="2"></textarea>
+                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
+                                        </div>
+                                        <div id="comment-list-${activity.review_details.id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'review_liked':
+                        activityText = `<span class="username">${activity.username}</span> liked <span class="username">${activity.review_details.review_username}</span>'s review of <span class="album-title">${activity.review_details.album_title}</span>`;
+                        reviewPreview = `
+                            <div class="activity-review-preview">
+                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
+                                     alt="${activity.review_details.album_title}" 
+                                     class="activity-album-cover" 
+                                     onerror="this.src='/static/default-album.png'">
+                                <div class="activity-review-text">
+                                    <div class="activity-review-header">
+                                        <span class="review-rating">${activity.review_details.rating}/10</span>
+                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
+                                    </div>
+                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
+                                    <div class="review-actions-bar">
+                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
+                                            💬 <span>${activity.review_details.comments_count || 0}</span>
+                                        </button>
+                                    </div>
+                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
+                                        <div class="add-comment">
+                                            <textarea placeholder="Add a comment..." 
+                                                     class="comment-input" 
+                                                     id="comment-input-${activity.review_details.id}"
+                                                     rows="2"></textarea>
+                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
+                                        </div>
+                                        <div id="comment-list-${activity.review_details.id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'review_pinned':
+                        activityText = `<span class="username">${activity.username}</span> pinned their review of <span class="album-title">${activity.review_details.album_title}</span>`;
+                        reviewPreview = `
+                            <div class="activity-review-preview">
+                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
+                                     alt="${activity.review_details.album_title}" 
+                                     class="activity-album-cover" 
+                                     onerror="this.src='/static/default-album.png'">
+                                <div class="activity-review-text">
+                                    <div class="activity-review-header">
+                                        <span class="review-rating">${activity.review_details.rating}/10</span>
+                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
+                                    </div>
+                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
+                                    <div class="review-actions-bar">
+                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
+                                            💬 <span>${activity.review_details.comments_count || 0}</span>
+                                        </button>
+                                    </div>
+                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
+                                        <div class="add-comment">
+                                            <textarea placeholder="Add a comment..." 
+                                                     class="comment-input" 
+                                                     id="comment-input-${activity.review_details.id}"
+                                                     rows="2"></textarea>
+                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
+                                        </div>
+                                        <div id="comment-list-${activity.review_details.id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'user_followed':
+                        activityText = `<span class="username">${activity.username}</span> started following <span class="username">${activity.target_username}</span>`;
+                        break;
+                    case 'comment_created':
+                        activityText = `
+                            <div>
+                                <span class="username">${activity.username}</span> commented on <span class="username">${activity.review_details.review_username}</span>'s review of <span class="album-title">${activity.review_details.album_title}</span>
+                            </div>
+                            ${activity.comment_details ? `
+                                <div class="comment-highlight">
+                                    <div class="comment-highlight-content">"${activity.comment_details.content}"</div>
+                                </div>
+                            ` : ''}
+                        `;
+                        reviewPreview = `
+                            <div class="activity-review-preview">
+                                <img src="${activity.review_details.album_cover || '/static/default-album.png'}" 
+                                     alt="${activity.review_details.album_title}" 
+                                     class="activity-album-cover" 
+                                     onerror="this.src='/static/default-album.png'">
+                                <div class="activity-review-text">
+                                    <div class="activity-review-header">
+                                        <span class="review-rating">${activity.review_details.rating}/10</span>
+                                        <span style="font-weight: 500;">${activity.review_details.album_title}</span> by ${activity.review_details.album_artist}
+                                    </div>
+                                    ${activity.review_details.content ? `<div class="activity-review-content">${activity.review_details.content}</div>` : ''}
+                                    <div class="review-actions-bar">
+                                        <button class="review-action-btn" onclick="toggleComments(${activity.review_details.id})">
+                                            💬 <span>${activity.review_details.comments_count || 0}</span>
+                                        </button>
+                                    </div>
+                                    <div class="comments-section" id="comments-${activity.review_details.id}" style="display: none;">
+                                        <div class="add-comment">
+                                            <textarea placeholder="Add a comment..." 
+                                                     class="comment-input" 
+                                                     id="comment-input-${activity.review_details.id}"
+                                                     rows="2"></textarea>
+                                            <button class="comment-submit" onclick="submitComment(${activity.review_details.id})">Post</button>
+                                        </div>
+                                        <div id="comment-list-${activity.review_details.id}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                }
+                
+                return `
+                    <div class="activity-item">
+                        <img src="${activity.user_avatar || 'https://via.placeholder.com/40x40/e5e7eb/6b7280?text=' + activity.username.charAt(0).toUpperCase()}" 
+                             alt="${activity.username}" class="activity-avatar">
+                        <div class="activity-content">
+                            <div class="activity-text">${activityText}</div>
+                            <div class="activity-time">${timeAgo}</div>
+                            ${reviewPreview}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showActivityTab(type) {
+            // Update tab appearance
+            document.querySelectorAll('.activity-tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Load activity feed for this type
+            loadActivityFeed(type);
+        }
+
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return `${diffInSeconds}s`;
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+            if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d`;
+            return `${Math.floor(diffInSeconds / 2592000)}mo`;
+        }
+
+        // Comment functions
+        async function toggleComments(reviewId) {
+            const commentsSection = document.getElementById(`comments-${reviewId}`);
+            
+            if (commentsSection.style.display === 'none') {
+                commentsSection.style.display = 'block';
+                loadComments(reviewId);
+            } else {
+                commentsSection.style.display = 'none';
+            }
+        }
+
+        async function loadComments(reviewId) {
+            if (!authToken) return;
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayComments(reviewId, data.comments);
+                }
+            } catch (error) {
+                console.error('Error loading comments:', error);
+            }
+        }
+
+        function displayComments(reviewId, comments) {
+            const container = document.getElementById(`comment-list-${reviewId}`);
+            
+            if (comments.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 8px; font-size: 12px;">No comments yet</div>';
+                return;
+            }
+            
+            container.innerHTML = comments.map(comment => `
+                <div class="comment-item">
+                    <img src="${comment.user_avatar || 'https://via.placeholder.com/24x24/e5e7eb/6b7280?text=' + comment.username.charAt(0).toUpperCase()}" 
+                         alt="${comment.username}" class="comment-avatar">
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-username">${comment.username}</span>
+                            <span class="comment-time">${getTimeAgo(comment.created_at)}</span>
+                        </div>
+                        <div class="comment-text">${comment.content}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function submitComment(reviewId) {
+            if (!authToken) {
+                alert('Please login to comment');
+                return;
+            }
+            
+            const input = document.getElementById(`comment-input-${reviewId}`);
+            const content = input.value.trim();
+            
+            if (!content) {
+                alert('Please enter a comment');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/comments/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    loadComments(reviewId);
+                    // Refresh activity feed to update comment count
+                    if (currentActivityType) {
+                        loadActivityFeed(currentActivityType);
+                    }
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to post comment');
+                }
+            } catch (error) {
+                alert('Error posting comment');
+            }
         }
 
         // Close modal when clicking outside

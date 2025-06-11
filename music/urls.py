@@ -16,4 +16,14 @@ urlpatterns = [
     
     # Pin/unpin review endpoint
     path('reviews/<int:review_id>/pin/', views.pin_review, name='pin-review'),
+    
+    # Like/unlike review endpoint
+    path('reviews/<int:review_id>/like/', views.like_review, name='like-review'),
+    
+    # Activity feed endpoint
+    path('activity/', views.activity_feed, name='activity-feed'),
+    
+    # Comment endpoints
+    path('reviews/<int:review_id>/comments/', views.review_comments, name='review-comments'),
+    path('comments/<int:comment_id>/', views.edit_comment, name='edit-comment'),
 ] 

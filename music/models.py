@@ -73,4 +73,67 @@ class Review(models.Model):
         unique_together = ('album', 'user')  # One review per album per user
 
     def __str__(self):
-        return f"{self.user.username}'s review of {self.album.title}" 
+        return f"{self.user.username}'s review of {self.album.title}"
+
+
+class ReviewLike(models.Model):
+    """Track likes on reviews"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='review_likes')
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ('user', 'review')  # One like per user per review
+    
+    def __str__(self):
+        return f"{self.user.username} likes {self.review.user.username}'s review"
+
+
+class Activity(models.Model):
+    """Track user activities for the activity feed"""
+    ACTIVITY_TYPES = [
+        ('review_created', 'Review Created'),
+        ('review_liked', 'Review Liked'),
+        ('review_pinned', 'Review Pinned'),
+        ('user_followed', 'User Followed'),
+        ('comment_created', 'Comment Created'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='activities')
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    
+    # Related objects (nullable for flexibility)
+    target_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, 
+                                   related_name='targeted_activities', null=True, blank=True)
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, null=True, blank=True)
+    comment = models.ForeignKey('Comment', on_delete=models.CASCADE, null=True, blank=True)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['activity_type', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_activity_type_display()}"
+
+
+class Comment(models.Model):
+    """Comments on reviews"""
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='comments')
+    content = models.TextField(max_length=500)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['review', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} commented on {self.review.user.username}'s review" 
