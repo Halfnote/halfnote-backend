@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -548,7 +549,7 @@
         <!-- Profile Header -->
         <div class="profile-header">
             <div class="profile-info">
-                <img src="{% if profile_user.avatar %}{{ profile_user.avatar.url }}{% else %}/static/default-avatar.svg{% endif %}" 
+                <img src="{% if profile_user.avatar %}{{ profile_user.avatar.url }}{% else %}{% static 'accounts/default-avatar.svg' %}{% endif %}" 
                      alt="{{ profile_user.username }}" 
                      class="profile-avatar"
                      onclick="expandAvatar(this.src)">
@@ -748,7 +749,7 @@
 
             return `
                 <div class="review-item" data-review-id="${review.id}">
-                    <img src="${review.album_cover || '/static/default-avatar.svg'}" 
+                    <img src="${review.album_cover || '{% static "accounts/default-avatar.svg" %}'}" 
                          alt="${review.album_title || 'Unknown Album'}" 
                          class="review-album-cover">
                     <div class="review-content-wrapper">

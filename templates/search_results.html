@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -357,7 +358,7 @@
                 <h2 class="section-title">Users ({{ users|length }})</h2>
                 {% for user in users %}
                 <div class="result-item" onclick="window.location.href='/users/{{ user.username }}/';" style="cursor: pointer;">
-                                         <img src="{% if user.avatar_url %}{{ user.avatar_url }}{% else %}/static/default-avatar.svg{% endif %}" 
+                                         <img src="{% if user.avatar_url %}{{ user.avatar_url }}{% else %}{% static 'accounts/default-avatar.svg' %}{% endif %}" 
                           alt="{{ user.username }}" class="result-image user-image">
                     <div class="result-info">
                         <h3 class="result-title">{{ user.username }}</h3>

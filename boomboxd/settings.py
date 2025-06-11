@@ -70,7 +70,7 @@ WSGI_APPLICATION = 'boomboxd.wsgi.application'
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    # No additional static directories needed - Django will find app static files automatically
 ]
 
 # Cloudinary configuration

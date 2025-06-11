@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -501,7 +502,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '/static/default-avatar.svg'}" 
+                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -535,7 +536,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '/static/default-avatar.svg'}" 
+                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -550,7 +551,7 @@
                     case 'user_followed':
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '/static/default-avatar.svg'}" 
+                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
@@ -568,7 +569,7 @@
                         
                         return `
                             <div class="activity-item">
-                                <img src="${activity.user_avatar || '/static/default-avatar.svg'}" 
+                                <img src="${activity.user_avatar || '{% static "accounts/default-avatar.svg" %}'}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
