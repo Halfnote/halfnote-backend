@@ -1,5 +1,5 @@
 import os
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings_production')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings')
 
 from boomboxd.wsgi import application
 
