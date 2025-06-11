@@ -150,4 +150,26 @@ def search_results(request):
         'albums': albums,
         'users': users,
         'total_results': total_results
-    }) 
+    })
+
+def followers_page(request, username):
+    """Followers page for a specific user"""
+    try:
+        profile_user = User.objects.get(username=username)
+        return render(request, 'followers.html', {
+            'username': username,
+            'profile_user': profile_user
+        })
+    except User.DoesNotExist:
+        return render(request, '404.html', status=404)
+
+def following_page(request, username):
+    """Following page for a specific user"""
+    try:
+        profile_user = User.objects.get(username=username)
+        return render(request, 'following.html', {
+            'username': username,
+            'profile_user': profile_user
+        })
+    except User.DoesNotExist:
+        return render(request, '404.html', status=404) 

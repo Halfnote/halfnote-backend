@@ -1,0 +1,421 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>halfnote API Testing Interface - {{ profile_user.username }}'s Following</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .navbar {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            text-decoration: none;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .nav-btn {
+            padding: 8px 20px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #374151;
+        }
+        
+        .nav-btn:hover {
+            background: #f9fafb;
+        }
+        
+        .search-nav {
+            position: relative;
+            background: #f3f4f6;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            min-width: 200px;
+        }
+        
+        .search-nav input {
+            border: none;
+            background: none;
+            outline: none;
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+        
+        .search-nav::before {
+            content: "🔍";
+            margin-right: 8px;
+        }
+        
+        .search-nav input:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .logout-btn {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background: #f9fafb;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            text-decoration: none;
+            margin-bottom: 24px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: #111827;
+        }
+
+        .page-header {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 16px;
+        }
+
+        .users-list {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            text-decoration: none;
+        }
+
+        .user-name:hover {
+            color: #667eea;
+        }
+
+        .user-bio {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .follow-btn {
+            background: #111827;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .follow-btn:hover {
+            background: #374151;
+        }
+
+        .follow-btn.following {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .follow-btn.following:hover {
+            background: #f9fafb;
+        }
+
+        .loading {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px;
+        }
+
+        .no-users {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/" class="logo">halfnote</a>
+        <div class="nav-buttons">
+            <div class="search-nav">
+                <input type="text" id="search-input" placeholder="Search" disabled onkeypress="handleSearchKeypress(event)">
+            </div>
+            <div class="nav-links" id="nav-links">
+                <a href="/activity/" class="nav-btn">Activity</a>
+                <a href="javascript:void(0)" class="nav-btn" onclick="goToMyProfile()">
+                    <span id="current-user">Profile</span>
+                </a>
+                <a href="javascript:void(0)" class="logout-btn" id="logout-btn" onclick="logout()" style="display: none;">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <a href="/users/{{ username }}/" class="back-link">
+            ← Back to {{ profile_user.username }}'s Profile
+        </a>
+
+        <div class="page-header">
+            <h1 class="page-title">{{ profile_user.username }}'s Following</h1>
+            <p class="page-subtitle">People that {{ profile_user.username }} follows</p>
+        </div>
+
+        <div class="users-list">
+            <div id="following-container">
+                <div class="loading">Loading following...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const authToken = localStorage.getItem('authToken');
+        const profileUsername = '{{ username }}';
+        let currentUser = null;
+        
+        // Global variable for default avatar URL
+        const defaultAvatarUrl = '{% static "accounts/default-avatar.svg" %}';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentUser();
+            loadFollowing();
+        });
+
+        async function loadCurrentUser() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    currentUser = userData.username;
+                    document.getElementById('current-user').textContent = userData.username;
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                    
+                    // Enable search functionality
+                    const searchInput = document.getElementById('search-input');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Search';
+                }
+            } catch (error) {
+                console.error('Error loading current user:', error);
+            }
+        }
+
+        async function loadFollowing() {
+            try {
+                const response = await fetch(`/api/accounts/users/${profileUsername}/following/`);
+                const following = await response.json();
+
+                const container = document.getElementById('following-container');
+
+                if (following.length === 0) {
+                    container.innerHTML = '<div class="no-users">Not following anyone yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = following.map(user => `
+                    <div class="user-item">
+                        <img src="${user.avatar || defaultAvatarUrl}" 
+                             alt="${user.username}" 
+                             class="user-avatar">
+                        <div class="user-info">
+                            <a href="/users/${user.username}/" class="user-name">${user.username}</a>
+                            ${user.bio ? `<div class="user-bio">${user.bio}</div>` : ''}
+                        </div>
+                        ${currentUser && currentUser !== user.username ? 
+                            `<button class="follow-btn" onclick="toggleFollow('${user.username}', this)">Follow</button>` : 
+                            ''
+                        }
+                    </div>
+                `).join('');
+
+                // Check follow status for each user
+                if (currentUser) {
+                    checkFollowStatuses();
+                }
+            } catch (error) {
+                console.error('Error loading following:', error);
+                document.getElementById('following-container').innerHTML = 
+                    '<div class="no-users">Error loading following.</div>';
+            }
+        }
+
+        async function checkFollowStatuses() {
+            const followButtons = document.querySelectorAll('.follow-btn');
+            
+            for (const button of followButtons) {
+                const username = button.getAttribute('onclick').match(/'([^']+)'/)[1];
+                try {
+                    const response = await fetch(`/api/accounts/users/${username}/followers/`);
+                    const followers = await response.json();
+                    const isFollowing = followers.some(follower => follower.username === currentUser);
+                    
+                    if (isFollowing) {
+                        button.textContent = 'Following';
+                        button.classList.add('following');
+                    }
+                } catch (error) {
+                    console.error(`Error checking follow status for ${username}:`, error);
+                }
+            }
+        }
+
+        async function toggleFollow(username, button) {
+            if (!authToken) {
+                alert('Please log in to follow users');
+                return;
+            }
+
+            const isFollowing = button.classList.contains('following');
+            const endpoint = isFollowing ? 'unfollow' : 'follow';
+
+            try {
+                const response = await fetch(`/api/accounts/users/${username}/${endpoint}/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    if (isFollowing) {
+                        button.textContent = 'Follow';
+                        button.classList.remove('following');
+                    } else {
+                        button.textContent = 'Following';
+                        button.classList.add('following');
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling follow:', error);
+            }
+        }
+
+        function goToMyProfile() {
+            if (currentUser) {
+                window.location.href = `/users/${currentUser}/`;
+            } else {
+                alert('Please log in first');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/';
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                if (!currentUser) {
+                    alert('Please log in to search for music');
+                    return;
+                }
+                const query = event.target.value.trim();
+                if (query) {
+                    window.location.href = `/search/?q=${encodeURIComponent(query)}`;
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

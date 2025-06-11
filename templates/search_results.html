@@ -331,34 +331,12 @@
         </div>
 
         <div id="results-container">
-            {% if albums %}
-            <div class="results-section">
-                <h2 class="section-title">Albums ({{ albums|length }})</h2>
-                {% for album in albums %}
-                                                  <div class="result-item">
-                     <img src="{% if album.cover_image %}{{ album.cover_image }}{% else %}https://via.placeholder.com/80x80{% endif %}" 
-                          alt="{{ album.title }}" class="result-image">
-                     <div class="result-info">
-                         <h3 class="result-title">{{ album.title }}</h3>
-                         <p class="result-subtitle">{{ album.artist }}</p>
-                         <p class="result-meta">Album{% if album.year %} • {{ album.year }}{% endif %}</p>
-                     </div>
-                     <div class="result-actions">
-                         <button class="btn-primary" onclick="openReviewModal('{{ album.id }}', '{{ album.artist|escapejs }}', '{{ album.title|escapejs }}', '{% if album.cover_image %}{{ album.cover_image|escapejs }}{% endif %}')">
-                             Leave Review
-                         </button>
-                     </div>
-                 </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
             {% if users %}
             <div class="results-section">
                 <h2 class="section-title">Users ({{ users|length }})</h2>
                 {% for user in users %}
                 <div class="result-item" onclick="window.location.href='/users/{{ user.username }}/';" style="cursor: pointer;">
-                                         <img src="{% if user.avatar_url %}{{ user.avatar_url }}{% else %}{% static 'accounts/default-avatar.svg' %}{% endif %}" 
+                    <img src="{% if user.avatar_url %}{{ user.avatar_url }}{% else %}{% static 'accounts/default-avatar.svg' %}{% endif %}" 
                           alt="{{ user.username }}" class="result-image user-image">
                     <div class="result-info">
                         <h3 class="result-title">{{ user.username }}</h3>
@@ -379,6 +357,28 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if albums %}
+            <div class="results-section">
+                <h2 class="section-title">Albums ({{ albums|length }})</h2>
+                {% for album in albums %}
+                <div class="result-item">
+                     <img src="{% if album.cover_image %}{{ album.cover_image }}{% else %}https://via.placeholder.com/80x80{% endif %}" 
+                          alt="{{ album.title }}" class="result-image">
+                     <div class="result-info">
+                         <h3 class="result-title">{{ album.title }}</h3>
+                         <p class="result-subtitle">{{ album.artist }}</p>
+                         <p class="result-meta">Album{% if album.year %} • {{ album.year }}{% endif %}</p>
+                     </div>
+                     <div class="result-actions">
+                         <button class="btn-primary" onclick="openReviewModal('{{ album.id }}', '{{ album.artist|escapejs }}', '{{ album.title|escapejs }}', '{% if album.cover_image %}{{ album.cover_image|escapejs }}{% endif %}')">
+                             Leave Review
+                         </button>
+                     </div>
+                 </div>
                 {% endfor %}
             </div>
             {% endif %}

@@ -191,6 +191,16 @@
             text-align: center;
         }
 
+        .stat-link {
+            text-decoration: none;
+            color: inherit;
+            transition: color 0.2s ease;
+        }
+
+        .stat-link:hover {
+            color: #667eea;
+        }
+
         .stat-number {
             display: block;
             font-size: 20px;
@@ -570,14 +580,18 @@
                         <span class="stat-number">{{ review_count }}</span>
                         <span class="stat-label">Reviews</span>
                     </div>
-                    <div class="stat">
-                        <span class="stat-number">{{ follower_count }}</span>
-                        <span class="stat-label">Followers</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">{{ following_count }}</span>
-                        <span class="stat-label">Following</span>
-                    </div>
+                    <a href="/users/{{ username }}/followers/" class="stat-link">
+                        <div class="stat">
+                            <span class="stat-number">{{ follower_count }}</span>
+                            <span class="stat-label">Followers</span>
+                        </div>
+                    </a>
+                    <a href="/users/{{ username }}/following/" class="stat-link">
+                        <div class="stat">
+                            <span class="stat-number">{{ following_count }}</span>
+                            <span class="stat-label">Following</span>
+                        </div>
+                    </a>
                 </div>
                 
                 <!-- Profile actions - visibility controlled by JavaScript -->
