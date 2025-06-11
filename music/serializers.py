@@ -17,7 +17,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at', 
-                  'album_title', 'album_artist', 'album_cover', 'album_year']
+                  'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned']
         read_only_fields = ['id', 'created_at']
 
 class AlbumSerializer(serializers.ModelSerializer):

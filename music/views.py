@@ -272,4 +272,36 @@ def edit_review(request, review_id):
         all_review_genres = Genre.objects.filter(reviews__album=album).distinct()
         album.genres.set(all_review_genres)
         
-        return Response({"message": "Review deleted successfully"}, status=200) 
+        return Response({"message": "Review deleted successfully"}, status=200)
+
+@api_view(['POST'])
+def pin_review(request, review_id):
+    """Pin or unpin a review - only by the review author"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
+    
+    try:
+        review = Review.objects.get(id=review_id)
+    except Review.DoesNotExist:
+        return Response({"error": "Review not found"}, status=404)
+    
+    # Check if user owns this review
+    if review.user != request.user:
+        return Response({"error": "You can only pin your own reviews"}, status=403)
+    
+    # Check if trying to pin and already at limit
+    if not review.is_pinned:
+        pinned_count = Review.objects.filter(user=request.user, is_pinned=True).count()
+        if pinned_count >= 4:
+            return Response({"error": "You can only pin up to 4 reviews"}, status=400)
+    
+    # Toggle pin status
+    review.is_pinned = not review.is_pinned
+    review.save()
+    
+    action = "pinned" if review.is_pinned else "unpinned"
+    return Response({
+        "message": f"Review {action} successfully",
+        "is_pinned": review.is_pinned,
+        "review": ReviewSerializer(review).data
+    }) 

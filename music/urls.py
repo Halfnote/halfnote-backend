@@ -13,4 +13,7 @@ urlpatterns = [
     
     # Edit/delete review endpoint
     path('reviews/<int:review_id>/', views.edit_review, name='edit-review'),
+    
+    # Pin/unpin review endpoint
+    path('reviews/<int:review_id>/pin/', views.pin_review, name='pin-review'),
 ] 

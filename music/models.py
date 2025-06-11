@@ -60,6 +60,7 @@ class Review(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
     content = models.TextField(blank=True)
+    is_pinned = models.BooleanField(default=False, help_text="Pin this review to profile (max 4)")
     
     # User selects genres for this album when creating review
     user_genres = models.ManyToManyField(Genre, blank=True, related_name='reviews', 

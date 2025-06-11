@@ -675,6 +675,69 @@
             font-size: 12px;
             white-space: nowrap;
         }
+
+        /* Pinned Reviews */
+        .pinned-reviews-section {
+            margin-top: 24px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 24px;
+        }
+
+        .pinned-reviews-section h4 {
+            margin: 0 0 16px 0;
+            color: #111827;
+        }
+
+        .pinned-review-item {
+            display: flex;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            gap: 12px;
+            border: 2px solid #fbbf24;
+        }
+
+        .pinned-review-item .review-album-cover {
+            width: 48px;
+            height: 48px;
+        }
+
+        .pinned-badge {
+            background: #fbbf24;
+            color: #92400e;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .pin-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-size: 16px;
+            color: #6b7280;
+        }
+
+        .pin-btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .pin-btn.pinned {
+            color: #fbbf24;
+        }
+
+        .empty-pinned {
+            text-align: center;
+            color: #9ca3af;
+            font-style: italic;
+            padding: 20px;
+        }
         
         /* Responsive */
         @media (max-width: 768px) {
@@ -797,6 +860,14 @@
                         </div>
                     </div>
                     <button class="btn-secondary" onclick="showEditProfile()">Edit Profile</button>
+                </div>
+                
+                <!-- Pinned Reviews -->
+                <div class="pinned-reviews-section">
+                    <h4>Pinned Reviews</h4>
+                    <div id="pinned-reviews-container">
+                        <!-- Pinned reviews will be loaded here -->
+                    </div>
                 </div>
             </div>
 
@@ -1235,6 +1306,7 @@
                             <div class="review-header-right">
                                 <div class="review-rating">${review.rating}/10</div>
                                 <div class="review-actions">
+                                    <button class="action-btn pin-btn ${review.is_pinned ? 'pinned' : ''}" onclick="togglePin(${review.id})" title="${review.is_pinned ? 'Unpin Review' : 'Pin Review'}">📌</button>
                                     <button class="action-btn edit-btn" onclick="editReview(${review.id})" title="Edit Review">✏️</button>
                                     <button class="action-btn delete-btn" onclick="deleteReview(${review.id})" title="Delete Review">🗑️</button>
                                 </div>
@@ -1372,6 +1444,9 @@
             } else {
                 genresContainer.innerHTML = '<span style="color: #9ca3af;">No favorite genres selected</span>';
             }
+            
+            // Display pinned reviews
+            displayPinnedReviews(profile.pinned_reviews);
         }
 
         function showEditProfile() {
@@ -1719,6 +1794,65 @@
             } catch (error) {
                 alert('Error unfollowing user');
             }
+        }
+
+        // Pin/Unpin functions
+        async function togglePin(reviewId) {
+            if (!authToken) {
+                alert('Please login to pin reviews');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/pin/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Refresh reviews and profile to show updated state
+                    loadMyReviews();
+                    loadUserProfile();
+                    showMessage('reviews-message', data.message, 'success');
+                } else {
+                    showMessage('reviews-message', data.error || 'Failed to pin review', 'error');
+                }
+            } catch (error) {
+                showMessage('reviews-message', 'Error pinning review', 'error');
+            }
+        }
+
+        function displayPinnedReviews(pinnedReviews) {
+            const container = document.getElementById('pinned-reviews-container');
+            
+            if (!pinnedReviews || pinnedReviews.length === 0) {
+                container.innerHTML = '<div class="empty-pinned">No pinned reviews yet. Pin your favorite reviews to showcase them here!</div>';
+                return;
+            }
+            
+            container.innerHTML = pinnedReviews.map(review => `
+                <div class="pinned-review-item">
+                    <img src="${review.album_cover || '/static/default-album.png'}" 
+                         alt="${review.album_title || 'Unknown Album'}" 
+                         class="review-album-cover" 
+                         onerror="this.src='/static/default-album.png'">
+                    <div class="review-content-wrapper">
+                        <div class="review-header">
+                            <div class="review-album-info">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                    <span class="pinned-badge">Pinned</span>
+                                    <div class="review-rating">${review.rating}/10</div>
+                                </div>
+                                <div class="review-album-title">${review.album_title || 'Unknown Album'}</div>
+                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
+                            </div>
+                        </div>
+                        <div class="review-content">${review.content}</div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Close modal when clicking outside
