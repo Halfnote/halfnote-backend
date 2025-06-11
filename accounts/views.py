@@ -70,8 +70,22 @@ def profile(request):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
     
-    # PUT
-    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+    # PUT - Handle both JSON and form data
+    data = request.data.copy()
+    
+    # Handle favorite_genres if it's JSON string
+    if 'favorite_genres' in data and isinstance(data['favorite_genres'], str):
+        try:
+            import json
+            data['favorite_genres'] = json.loads(data['favorite_genres'])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # Handle avatar file upload
+    if 'avatar' in request.FILES:
+        data['avatar'] = request.FILES['avatar']
+    
+    serializer = UserProfileSerializer(request.user, data=data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)

@@ -131,11 +131,27 @@
             padding: 32px;
             margin-bottom: 24px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
         .profile-info {
             display: flex;
             align-items: flex-start;
+            gap: 24px;
+        }
+
+        .profile-top-right {
+            position: absolute;
+            top: 32px;
+            right: 32px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .profile-all-stats {
+            display: flex;
+            align-items: center;
             gap: 24px;
         }
 
@@ -253,7 +269,6 @@
         .profile-actions {
             display: flex;
             gap: 12px;
-            margin-top: 16px;
         }
 
         .edit-profile-btn {
@@ -548,6 +563,32 @@
 
         <!-- Profile Header -->
         <div class="profile-header">
+            <!-- Top right section with all stats and buttons -->
+            <div class="profile-top-right">
+                <div class="profile-all-stats">
+                    <div class="stat">
+                        <span class="stat-number">{{ review_count }}</span>
+                        <span class="stat-label">Reviews</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">{{ follower_count }}</span>
+                        <span class="stat-label">Followers</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">{{ following_count }}</span>
+                        <span class="stat-label">Following</span>
+                    </div>
+                </div>
+                
+                <!-- Profile actions - visibility controlled by JavaScript -->
+                <div class="profile-actions" id="edit-profile-actions" style="display: none;">
+                    <button class="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
+                </div>
+                <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
+                    Follow
+                </button>
+            </div>
+            
             <div class="profile-info">
                 <img src="{% if profile_user.avatar %}{{ profile_user.avatar.url }}{% else %}{% static 'accounts/default-avatar.svg' %}{% endif %}" 
                      alt="{{ profile_user.username }}" 
@@ -557,32 +598,6 @@
                     <h1>{{ profile_user.username }}</h1>
                     {% if profile_user.bio %}
                     <p class="profile-bio">{{ profile_user.bio }}</p>
-                    {% endif %}
-                    <div class="profile-stats">
-                        <div class="stat">
-                            <span class="stat-number">{{ review_count }}</span>
-                            <span class="stat-label">Reviews</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-number">{{ follower_count }}</span>
-                            <span class="stat-label">Followers</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-number">{{ following_count }}</span>
-                            <span class="stat-label">Following</span>
-                        </div>
-                    </div>
-                    
-                    {% if is_own_profile %}
-                    <!-- Show edit profile button for own profile -->
-                    <div class="profile-actions">
-                        <button class="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
-                    </div>
-                    {% else %}
-                    <!-- Show follow button for other profiles -->
-                    <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
-                        Follow
-                    </button>
                     {% endif %}
                 </div>
             </div>
@@ -609,6 +624,34 @@
     <div class="image-modal" id="image-modal" onclick="closeImageModal()">
         <button class="close-modal" onclick="closeImageModal()">&times;</button>
         <img src="" alt="" class="modal-image" id="modal-image">
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="edit-modal" id="edit-profile-modal">
+        <div class="edit-modal-content">
+            <h3>Edit Profile</h3>
+            <form id="edit-profile-form" enctype="multipart/form-data">
+                <div class="edit-form-group">
+                    <label for="edit-avatar">Profile Picture</label>
+                    <input type="file" id="edit-avatar" accept="image/*" onchange="previewAvatar(event)">
+                    <div id="avatar-preview" style="margin-top: 10px;">
+                        <img id="preview-img" src="" alt="Avatar Preview" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; display: none;">
+                    </div>
+                </div>
+                <div class="edit-form-group">
+                    <label for="edit-bio">Bio</label>
+                    <textarea id="edit-bio" placeholder="Tell us about yourself..." rows="3"></textarea>
+                </div>
+                <div class="edit-form-group">
+                    <label>Favorite Genres</label>
+                    <div id="edit-favorite-genres-grid" class="genre-grid"></div>
+                </div>
+                <div class="edit-form-actions">
+                    <button type="button" class="btn-secondary btn-small" onclick="closeProfileEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary btn-small">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Edit Review Modal -->
@@ -653,6 +696,12 @@
             loadPinnedReviews();
             loadUserReviews();
             loadGenres();
+            
+            // Add profile edit form event listener
+            const profileForm = document.getElementById('edit-profile-form');
+            if (profileForm) {
+                profileForm.addEventListener('submit', handleProfileFormSubmit);
+            }
         });
 
         async function loadCurrentUser() {
@@ -678,8 +727,15 @@
                     isOwnProfile = (currentUser === profileUsername);
                     console.log('Profile check:', { currentUser, profileUsername, isOwnProfile });
                     
-                    // Show follow button if viewing someone else's profile
-                    if (currentUser !== profileUsername) {
+                    // Show appropriate buttons based on profile ownership
+                    if (isOwnProfile) {
+                        // Show edit profile button for own profile
+                        const editActions = document.getElementById('edit-profile-actions');
+                        if (editActions) {
+                            editActions.style.display = 'block';
+                        }
+                    } else {
+                        // Show follow button for other profiles
                         const followBtn = document.getElementById('follow-btn');
                         if (followBtn) {
                             followBtn.style.display = 'block';
@@ -907,10 +963,107 @@
             editingReviewId = null;
         }
 
-        function editProfile() {
-            // For now, redirect to a separate edit page or show an edit modal
-            // This would need additional implementation
-            alert('Profile editing functionality - to be implemented');
+        async function editProfile() {
+            if (!authToken || !isOwnProfile) return;
+            
+            // Load current user data
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    
+                    // Populate form with current data
+                    document.getElementById('edit-bio').value = userData.bio || '';
+                    
+                    // Load favorite genres
+                    loadFavoriteGenresIntoModal(userData.favorite_genres || []);
+                    
+                    // Show modal
+                    document.getElementById('edit-profile-modal').style.display = 'flex';
+                } else {
+                    alert('Error loading profile data');
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                alert('Error loading profile data');
+            }
+        }
+
+        function closeProfileEditModal() {
+            document.getElementById('edit-profile-modal').style.display = 'none';
+            document.getElementById('preview-img').style.display = 'none';
+        }
+
+        function previewAvatar(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('preview-img');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function loadFavoriteGenresIntoModal(favoriteGenres = []) {
+            const container = document.getElementById('edit-favorite-genres-grid');
+            container.innerHTML = genres.map(genre => {
+                const isChecked = favoriteGenres.includes(genre.name);
+                return `
+                    <div class="genre-option">
+                        <input type="checkbox" id="fav-genre-${genre.id}" value="${genre.name}" ${isChecked ? 'checked' : ''}>
+                        <label for="fav-genre-${genre.id}">${genre.name}</label>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Handle profile edit form submission
+        async function handleProfileFormSubmit(e) {
+            e.preventDefault();
+            
+            if (!authToken) return;
+
+            const bio = document.getElementById('edit-bio').value;
+            const avatarFile = document.getElementById('edit-avatar').files[0];
+            const selectedGenres = Array.from(document.querySelectorAll('#edit-favorite-genres-grid input:checked'))
+                .map(cb => cb.value);
+
+            const formData = new FormData();
+            formData.append('bio', bio);
+            formData.append('favorite_genres', JSON.stringify(selectedGenres));
+            
+            if (avatarFile) {
+                formData.append('avatar', avatarFile);
+            }
+
+            try {
+                const response = await fetch('/api/accounts/profile/', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                        // Don't set Content-Type for FormData, let browser set it
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    closeProfileEditModal();
+                    // Reload the page to show updated profile
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile');
+            }
         }
 
         // Existing functions...
