@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from cloudinary_storage.storage import MediaCloudinaryStorage
 from .validators import (
     validate_username, validate_bio,
     validate_favorite_genres
@@ -20,7 +21,8 @@ class User(AbstractUser):
         upload_to='avatars/',
         blank=True,
         null=True,
-        help_text='Profile picture'
+        help_text='Profile picture',
+        storage=MediaCloudinaryStorage()
     )
     favorite_genres = models.JSONField(
         default=list,

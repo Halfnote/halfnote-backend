@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+import os
 
 from .serializers import UserProfileSerializer, UserFollowSerializer, UserSerializer
 from music.models import Review
@@ -104,7 +105,7 @@ def user_reviews(request, username):
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_profile(request, username=None):
     """Get user profile information"""
     if username:
@@ -160,7 +161,7 @@ def unfollow_user(request, username):
     return Response({'status': 'unfollowed'})
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_followers(request, username):
     """Get list of user's followers"""
     user = get_object_or_404(User, username=username)
@@ -169,7 +170,7 @@ def get_followers(request, username):
     return Response(serializer.data)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def get_following(request, username):
     """Get list of users that the user is following"""
     user = get_object_or_404(User, username=username)
@@ -218,3 +219,47 @@ def search_users(request):
         results.append(user_data)
     
     return Response({'users': results})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_cloudinary(request):
+    """Debug endpoint to check Cloudinary configuration"""
+    from django.conf import settings
+    import cloudinary
+    
+    config = cloudinary.config()
+    return Response({
+        'cloudinary_configured': hasattr(settings, 'DEFAULT_FILE_STORAGE') and 'cloudinary' in settings.DEFAULT_FILE_STORAGE.lower(),
+        'cloud_name': config.cloud_name if config.cloud_name else 'Not set',
+        'api_key_present': bool(config.api_key),
+        'api_secret_present': bool(config.api_secret),
+        'default_storage': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set')
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_storage(request):
+    """Debug endpoint to check storage configuration"""
+    from django.conf import settings
+    from django.core.files.storage import default_storage
+    import cloudinary
+    
+    try:
+        config = cloudinary.config()
+        cloudinary_configured = bool(config.cloud_name and config.api_key and config.api_secret)
+    except:
+        cloudinary_configured = False
+        config = None
+    
+    return Response({
+        'default_file_storage_setting': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set'),
+        'actual_storage_class': str(type(default_storage)),
+        'cloudinary_configured': cloudinary_configured,
+        'cloudinary_cloud_name': config.cloud_name if config and config.cloud_name else 'Not set',
+        'cloudinary_api_key_present': bool(config and config.api_key) if config else False,
+        'environment_vars': {
+            'CLOUDINARY_CLOUD_NAME': bool(os.getenv('CLOUDINARY_CLOUD_NAME')),
+            'CLOUDINARY_API_KEY': bool(os.getenv('CLOUDINARY_API_KEY')),
+            'CLOUDINARY_API_SECRET': bool(os.getenv('CLOUDINARY_API_SECRET')),
+        }
+    })
