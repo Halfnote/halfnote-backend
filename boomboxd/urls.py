@@ -12,6 +12,7 @@ urlpatterns = [
     path('users/<str:username>/', root_views.user_profile, name='user_profile'),  # User profile page
     path('users/<str:username>/followers/', root_views.followers_page, name='followers_page'),  # Followers page
     path('users/<str:username>/following/', root_views.following_page, name='following_page'),  # Following page
+    path('review/<int:review_id>/', root_views.review_detail, name='review_detail'),  # Individual review page
     path('', root_views.frontend, name='frontend'),       # HTML landing page at root
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),

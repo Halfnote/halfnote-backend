@@ -1,15 +1,18 @@
-# Halfnote API - Letterboxd for Music
+# 🎵 Halfnote API - Letterboxd for Music
 
-A Django-based API for music reviews and social features, inspired by Letterboxd. Users can discover music, write reviews, follow others, and interact with a community of music lovers.
+A comprehensive Django-based API for music reviews and social features, inspired by Letterboxd. Users can discover music, write detailed reviews, follow others, and interact with a vibrant community of music lovers.
 
 ## 🚀 Features
 
-- **User Authentication & Profiles**: JWT-based auth with customizable user profiles
-- **Music Discovery**: Search albums via Discogs API integration
-- **Review System**: Rate albums (1-10), write reviews, pin favorites
-- **Social Features**: Follow users, activity feeds, comments
-- **Genre Tagging**: User-assigned genres for personalized organization
-- **Comments & Interactions**: Like reviews, comment on posts
+- **🔐 User Authentication & Profiles**: JWT-based auth with customizable user profiles, avatars, and bios
+- **🎼 Music Discovery**: Search albums via Discogs API integration with rich metadata
+- **⭐ Review System**: Rate albums (1-10), write detailed reviews, pin favorites, edit/delete reviews
+- **👥 Social Features**: Follow users, activity feeds, like reviews, comment threads
+- **🏷️ Genre Tagging**: User-assigned genres for personalized organization and discovery
+- **💬 Comments & Interactions**: Threaded comments, edit/delete own comments, pagination
+- **📱 Responsive Frontend**: Complete web interface with mobile-optimized design
+- **🔄 Real-time Updates**: Dynamic UI with immediate feedback and state management
+- **📊 Activity Tracking**: Comprehensive activity feeds with different view modes (Friends, You, Incoming)
 
 ## 🔗 Base URL
 ```
@@ -216,6 +219,19 @@ const newReview = await fetch('/api/music/albums/1123456/review/', {
 .then(res => res.json());
 ```
 
+### Get Single Review
+**GET** `/api/music/reviews/{review_id}/`
+
+```javascript
+const review = await fetch('/api/music/reviews/123/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns detailed review with album info, user data, like status, etc.
+// { id, rating, content, user_genres, album_title, username, is_liked_by_user, likes_count, is_pinned, created_at }
+```
+
 ### Edit a Review
 **PUT** `/api/music/reviews/{review_id}/`
 
@@ -297,19 +313,76 @@ const newComment = await fetch('/api/music/reviews/123/comments/', {
 .then(res => res.json());
 ```
 
+### Edit a Comment
+**PUT** `/api/music/comments/{comment_id}/`
+
+```javascript
+await fetch('/api/music/comments/456/', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    content: 'Updated comment: Great review! The production is phenomenal.'
+  })
+});
+```
+
+### Delete a Comment
+**DELETE** `/api/music/comments/{comment_id}/`
+
+```javascript
+await fetch('/api/music/comments/456/', {
+  method: 'DELETE',
+  headers: { 'Authorization': `Bearer ${authToken}` }
+});
+```
+
 ## 📈 Activity Feed
 
 ### Get Activity Feed
-**GET** `/api/music/activity/`
+**GET** `/api/music/activity/?type={type}`
+
+Available types: `friends` (default), `you`, `incoming`
 
 ```javascript
-const activityFeed = await fetch('/api/music/activity/', {
+// Get friends' activity (default)
+const friendsActivity = await fetch('/api/music/activity/?type=friends', {
   headers: { 'Authorization': `Bearer ${authToken}` }
 })
 .then(res => res.json());
 
-// Returns recent activity from followed users
-// Includes reviews, likes, comments with full context
+// Get your own activity
+const yourActivity = await fetch('/api/music/activity/?type=you', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Get incoming activity (others interacting with your content)
+const incomingActivity = await fetch('/api/music/activity/?type=incoming', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns activity with full context:
+// { activity_type, username, target_username, created_at, review_details, comment_details }
+```
+
+### Get User Followers/Following
+**GET** `/api/accounts/users/{username}/followers/`
+**GET** `/api/accounts/users/{username}/following/`
+
+```javascript
+const followers = await fetch('/api/accounts/users/viv360/followers/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+const following = await fetch('/api/accounts/users/viv360/following/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
 ```
 
 ## 🎨 Frontend Integration Examples
@@ -482,14 +555,54 @@ const activities = await activityFeed.loadActivity();
 activityFeed.renderActivity(activities, 'activity-container');
 ```
 
-## 📱 Frontend Pages
+## 📱 Frontend Pages & Features
 
-The API serves several frontend pages with full functionality:
+The API serves a complete web application with responsive design and modern UX:
 
-- **`/`** - Landing page with authentication
-- **`/users/{username}/`** - User profile with reviews, pinned content, self-management
-- **`/activity/`** - Social activity feed
-- **`/search/`** - Music search and discovery
+### 🏠 Landing Page (`/`)
+- **Authentication**: Login/register forms with JWT token management
+- **Welcome Interface**: Clean, modern design introducing the platform
+- **Auto-redirect**: Logged-in users redirected to activity feed
+
+### 👤 User Profiles (`/users/{username}/`)
+- **Profile Header**: Avatar, bio, follower/following counts, review statistics
+- **Review Grid**: Compact album covers (120px) in Letterboxd-style layout
+- **Pinned Reviews**: Highlighted favorite reviews at the top
+- **Review Management**: Edit/delete/pin your own reviews with modal interface
+- **Social Actions**: Follow/unfollow other users, view their reviews
+- **Genre Selection**: Multi-select genre tagging with visual grid interface
+- **Responsive Design**: Mobile-optimized with touch-friendly interactions
+
+### 📊 Activity Feed (`/activity/`)
+- **Three View Modes**:
+  - **Friends**: Activity from users you follow
+  - **You**: Your own activity history  
+  - **Incoming**: Others interacting with your content
+- **Rich Activity Cards**: Album covers, ratings, review excerpts, timestamps
+- **Clickable Elements**: Album titles link to individual review pages
+- **Smart Text**: "You liked your review" vs "You liked viv360's review"
+- **Real-time Updates**: Dynamic loading and state management
+
+### 🎵 Individual Review Pages (`/review/{id}/`)
+- **Letterboxd-style Layout**: Large album cover (250px), title, artist, rating
+- **Review Header**: Compact action buttons (📌✏️🗑️) next to score
+- **Review Content**: Full review text with proper typography
+- **Genre Tags**: User-assigned genres displayed prominently
+- **Comments System**: Threaded comments with edit/delete functionality
+- **Social Features**: Like reviews, comment interactions
+- **Edit Modal**: In-place editing with genre selection grid
+- **Responsive**: Adapts beautifully to mobile devices
+
+### 🔍 Search & Discovery (`/search/`)
+- **Discogs Integration**: Search vast music database
+- **Rich Results**: Album covers, artist info, release years
+- **Quick Actions**: Direct review creation from search results
+
+### 🎨 Design Philosophy
+- **Letterboxd-inspired**: Clean, content-focused design
+- **Mobile-first**: Touch-friendly interactions, responsive layouts
+- **Modern UX**: Smooth animations, immediate feedback, intuitive navigation
+- **Accessibility**: Proper contrast, keyboard navigation, screen reader support
 
 ## 🔧 Development Setup
 
@@ -522,32 +635,94 @@ python manage.py runserver
 
 The API will be available at `http://127.0.0.1:8000/`
 
-## ⚠️ Error Handling
+## 📋 Complete API Reference
 
-All endpoints return appropriate HTTP status codes:
+### Authentication Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/accounts/register/` | Create new user account | No |
+| POST | `/api/accounts/login/` | Login and get JWT tokens | No |
+| POST | `/api/accounts/token/refresh/` | Refresh access token | No |
+| GET | `/api/accounts/profile/` | Get current user profile | Yes |
+| PUT | `/api/accounts/profile/` | Update current user profile | Yes |
 
-- **200** - Success
-- **201** - Created successfully  
+### User & Social Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/accounts/users/{username}/` | Get user profile | Optional |
+| GET | `/api/accounts/users/{username}/reviews/` | Get user's reviews | Optional |
+| GET | `/api/accounts/users/{username}/followers/` | Get user's followers | Yes |
+| GET | `/api/accounts/users/{username}/following/` | Get users they follow | Yes |
+| POST | `/api/accounts/users/{username}/follow/` | Follow user | Yes |
+| POST | `/api/accounts/users/{username}/unfollow/` | Unfollow user | Yes |
+
+### Music & Album Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/music/search/?q={query}` | Search albums via Discogs | Yes |
+| GET | `/api/music/albums/{discogs_id}/` | Get album details | Yes |
+| GET | `/api/music/genres/` | Get available genres | No |
+
+### Review Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/music/albums/{discogs_id}/review/` | Create review | Yes |
+| GET | `/api/music/reviews/{review_id}/` | Get single review | Optional |
+| PUT | `/api/music/reviews/{review_id}/` | Edit review (own only) | Yes |
+| DELETE | `/api/music/reviews/{review_id}/` | Delete review (own only) | Yes |
+| POST | `/api/music/reviews/{review_id}/pin/` | Toggle pin status (own only) | Yes |
+| POST | `/api/music/reviews/{review_id}/like/` | Toggle like status | Yes |
+
+### Comment Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/music/reviews/{review_id}/comments/` | Get review comments | Optional |
+| POST | `/api/music/reviews/{review_id}/comments/` | Add comment | Yes |
+| PUT | `/api/music/comments/{comment_id}/` | Edit comment (own only) | Yes |
+| DELETE | `/api/music/comments/{comment_id}/` | Delete comment (own only) | Yes |
+
+### Activity Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/music/activity/?type=friends` | Get friends' activity | Yes |
+| GET | `/api/music/activity/?type=you` | Get your activity | Yes |
+| GET | `/api/music/activity/?type=incoming` | Get incoming activity | Yes |
+
+## ⚠️ Error Handling & Status Codes
+
+### HTTP Status Codes
+- **200** - Success (GET, PUT requests)
+- **201** - Created successfully (POST requests)
+- **204** - No content (successful DELETE)
 - **400** - Bad request (validation errors)
 - **401** - Authentication required
-- **403** - Permission denied
+- **403** - Permission denied (not your content)
 - **404** - Resource not found
 - **429** - Rate limit exceeded
+- **500** - Internal server error
 
-Example error responses:
+### Error Response Formats
 ```json
+// Authentication error
 {
   "error": "Authentication required"
 }
 
+// Validation error
+{
+  "detail": "Rating must be between 1 and 10",
+  "field": "rating"
+}
+
+// Not found error
 {
   "error": "Album not found on Discogs", 
   "status": 404
 }
 
+// Permission error
 {
-  "detail": "Rating must be between 1 and 10",
-  "field": "rating"
+  "error": "You can only edit your own reviews"
 }
 ```
 
@@ -585,17 +760,60 @@ async function apiCall(url, options = {}) {
 }
 ```
 
-## 🎯 Key Features Summary
+## 🎯 Key Features & Recent Improvements
 
-- **Authentication**: JWT-based with refresh tokens
-- **Music Data**: Discogs API integration for comprehensive album database
-- **Reviews**: 1-10 ratings with rich text content and custom genre tagging  
-- **Social**: Follow users, activity feeds, review interactions
-- **Comments**: Threaded discussions on reviews with pagination
-- **Profile Management**: User profiles with pinned reviews and statistics
-- **Real-time UI**: Dynamic frontend with immediate updates
-- **Mobile-Friendly**: Responsive design optimized for all devices
+### 🔐 Authentication & Security
+- **JWT-based Authentication**: Secure token-based auth with refresh tokens
+- **Permission System**: Granular permissions for editing/deleting own content
+- **Rate Limiting**: Protection against API abuse
+
+### 🎵 Music & Reviews
+- **Discogs Integration**: Access to comprehensive music database
+- **Rich Review System**: 1-10 ratings with detailed text reviews
+- **Custom Genre Tagging**: User-assigned genres for personalized organization
+- **Review Management**: Edit, delete, pin/unpin reviews with modal interface
+- **Social Interactions**: Like reviews, follow users, comment on reviews
+
+### 💬 Comments & Interactions
+- **Threaded Comments**: Full comment system with edit/delete functionality
+- **Pagination**: Efficient loading of large comment threads
+- **Real-time Updates**: Immediate UI feedback for all interactions
+- **Permission-based Actions**: Users can only edit/delete their own content
+
+### 📊 Activity & Social Features
+- **Multi-view Activity Feed**: Friends, personal, and incoming activity streams
+- **Smart Activity Text**: Context-aware messaging ("your review" vs "username's review")
+- **Clickable Elements**: Album titles link to detailed review pages
+- **Follow System**: Build networks of music enthusiasts
+
+### 🎨 Frontend & UX
+- **Letterboxd-inspired Design**: Clean, content-focused interface
+- **Responsive Layout**: Mobile-first design with touch-friendly interactions
+- **Grid-based CSS**: Modern layout using CSS Grid and Flexbox
+- **Compact UI Elements**: Emoji-only action buttons, optimized spacing
+- **Modal Interfaces**: In-place editing without page navigation
+
+### 📱 Mobile Optimization
+- **Responsive Breakpoints**: Optimized for 768px (tablet) and 480px (mobile)
+- **Touch-friendly**: Larger touch targets, swipe-friendly layouts
+- **Adaptive Typography**: Font sizes and spacing adjust for screen size
+- **Mobile Navigation**: Streamlined navigation for small screens
+
+### 🔧 Technical Architecture
+- **Django REST Framework**: Robust API with serializers and viewsets
+- **PostgreSQL**: Reliable database with proper indexing
+- **Modern JavaScript**: ES6+ features, async/await, fetch API
+- **CSS Grid & Flexbox**: Modern layout techniques
+- **JWT Token Management**: Secure client-side token handling
+
+### 🚀 Performance Features
+- **Efficient Pagination**: Offset-based pagination for large datasets
+- **Caching Strategy**: Smart caching of user data and genres
+- **Optimized Queries**: Minimal database hits with proper joins
+- **Lazy Loading**: Comments and activity load on demand
 
 ---
 
-Built with Django, PostgreSQL, and modern JavaScript. Inspired by Letterboxd's elegant approach to media discovery and social sharing.
+**Built with Django, PostgreSQL, and modern JavaScript. Inspired by Letterboxd's elegant approach to media discovery and social sharing.**
+
+*This platform demonstrates modern web development practices with a focus on user experience, performance, and maintainable code architecture.*

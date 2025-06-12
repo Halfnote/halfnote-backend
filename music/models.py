@@ -112,6 +112,7 @@ class Activity(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        verbose_name_plural = "Activities"
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['activity_type', '-created_at']),

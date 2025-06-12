@@ -215,16 +215,22 @@ def create_review(request, discogs_id):
     except Exception as e:
         return Response({"error": str(e)}, status=400)
 
-@api_view(['PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([AllowAny])
 def edit_review(request, review_id):
-    """Edit or delete a review - only by the review author"""
-    if not request.user.is_authenticated:
-        return Response({"error": "Authentication required"}, status=401)
-    
+    """Get, edit or delete a review"""
     try:
         review = Review.objects.get(id=review_id)
     except Review.DoesNotExist:
         return Response({"error": "Review not found"}, status=404)
+    
+    if request.method == 'GET':
+        # Anyone can view a review
+        return Response(ReviewSerializer(review, context={'request': request}).data)
+    
+    # For PUT and DELETE, require authentication and ownership
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required"}, status=401)
     
     # Check if user owns this review
     if review.user != request.user:
@@ -392,6 +398,7 @@ def activity_feed(request):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def review_comments(request, review_id):
     """Get comments for a review or add a new comment"""
     try:

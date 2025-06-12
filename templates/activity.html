@@ -202,6 +202,11 @@
         .activity-album {
             font-weight: 500;
             color: #6366f1;
+            text-decoration: none;
+        }
+        
+        .activity-album:hover {
+            text-decoration: underline;
         }
         
         .activity-time {
@@ -418,6 +423,63 @@
             background: #fee2e2;
             color: #dc2626;
         }
+
+        /* Inline comment editing styles */
+        .comment-edit-form {
+            margin-top: 8px;
+        }
+
+        .comment-edit-input {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        }
+
+        .comment-edit-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .comment-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+
+        .comment-save-btn, .comment-cancel-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .comment-save-btn {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .comment-save-btn:hover {
+            background: #2563eb;
+        }
+
+        .comment-cancel-btn {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .comment-cancel-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
     </style>
 </head>
 <body>
@@ -525,6 +587,21 @@
             container.innerHTML = activities.map(activity => {
                 const timeAgo = getTimeAgo(new Date(activity.created_at));
                 
+                // Determine pronoun based on current tab and if it's the current user
+                const isCurrentUser = activity.username === currentUser;
+                let userReference = activity.username;
+                let possessiveReference = `${activity.username}'s`;
+                
+                if (currentTab === 'you' && isCurrentUser) {
+                    userReference = 'You';
+                    possessiveReference = 'your';
+                } else if (currentTab === 'incoming' && !isCurrentUser) {
+                    // For incoming activities about the current user
+                    if (activity.target_username === currentUser) {
+                        possessiveReference = 'your';
+                    }
+                }
+                
                 switch(activity.activity_type) {
                     case 'review_created':
                         const reviewDetails = activity.review_details;
@@ -536,8 +613,8 @@
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
-                                        <a href="/users/${activity.username}/" class="activity-user">${activity.username}</a>
-                                        reviewed <span class="activity-album">${reviewDetails.album_title}</span>
+                                        <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
+                                        reviewed <a href="/review/${reviewDetails.id}/" class="activity-album">${reviewDetails.album_title}</a>
                                         and rated it <strong>${reviewDetails.rating}/10</strong>
                                     </div>
                                     <div class="activity-review-content">"${reviewDetails.content}"</div>
@@ -564,29 +641,45 @@
                         const likedReviewDetails = activity.review_details;
                         if (!likedReviewDetails) return '';
                         
+                        // Determine target reference
+                        let targetReference = activity.target_username;
+                        let targetPossessive = `${activity.target_username}'s`;
+                        
+                        if (activity.target_username === currentUser) {
+                            targetReference = 'you';
+                            targetPossessive = 'your';
+                        }
+                        
                         return `
                             <div class="activity-item">
                                 <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
-                                        <a href="/users/${activity.username}/" class="activity-user">${activity.username}</a>
-                                        liked <a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s review of
-                                        <span class="activity-album">${likedReviewDetails.album_title}</span>
+                                        <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
+                                        liked ${targetReference === 'you' ? 'your' : `<a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s`} review of
+                                        <a href="/review/${likedReviewDetails.review_id}/" class="activity-album">${likedReviewDetails.album_title}</a>
                                     </div>
                                     <div class="activity-time">${timeAgo}</div>
                                 </div>
                             </div>
                         `;
                     case 'user_followed':
+                        // Determine target reference
+                        let followTargetReference = activity.target_username;
+                        
+                        if (activity.target_username === currentUser) {
+                            followTargetReference = 'you';
+                        }
+                        
                         return `
                             <div class="activity-item">
                                 <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
-                                        <a href="/users/${activity.username}/" class="activity-user">${activity.username}</a>
-                                        started following <a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>
+                                        <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
+                                        started following <a href="/users/${activity.target_username}/" class="activity-user">${followTargetReference}</a>
                                     </div>
                                     <div class="activity-time">${timeAgo}</div>
                                 </div>
@@ -597,15 +690,24 @@
                         const commentReviewDetails = activity.review_details;
                         if (!commentDetails || !commentReviewDetails) return '';
                         
+                        // Determine target reference for comments
+                        let commentTargetReference = activity.target_username;
+                        let commentTargetPossessive = `${activity.target_username}'s`;
+                        
+                        if (activity.target_username === currentUser) {
+                            commentTargetReference = 'you';
+                            commentTargetPossessive = 'your';
+                        }
+                        
                         return `
                             <div class="activity-item">
                                 <img src="${activity.user_avatar || defaultAvatarUrl}" 
                                      alt="${activity.username}" class="activity-avatar">
                                 <div class="activity-content">
                                     <div class="activity-text">
-                                        <a href="/users/${activity.username}/" class="activity-user">${activity.username}</a>
-                                        commented on <a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s review of
-                                        <span class="activity-album">${commentReviewDetails.album_title}</span>
+                                        <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
+                                        commented on ${commentTargetReference === 'you' ? 'your' : `<a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s`} review of
+                                        <a href="/review/${commentReviewDetails.review_id}/" class="activity-album">${commentReviewDetails.album_title}</a>
                                     </div>
                                     <div class="activity-review-content">"${commentDetails.content}"</div>
                                     <div class="activity-time">${timeAgo}</div>
@@ -833,10 +935,30 @@
         }
 
         async function editComment(commentId, currentContent) {
-            const newContent = prompt('Edit your comment:', currentContent);
-            if (newContent === null || newContent.trim() === currentContent) return;
+            const contentElement = document.getElementById(`comment-content-${commentId}`);
+            const actionsElement = contentElement.parentElement.querySelector('.comment-actions');
             
-            if (!newContent.trim()) {
+            // Create inline edit form
+            const editForm = document.createElement('div');
+            editForm.className = 'comment-edit-form';
+            editForm.innerHTML = `
+                <textarea class="comment-edit-input" id="edit-input-${commentId}">${currentContent}</textarea>
+                <div class="comment-edit-actions">
+                    <button class="comment-save-btn" onclick="saveCommentEdit(${commentId})">Save</button>
+                    <button class="comment-cancel-btn" onclick="cancelCommentEdit(${commentId}, '${currentContent.replace(/'/g, "\\'")}')">Cancel</button>
+                </div>
+            `;
+            
+            // Hide original content and actions, show edit form
+            contentElement.style.display = 'none';
+            actionsElement.style.display = 'none';
+            contentElement.parentElement.insertBefore(editForm, actionsElement);
+        }
+
+        async function saveCommentEdit(commentId) {
+            const newContent = document.getElementById(`edit-input-${commentId}`).value.trim();
+            
+            if (!newContent) {
                 return;
             }
 
@@ -847,13 +969,14 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`
                     },
-                    body: JSON.stringify({ content: newContent.trim() })
+                    body: JSON.stringify({ content: newContent })
                 });
 
                 if (response.ok) {
                     const updatedComment = await response.json();
                     // Update the comment content in the DOM
-                    document.getElementById(`comment-content-${commentId}`).textContent = updatedComment.content;
+                    const contentElement = document.getElementById(`comment-content-${commentId}`);
+                    contentElement.textContent = updatedComment.content;
                     
                     // Update the comment in state
                     Object.values(commentsState).forEach(state => {
@@ -862,6 +985,9 @@
                             comment.content = updatedComment.content;
                         }
                     });
+                    
+                    // Remove edit form and show original content
+                    cancelCommentEdit(commentId, updatedComment.content);
                 } else {
                     const error = await response.json();
                     alert(error.error || 'Error updating comment');
@@ -870,6 +996,24 @@
                 console.error('Error updating comment:', error);
                 alert('Error updating comment');
             }
+        }
+
+        function cancelCommentEdit(commentId, originalContent) {
+            const contentElement = document.getElementById(`comment-content-${commentId}`);
+            const actionsElement = contentElement.parentElement.querySelector('.comment-actions');
+            const editForm = contentElement.parentElement.querySelector('.comment-edit-form');
+            
+            // Remove edit form
+            if (editForm) {
+                editForm.remove();
+            }
+            
+            // Show original content and actions
+            contentElement.style.display = 'block';
+            actionsElement.style.display = 'flex';
+            
+            // Restore original content if needed
+            contentElement.textContent = originalContent;
         }
 
         async function deleteComment(commentId, reviewId) {

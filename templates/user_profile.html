@@ -28,14 +28,14 @@
             align-items: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        
+
         .logo {
             font-size: 24px;
             font-weight: 700;
             color: #111827;
             text-decoration: none;
         }
-        
+
         .nav-buttons {
             display: flex;
             gap: 12px;
@@ -99,7 +99,7 @@
             text-decoration: none;
             font-size: 14px;
         }
-        
+
         .logout-btn:hover {
             background: #f9fafb;
         }
@@ -327,9 +327,9 @@
         }
 
         .review-album-cover {
-            width: 240px;
-            height: 240px;
-            border-radius: 16px;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
             object-fit: cover;
         }
 
@@ -354,6 +354,17 @@
             font-size: 16px;
             font-weight: 600;
             color: #111827;
+        }
+
+        .review-title-link {
+            color: #111827;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .review-title-link:hover {
+            color: #667eea;
+            text-decoration: underline;
         }
 
         .review-album-artist {
@@ -594,6 +605,31 @@
             color: #374151;
         }
 
+        .like-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            margin-right: 8px;
+        }
+
+        .like-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .like-btn.liked {
+            color: #dc2626;
+        }
+
+        .like-btn.liked:hover {
+            background: #fee2e2;
+        }
+
         .comments-section {
             margin-top: 12px;
             padding: 16px;
@@ -734,6 +770,63 @@
             background: #fee2e2;
             color: #dc2626;
         }
+
+        /* Inline comment editing styles */
+        .comment-edit-form {
+            margin-top: 8px;
+        }
+
+        .comment-edit-input {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        }
+
+        .comment-edit-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .comment-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+
+        .comment-save-btn, .comment-cancel-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .comment-save-btn {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .comment-save-btn:hover {
+            background: #2563eb;
+        }
+
+        .comment-cancel-btn {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .comment-cancel-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
     </style>
 </head>
 <body>
@@ -761,10 +854,10 @@
             <!-- Top right section with all stats and buttons -->
             <div class="profile-top-right">
                 <div class="profile-all-stats">
-                    <div class="stat">
+                        <div class="stat">
                         <span class="stat-number">{{ review_count }}</span>
-                        <span class="stat-label">Reviews</span>
-                    </div>
+                            <span class="stat-label">Reviews</span>
+                        </div>
                     <a href="/users/{{ username }}/followers/" class="stat-link">
                         <div class="stat">
                             <span class="stat-number">{{ follower_count }}</span>
@@ -782,10 +875,10 @@
                 <!-- Profile actions - visibility controlled by JavaScript -->
                 <div class="profile-actions" id="edit-profile-actions" style="display: none;">
                     <button class="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
-                </div>
-                <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
-                    Follow
-                </button>
+                    </div>
+                    <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display: none;">
+                        Follow
+                    </button>
             </div>
             
             <div class="profile-info">
@@ -943,7 +1036,7 @@
                         const followBtn = document.getElementById('follow-btn');
                         if (followBtn) {
                             followBtn.style.display = 'block';
-                            checkFollowStatus();
+                        checkFollowStatus();
                         }
                     }
                 }
@@ -1013,26 +1106,35 @@
             return `
                 <div class="review-item" data-review-id="${review.id}">
                     <img src="${review.album_cover || defaultAvatarUrl}" 
-                         alt="${review.album_title || 'Unknown Album'}" 
-                         class="review-album-cover">
-                    <div class="review-content-wrapper">
-                        <div class="review-header">
-                            <div>
-                                <div class="review-album-title">${review.album_title || 'Unknown Album'}${review.is_pinned ? ' 📌' : ''}</div>
-                                <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
-                            </div>
+                             alt="${review.album_title || 'Unknown Album'}" 
+                             class="review-album-cover">
+                        <div class="review-content-wrapper">
+                            <div class="review-header">
+                                <div>
+                                <div class="review-album-title">
+                                    <a href="/review/${review.id}/" class="review-title-link">${review.album_title || 'Unknown Album'}</a>${review.is_pinned ? ' 📌' : ''}
+                                </div>
+                                    <div class="review-album-artist">${review.album_artist || 'Unknown Artist'}</div>
+                                </div>
                             <div class="review-header-right">
                                 ${actionsHTML}
                                 <div class="review-rating">${review.rating}/10</div>
                             </div>
-                        </div>
-                        <div class="review-content">${review.content}</div>
-                        <div class="review-meta">
-                            Reviewed on ${new Date(review.created_at).toLocaleDateString()}
-                            ${review.user_genres && review.user_genres.length > 0 ? 
-                                ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
-                        </div>
+                            </div>
+                            <div class="review-content">${review.content}</div>
+                            <div class="review-meta">
+                                Reviewed on ${new Date(review.created_at).toLocaleDateString()}
+                                ${review.user_genres && review.user_genres.length > 0 ? 
+                                    ' • Genres: ' + review.user_genres.map(g => g.name).join(', ') : ''}
+                            </div>
                         <div class="review-interactions">
+                            ${authToken && !isOwnProfile ? `
+                                <button class="like-btn ${review.user_has_liked ? 'liked' : ''}" 
+                                        onclick="toggleLike(${review.id})" 
+                                        title="${review.user_has_liked ? 'Unlike' : 'Like'} Review">
+                                    ${review.user_has_liked ? '❤️' : '🤍'} ${review.likes_count || 0}
+                                </button>
+                            ` : ''}
                             <button class="comments-btn" onclick="toggleComments(${review.id})" title="View Comments">
                                 💬 ${review.comments_count || 0}
                             </button>
@@ -1040,7 +1142,7 @@
                         <div class="comments-section" id="comments-${review.id}" style="display: none;">
                             <div class="comments-container" id="comments-container-${review.id}">
                                 <div class="loading-comments">Loading comments...</div>
-                            </div>
+                    </div>
                             ${authToken ? `
                                 <div class="comment-form">
                                     <input type="text" placeholder="Write a comment..." class="comment-input" id="comment-input-${review.id}" onkeypress="handleCommentKeypress(event, ${review.id})">
@@ -1342,7 +1444,7 @@
                     updateFollowButton(isCurrentlyFollowing);
                 } else {
                     // If we can't check, default to not following
-                    updateFollowButton(false);
+            updateFollowButton(false);
                 }
             } catch (error) {
                 console.error('Error checking follow status:', error);
@@ -1620,10 +1722,30 @@
         }
 
         async function editComment(commentId, currentContent) {
-            const newContent = prompt('Edit your comment:', currentContent);
-            if (newContent === null || newContent.trim() === currentContent) return;
+            const contentElement = document.getElementById(`comment-content-${commentId}`);
+            const actionsElement = contentElement.parentElement.querySelector('.comment-actions');
             
-            if (!newContent.trim()) {
+            // Create inline edit form
+            const editForm = document.createElement('div');
+            editForm.className = 'comment-edit-form';
+            editForm.innerHTML = `
+                <textarea class="comment-edit-input" id="edit-input-${commentId}">${currentContent}</textarea>
+                <div class="comment-edit-actions">
+                    <button class="comment-save-btn" onclick="saveCommentEdit(${commentId})">Save</button>
+                    <button class="comment-cancel-btn" onclick="cancelCommentEdit(${commentId}, '${currentContent.replace(/'/g, "\\'")}')">Cancel</button>
+                </div>
+            `;
+            
+            // Hide original content and actions, show edit form
+            contentElement.style.display = 'none';
+            actionsElement.style.display = 'none';
+            contentElement.parentElement.insertBefore(editForm, actionsElement);
+        }
+
+        async function saveCommentEdit(commentId) {
+            const newContent = document.getElementById(`edit-input-${commentId}`).value.trim();
+            
+            if (!newContent) {
                 return;
             }
 
@@ -1634,13 +1756,14 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`
                     },
-                    body: JSON.stringify({ content: newContent.trim() })
+                    body: JSON.stringify({ content: newContent })
                 });
 
                 if (response.ok) {
                     const updatedComment = await response.json();
                     // Update the comment content in the DOM
-                    document.getElementById(`comment-content-${commentId}`).textContent = updatedComment.content;
+                    const contentElement = document.getElementById(`comment-content-${commentId}`);
+                    contentElement.textContent = updatedComment.content;
                     
                     // Update the comment in state
                     Object.values(commentsState).forEach(state => {
@@ -1649,6 +1772,9 @@
                             comment.content = updatedComment.content;
                         }
                     });
+                    
+                    // Remove edit form and show original content
+                    cancelCommentEdit(commentId, updatedComment.content);
                 } else {
                     const error = await response.json();
                     alert(error.error || 'Error updating comment');
@@ -1657,6 +1783,24 @@
                 console.error('Error updating comment:', error);
                 alert('Error updating comment');
             }
+        }
+
+        function cancelCommentEdit(commentId, originalContent) {
+            const contentElement = document.getElementById(`comment-content-${commentId}`);
+            const actionsElement = contentElement.parentElement.querySelector('.comment-actions');
+            const editForm = contentElement.parentElement.querySelector('.comment-edit-form');
+            
+            // Remove edit form
+            if (editForm) {
+                editForm.remove();
+            }
+            
+            // Show original content and actions
+            contentElement.style.display = 'block';
+            actionsElement.style.display = 'flex';
+            
+            // Restore original content if needed
+            contentElement.textContent = originalContent;
         }
 
         async function deleteComment(commentId, reviewId) {
@@ -1695,6 +1839,41 @@
             } catch (error) {
                 console.error('Error deleting comment:', error);
                 alert('Error deleting comment');
+            }
+        }
+
+        async function toggleLike(reviewId) {
+            if (!authToken) {
+                alert('Please login to like reviews');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/music/reviews/${reviewId}/like/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Update the like button
+                    const likeBtn = document.querySelector(`[data-review-id="${reviewId}"] .like-btn`);
+                    if (likeBtn) {
+                        const isLiked = result.liked;
+                        const likesCount = result.likes_count;
+                        
+                        likeBtn.className = `like-btn ${isLiked ? 'liked' : ''}`;
+                        likeBtn.innerHTML = `${isLiked ? '❤️' : '🤍'} ${likesCount}`;
+                        likeBtn.title = `${isLiked ? 'Unlike' : 'Like'} Review`;
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error updating like status');
+                }
+            } catch (error) {
+                console.error('Error toggling like:', error);
+                alert('Error updating like status');
             }
         }
 

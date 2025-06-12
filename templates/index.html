@@ -81,7 +81,7 @@
             content: "🔍";
             margin-right: 8px;
         }
-        
+
         .search-nav input:disabled {
             background: #f3f4f6;
             color: #9ca3af;
@@ -114,7 +114,7 @@
         .logout-btn:hover {
             background: #f9fafb;
         }
-        
+
         .container {
             max-width: 600px;
             margin: 60px auto;
@@ -166,7 +166,7 @@
         .btn-primary:hover {
             background: #374151;
         }
-        
+
         .btn-secondary {
             background: white;
             color: #374151;
@@ -259,7 +259,7 @@
         
         .success-message {
             color: #059669;
-            font-size: 14px;
+                font-size: 14px;
             margin-top: 8px;
         }
         
@@ -288,15 +288,15 @@
         
         <div class="nav-buttons">
             <div class="nav-links" id="nav-links">
-                <div class="search-nav">
+        <div class="search-nav">
                     <input type="text" placeholder="Login to search" id="search-input" onkeypress="handleSearchKeypress(event)" disabled>
-                </div>
+        </div>
                 <a href="/activity/" class="nav-btn">Activity</a>
                 <a href="#" class="nav-btn" id="current-user" onclick="goToMyProfile()"></a>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
+            </div>
         </div>
-    </div>
 
     <div class="container">
         <!-- Main Content for Logged In Users -->
@@ -308,16 +308,16 @@
                 <div class="links">
                     <a href="/search/" class="btn btn-primary">Search Music</a>
                     <a href="/activity/" class="btn btn-secondary">Activity Feed</a>
-                </div>
-            </div>
         </div>
-
+        </div>
+            </div>
+            
         <!-- Auth Section for Logged Out Users -->
         <div id="logged-out-content" class="logged-out">
             <div class="main-card">
                 <h1 class="title">halfnote API Testing Interface</h1>
                 <p class="subtitle">A simple interface for testing the halfnote music review API</p>
-            </div>
+        </div>
 
             <div class="auth-section">
                 <div class="auth-card">
@@ -342,30 +342,30 @@
                     
                     <!-- Register Form -->
                     <form id="register-form" style="display: none;">
-                        <div class="form-group">
+            <div class="form-group">
                             <label for="register-username">Username</label>
                             <input type="text" id="register-username" required>
-                        </div>
-                        <div class="form-group">
+                </div>
+            <div class="form-group">
                             <label for="register-password">Password</label>
                             <input type="password" id="register-password" required>
-                        </div>
-                        <div class="form-group">
+            </div>
+            <div class="form-group">
                             <label for="register-bio">Bio (optional)</label>
                             <input type="text" id="register-bio" placeholder="Tell us about your music taste...">
-                        </div>
+            </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
                         <div id="register-message"></div>
                     </form>
-                </div>
-            </div>
+        </div>
+    </div>
         </div>
     </div>
 
     <script>
         const authToken = localStorage.getItem('authToken');
         let currentUser = null;
-
+        
         document.addEventListener('DOMContentLoaded', function() {
             if (authToken) {
                 loadCurrentUser();
@@ -381,7 +381,7 @@
                 const response = await fetch('/api/accounts/profile/', {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-
+                
                 if (response.ok) {
                     const userData = await response.json();
                     currentUser = userData.username;
@@ -396,7 +396,7 @@
                     const searchInput = document.getElementById('search-input');
                     searchInput.disabled = false;
                     searchInput.placeholder = 'Search';
-                } else {
+            } else {
                     localStorage.removeItem('authToken');
                 }
             } catch (error) {
@@ -418,9 +418,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (response.ok) {
                     localStorage.setItem('authToken', data.access_token);
                     messageEl.innerHTML = '<div class="success-message">Login successful! Redirecting...</div>';
@@ -447,9 +447,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password, bio })
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (response.ok) {
                     localStorage.setItem('authToken', data.access_token);
                     messageEl.innerHTML = '<div class="success-message">Registration successful! Welcome to halfnote!</div>';
@@ -493,8 +493,8 @@
             if (event.key === 'Enter') {
                 if (!currentUser) {
                     alert('Please log in to search for music');
-                    return;
-                }
+                return;
+            }
                 const query = event.target.value.trim();
                 if (query) {
                     window.location.href = `/search/?q=${encodeURIComponent(query)}`;

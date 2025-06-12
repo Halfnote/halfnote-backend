@@ -172,4 +172,21 @@ def following_page(request, username):
             'profile_user': profile_user
         })
     except User.DoesNotExist:
+        return render(request, '404.html', status=404)
+
+def review_detail(request, review_id):
+    """Individual review detail page - like Letterboxd's review pages"""
+    from music.models import Review
+    
+    try:
+        review = Review.objects.select_related('user', 'album').get(id=review_id)
+        
+        # Check if current user is the review author
+        is_own_review = request.user.is_authenticated and request.user == review.user
+        
+        return render(request, 'review_detail.html', {
+            'review': review,
+            'is_own_review': is_own_review,
+        })
+    except Review.DoesNotExist:
         return render(request, '404.html', status=404) 
