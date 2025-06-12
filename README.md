@@ -102,7 +102,7 @@ const userProfile = await fetch('/api/accounts/profile/', {
 // { id, username, email, bio, avatar, favorite_genres, followers_count, following_count, review_count }
 ```
 
-### Get Another User's Profile  
+### Get Another User's Profile
 **GET** `/api/accounts/users/{username}/`
 
 ```javascript
@@ -125,7 +125,7 @@ await fetch('/api/accounts/profile/', {
   body: JSON.stringify({
     bio: 'Jazz enthusiast and vinyl collector',
     favorite_genres: ['Jazz', 'Blues', 'Soul']
-  })
+})
 });
 ```
 

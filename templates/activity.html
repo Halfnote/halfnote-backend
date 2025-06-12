@@ -587,25 +587,17 @@
             container.innerHTML = activities.map(activity => {
                 const timeAgo = getTimeAgo(new Date(activity.created_at));
                 
-                // Determine pronoun based on current tab and if it's the current user
+                // Determine pronoun - always use "You" when it's the current user's activity
                 const isCurrentUser = activity.username === currentUser;
-                let userReference = activity.username;
-                let possessiveReference = `${activity.username}'s`;
-                
-                if (currentTab === 'you' && isCurrentUser) {
-                    userReference = 'You';
-                    possessiveReference = 'your';
-                } else if (currentTab === 'incoming' && !isCurrentUser) {
-                    // For incoming activities about the current user
-                    if (activity.target_username === currentUser) {
-                        possessiveReference = 'your';
-                    }
-                }
+                let userReference = isCurrentUser ? 'You' : activity.username;
+                let possessiveReference = isCurrentUser ? 'your' : `${activity.username}'s`;
                 
                 switch(activity.activity_type) {
                     case 'review_created':
                         const reviewDetails = activity.review_details;
-                        if (!reviewDetails) return '';
+                        if (!reviewDetails || !reviewDetails.id) {
+                            return '';
+                        }
                         
                         return `
                             <div class="activity-item">
@@ -639,7 +631,9 @@
                         `;
                     case 'review_liked':
                         const likedReviewDetails = activity.review_details;
-                        if (!likedReviewDetails) return '';
+                        if (!likedReviewDetails || !likedReviewDetails.id) {
+                            return '';
+                        }
                         
                         // Determine target reference
                         let targetReference = activity.target_username;
@@ -688,7 +682,9 @@
                     case 'comment_created':
                         const commentDetails = activity.comment_details;
                         const commentReviewDetails = activity.review_details;
-                        if (!commentDetails || !commentReviewDetails) return '';
+                        if (!commentDetails || !commentReviewDetails || !commentReviewDetails.id) {
+                            return '';
+                        }
                         
                         // Determine target reference for comments
                         let commentTargetReference = activity.target_username;

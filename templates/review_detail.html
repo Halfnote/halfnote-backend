@@ -130,6 +130,13 @@
             align-items: start;
         }
 
+        .album-cover-container {
+            display: flex;
+            flex-direction: column;
+            width: 250px;
+            position: relative;
+        }
+
         .album-cover {
             width: 250px;
             height: 250px;
@@ -138,8 +145,50 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
+        .album-meta {
+            position: absolute;
+            left: 270px; /* Position to the right of the album cover */
+            bottom: 0; /* Align with bottom edge of album cover */
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .review-bottom-line {
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 450px; /* Reduced width to align with score */
+        }
+
+        .review-bottom-line .like-count-bottom {
+            position: absolute;
+            right: 0; /* Align with the right edge */
+        }
+
+
+
+        .reviewer-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            position: absolute;
+            left: 0;
+            right: -280px; /* Extend to align with the score */
+            width: calc(100% + 280px);
+        }
+
+
+
         .review-info {
             min-width: 0; /* Allows text to wrap properly */
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
 
         .review-header-right {
@@ -157,30 +206,39 @@
                 text-align: center;
             }
             
+            .album-cover-container {
+                width: 200px;
+                justify-self: center;
+                position: relative;
+            }
+            
             .album-cover {
                 width: 200px;
                 height: 200px;
-                justify-self: center;
             }
             
-            .review-header-right {
-                flex-direction: row;
-                justify-content: center;
+            .album-meta {
+                position: static;
+                margin-top: 12px;
+                flex-direction: column;
+                gap: 8px;
                 align-items: center;
+                text-align: center;
+                white-space: normal;
             }
             
             .review-info {
                 order: 2;
-            }
-            
-            .review-header-right {
-                order: 3;
             }
         }
 
         @media (max-width: 480px) {
             .container {
                 padding: 20px 15px;
+            }
+            
+            .album-cover-container {
+                width: 150px;
             }
             
             .album-cover {
@@ -196,9 +254,8 @@
                 font-size: 16px;
             }
             
-            .review-meta {
-                flex-direction: column;
-                align-items: center;
+            .like-count-top {
+                text-align: center;
                 gap: 8px;
             }
             
@@ -222,7 +279,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-left: auto;
+            margin-left: 180px; /* Move left to align with like count */
         }
 
         .artist-name {
@@ -244,6 +301,13 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition: opacity 0.2s ease;
+        }
+        
+        .reviewer-info:hover {
+            opacity: 0.7;
         }
 
         .reviewer-avatar {
@@ -638,7 +702,23 @@
         <a href="javascript:history.back()" class="back-link">← Back to profile</a>
         
         <div class="review-header">
-            <img src="{% if review.album.cover_url %}{{ review.album.cover_url }}{% else %}/static/default-album.png{% endif %}" alt="{{ review.album.title }}" class="album-cover">
+            <div class="album-cover-container">
+                <img src="{% if review.album.cover_url %}{{ review.album.cover_url }}{% else %}/static/default-album.png{% endif %}" alt="{{ review.album.title }}" class="album-cover">
+                <div class="album-meta">
+                    <div class="like-count-bottom" id="like-count-bottom" style="color: #666; font-size: 14px; display: none;">
+                        <!-- Like count will be populated by JavaScript -->
+                    </div>
+                    <a href="/users/{{ review.user.username }}/" class="reviewer-info">
+                        {% if review.user.avatar %}
+                            <img src="{{ review.user.avatar.url }}" alt="{{ review.user.username }}" class="reviewer-avatar">
+                        {% else %}
+                            <img src="{% static 'accounts/default-avatar.svg' %}" alt="{{ review.user.username }}" class="reviewer-avatar">
+                        {% endif %}
+                        <span>{{ review.user.username }}</span>
+                    </a>
+                    <div>Reviewed on {{ review.created_at|date:"F j, Y" }}</div>
+                </div>
+            </div>
             
             <div class="review-info">
                 <h1 class="album-title">
@@ -652,18 +732,6 @@
                 </h1>
                 <p class="artist-name">{{ review.album.artist }}</p>
                 
-                <div class="review-meta">
-                    <span>Reviewed on {{ review.created_at|date:"F j, Y" }}</span>
-                    <div class="reviewer-info">
-                        {% if review.user.avatar %}
-                            <img src="{{ review.user.avatar.url }}" alt="{{ review.user.username }}" class="reviewer-avatar">
-                        {% else %}
-                            <img src="{% static 'accounts/default-avatar.svg' %}" alt="{{ review.user.username }}" class="reviewer-avatar">
-                        {% endif %}
-                        <span>{{ review.user.username }}</span>
-                    </div>
-                </div>
-                
                 {% if review.user_genres.all %}
                 <div class="genres">
                     {% for genre in review.user_genres.all %}
@@ -671,6 +739,8 @@
                     {% endfor %}
                 </div>
                 {% endif %}
+                
+
             </div>
 
 
@@ -799,12 +869,25 @@
 
         function updateActionButtons() {
             const actionButtons = document.getElementById('action-buttons');
+            const likeCountElement = document.getElementById('like-count-bottom');
             if (!reviewData) return;
 
             const isOwnReview = currentUser && reviewData.username === currentUser;
             
+            // Update like count display
+            const likeCount = reviewData.likes_count || 0;
+            if (likeCount > 0) {
+                likeCountElement.innerHTML = `❤️ ${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`;
+                likeCountElement.style.display = 'block';
+            } else {
+                likeCountElement.style.display = 'none';
+            }
+            
             if (isOwnReview) {
                 actionButtons.innerHTML = `
+                    <button class="action-btn like-btn ${reviewData.is_liked_by_user ? 'liked' : ''}" onclick="toggleLike()" title="Like">
+                        ${reviewData.is_liked_by_user ? '❤️' : '🤍'}
+                    </button>
                     <button class="action-btn" onclick="togglePin()" title="${reviewData.is_pinned ? 'Unpin' : 'Pin'}">
                         ${reviewData.is_pinned ? '📌' : '📍'}
                     </button>
