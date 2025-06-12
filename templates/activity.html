@@ -658,7 +658,7 @@
                                     <div class="activity-text">
                                         <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
                                         liked ${targetReference === 'you' ? 'your' : `<a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s`} review of
-                                        <a href="/review/${likedReviewDetails.review_id}/" class="activity-album">${likedReviewDetails.album_title}</a>
+                                        <a href="/review/${likedReviewDetails.id}/" class="activity-album">${likedReviewDetails.album_title}</a>
                                     </div>
                                     <div class="activity-time">${timeAgo}</div>
                                 </div>
@@ -707,7 +707,7 @@
                                     <div class="activity-text">
                                         <a href="/users/${activity.username}/" class="activity-user">${userReference}</a>
                                         commented on ${commentTargetReference === 'you' ? 'your' : `<a href="/users/${activity.target_username}/" class="activity-user">${activity.target_username}</a>'s`} review of
-                                        <a href="/review/${commentReviewDetails.review_id}/" class="activity-album">${commentReviewDetails.album_title}</a>
+                                        <a href="/review/${commentReviewDetails.id}/" class="activity-album">${commentReviewDetails.album_title}</a>
                                     </div>
                                     <div class="activity-review-content">"${commentDetails.content}"</div>
                                     <div class="activity-time">${timeAgo}</div>
