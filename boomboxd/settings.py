@@ -11,7 +11,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-de
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # Allow all hosts for simplicity
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -66,7 +66,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'boomboxd.wsgi.application'
+WSGI_APPLICATION = 'api.index.app'
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
