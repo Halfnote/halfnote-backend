@@ -1,8 +1,13 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build && cd .. && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/ && python manage.py collectstatic --noinput",
+  "buildCommand": "cd frontend && npm install --silent && npm run build && cd .. && rm -rf staticfiles && mkdir staticfiles && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/ && python manage.py collectstatic --noinput",
   "outputDirectory": "staticfiles",
   "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "staticfiles" }
+    },
     {
       "src": "api/index.py",
       "use": "@vercel/python"
