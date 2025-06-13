@@ -2,7 +2,10 @@
   "name": "boomboxd-backend",
   "version": "1.0.0",
   "description": "Music review app with Django backend and React frontend",
-  "scripts": {},
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build && cd .. && rm -rf staticfiles && mkdir staticfiles && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/",
+    "vercel-build": "npm run build && python manage.py collectstatic --noinput"
+  },
   "engines": {
     "node": ">=16.0.0"
   }
