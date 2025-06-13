@@ -180,20 +180,7 @@ const LoginLink = styled.div`
   }
 `;
 
-const BackToHome = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #6b7280;
-  text-decoration: none;
-  font-weight: 500;
-  margin-bottom: 24px;
-  transition: color 0.2s ease;
 
-  &:hover {
-    color: #111827;
-  }
-`;
 
 const PasswordStrength = styled.div`
   font-size: 12px;
@@ -331,8 +318,6 @@ const RegisterPage: React.FC = () => {
   return (
     <Container>
       <RegisterCard>
-        <BackToHome to="/">← Back to Home</BackToHome>
-        
         <Logo>
           <LogoText>halfnote</LogoText>
           <LogoSubtext>Create your account</LogoSubtext>

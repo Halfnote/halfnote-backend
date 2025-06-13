@@ -429,6 +429,16 @@ const ErrorMessage = styled.div`
   text-align: center;
 `;
 
+const SuccessMessage = styled.div`
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  text-align: center;
+`;
+
 const NoReviews = styled.div`
   text-align: center;
   color: #6b7280;
@@ -746,6 +756,8 @@ const ProfilePage: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [availableGenres, setAvailableGenres] = useState<Array<{ id: number; name: string }>>([]);
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState<string>('');
+  const [profileError, setProfileError] = useState<string>('');
   
   // Likes modal state
   const [showLikesModal, setShowLikesModal] = useState(false);
@@ -856,6 +868,8 @@ const ProfilePage: React.FC = () => {
 
   const handleEditProfile = () => {
     loadGenres();
+    setSuccess('');
+    setProfileError('');
     setShowEditModal(true);
   };
 
@@ -912,10 +926,13 @@ const ProfilePage: React.FC = () => {
       // Reload the profile data to ensure everything is fresh and consistent
       await loadProfile();
       
-      alert('Profile updated successfully!');
+      // Modern UX: Show success without requiring user action
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => setSuccess(''), 3000); // Auto-hide after 3 seconds
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile: ' + (error.response?.data?.error || error.message || 'Unknown error'));
+      setProfileError('Failed to update profile: ' + (error.response?.data?.error || error.message || 'Unknown error'));
+      setTimeout(() => setProfileError(''), 5000); // Auto-hide error after 5 seconds
     } finally {
       setSaving(false);
     }
@@ -1165,9 +1182,11 @@ const ProfilePage: React.FC = () => {
           <ProfileAvatar 
             src={profileUser.avatar || '/static/accounts/default-avatar.svg'} 
             alt={profileUser.username}
+            onClick={isOwnProfile ? handleEditProfile : undefined}
             onError={(e) => {
               (e.target as HTMLImageElement).src = '/static/accounts/default-avatar.svg';
             }}
+            style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
           />
           <ProfileDetails>
             <ProfileName>{profileUser.display_name}</ProfileName>
@@ -1260,6 +1279,18 @@ const ProfilePage: React.FC = () => {
             <ModalTitle>Edit Profile</ModalTitle>
             <CloseButton onClick={() => setShowEditModal(false)}>×</CloseButton>
           </ModalHeader>
+          
+          {success && (
+            <SuccessMessage>
+              {success}
+            </SuccessMessage>
+          )}
+          
+          {profileError && (
+            <ErrorMessage>
+              {profileError}
+            </ErrorMessage>
+          )}
           
           <FormGroup>
             <Label>Name</Label>
