@@ -62,3 +62,4 @@ cookies.txt
 
 bootstrap_db.py
 migrate_supabase.sh
+staticfiles/ # already done, just double-check
