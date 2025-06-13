@@ -1,5 +1,7 @@
 {
+  "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build && cd .. && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/ && python manage.py collectstatic --noinput",
+  "outputDirectory": "staticfiles",
   "builds": [
     {
       "src": "api/index.py",
