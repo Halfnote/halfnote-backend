@@ -4,9 +4,9 @@
   "description": "Music review app with Django backend and React frontend",
   "scripts": {
     "build": "cd frontend && npm install && CI= npm run build && cd .. && rm -rf staticfiles && mkdir staticfiles && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/",
-    "vercel-build": "npm run build && python manage.py collectstatic --noinput"
+    "vercel-build": "npm run build"
   },
   "engines": {
     "node": ">=16.0.0"
   }
-} 
+}
