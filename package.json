@@ -1,0 +1,11 @@
+{
+  "name": "boomboxd-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build",
+    "start": "echo 'Django backend'"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+} 
