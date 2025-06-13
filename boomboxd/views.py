@@ -12,9 +12,18 @@ User = get_user_model()
 
 def frontend(request):
     """Serve the React frontend"""
-    # Load React's index.html
-    template = loader.get_template('index.html')
-    return HttpResponse(template.render({}, request))
+    # Serve React's built index.html file
+    import os
+    from django.conf import settings
+    
+    index_file_path = os.path.join(settings.BASE_DIR, 'frontend', 'build', 'index.html')
+    
+    try:
+        with open(index_file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        return HttpResponse(html_content, content_type='text/html')
+    except FileNotFoundError:
+        return HttpResponse("React build not found. Please run 'npm run build' in the frontend directory.", status=500)
 
 def legacy_frontend(request):
     """Serve the legacy Django template interface"""
