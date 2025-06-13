@@ -23,7 +23,6 @@ coverage.xml
 .DS_Store
 node_modules/
 frontend/node_modules/
-staticfiles/
 media/
 *.sqlite3
 .env

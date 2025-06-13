@@ -12,18 +12,35 @@ User = get_user_model()
 
 def frontend(request):
     """Serve the React frontend"""
-    # Serve React's built index.html file
-    import os
     from django.conf import settings
     
-    index_file_path = os.path.join(settings.BASE_DIR, 'frontend', 'build', 'index.html')
+    # Try multiple locations for the index.html file
+    possible_paths = []
     
-    try:
-        with open(index_file_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        return HttpResponse(html_content, content_type='text/html')
-    except FileNotFoundError:
-        return HttpResponse("React build not found. Please run 'npm run build' in the frontend directory.", status=500)
+    # Add STATIC_ROOT path if it exists (production)
+    if settings.STATIC_ROOT:
+        possible_paths.append(os.path.join(settings.STATIC_ROOT, 'index.html'))
+    
+    # Add STATICFILES_DIRS paths (development)
+    if hasattr(settings, 'STATICFILES_DIRS') and settings.STATICFILES_DIRS:
+        for static_dir in settings.STATICFILES_DIRS:
+            possible_paths.append(os.path.join(static_dir, 'index.html'))
+    
+    # Add fallback paths
+    possible_paths.extend([
+        os.path.join(settings.BASE_DIR, 'staticfiles', 'index.html'),
+        os.path.join(settings.BASE_DIR, 'frontend', 'build', 'index.html'),
+    ])
+    
+    for index_file_path in possible_paths:
+        try:
+            with open(index_file_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            return HttpResponse(html_content, content_type='text/html')
+        except FileNotFoundError:
+            continue
+    
+    return HttpResponse("React app not found. Please run 'npm run build' to build the frontend.", status=500)
 
 def legacy_frontend(request):
     """Serve the legacy Django template interface"""

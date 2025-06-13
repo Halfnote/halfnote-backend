@@ -1,28 +1,27 @@
 {
-  "version": 2,
-  "buildCommand": "./build.sh",
+  "buildCommand": "cd frontend && npm install && npm run build && cd .. && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/ && python manage.py collectstatic --noinput",
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb"
-      }
+      "use": "@vercel/python"
+    },
+    {
+      "src": "staticfiles/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/staticfiles/$1"
+    },
+    {
+      "src": "/staticfiles/(.*)",
+      "dest": "/staticfiles/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "api/index.py"
     }
-  ],
-  "env": {
-    "DJANGO_SETTINGS_MODULE": "boomboxd.settings",
-    "DEBUG": "False"
-  },
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "frontend/build/**"
-    }
-  }
+  ]
 } 

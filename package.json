@@ -1,11 +1,9 @@
 {
   "name": "boomboxd-backend",
   "version": "1.0.0",
-  "scripts": {
-    "build": "cd frontend && npm ci && npm run build",
-    "start": "echo 'Django backend'"
-  },
+  "description": "Music review app with Django backend and React frontend",
+  "scripts": {},
   "engines": {
-    "node": ">=16"
+    "node": ">=16.0.0"
   }
 } 

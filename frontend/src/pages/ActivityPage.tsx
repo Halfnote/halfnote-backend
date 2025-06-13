@@ -276,7 +276,8 @@ const ActivityPage: React.FC = () => {
       setActivities(data || []);
     } catch (error: any) {
       console.error('Error loading activities:', error);
-      setError(error.message || 'Failed to load activities');
+      setActivities([]);
+      setError('');
     } finally {
       setLoading(false);
     }
@@ -487,26 +488,7 @@ const ActivityPage: React.FC = () => {
         </ActivityTabBtn>
       </ActivityTabs>
 
-      {error && (
-        <ErrorMessage>
-          {error}
-          <br />
-          <button 
-            onClick={loadActivities}
-            style={{
-              marginTop: '8px',
-              padding: '4px 8px',
-              background: 'transparent',
-              border: '1px solid #dc2626',
-              borderRadius: '4px',
-              color: '#dc2626',
-              cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </ErrorMessage>
-      )}
+
 
       <ActivityFeed>
         {loading ? (

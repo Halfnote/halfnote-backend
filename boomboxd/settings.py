@@ -7,11 +7,11 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-deployment')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # Allow all hosts for simplicity
-ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app']
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -51,9 +51,7 @@ ROOT_URLCONF = 'boomboxd.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            BASE_DIR / 'frontend' / 'build',  # React build directory
-        ],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -66,16 +64,22 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'api.index.app'
+WSGI_APPLICATION = 'boomboxd.wsgi.application'
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Add React build static files
-STATICFILES_DIRS = [
-    BASE_DIR / 'frontend' / 'build' / 'static',
-]
+# Static files configuration
+if DEBUG:
+    # Development: Django serves static files directly from these directories
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, 'staticfiles'),  # Our React build files
+    ]
+    # Don't set STATIC_ROOT in development
+else:
+    # Production: collectstatic copies files to STATIC_ROOT  
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATICFILES_DIRS = []
 
 # Cloudinary configuration for django-cloudinary-storage
 CLOUDINARY_STORAGE = {
@@ -104,21 +108,12 @@ DATABASES = {
     }
 }
 
-# Redis Cache Configuration
+# Cache - using default cache for simplicity
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
-        'KEY_PREFIX': 'boomboxd',
-        'TIMEOUT': 300,  # 5 minutes default timeout
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
-
-# Cache time to live is 300 seconds.
-CACHE_TTL = 60 * 5
 
 # JWT settings
 SIMPLE_JWT = {
@@ -146,7 +141,9 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
 
+# CORS - Allow all origins for development simplicity
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # Security
 SECURE_BROWSER_XSS_FILTER = True

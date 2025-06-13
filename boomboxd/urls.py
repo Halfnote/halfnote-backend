@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 from . import views as root_views
+import os
 
 urlpatterns = [
     # Admin and API routes first
@@ -19,6 +21,9 @@ urlpatterns = [
     path('legacy/users/<str:username>/followers/', root_views.followers_page, name='legacy-followers_page'),
     path('legacy/users/<str:username>/following/', root_views.following_page, name='legacy-following_page'),
     path('legacy/review/<int:review_id>/', root_views.review_detail, name='legacy-review_detail'),
+    
+    # Static files serving
+    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': os.path.join(settings.BASE_DIR, 'staticfiles')}),
     
     # React frontend routes (catch-all for SPA)
     re_path(r'^(?!api|admin|legacy|static|media).*$', root_views.frontend, name='react-frontend'),
