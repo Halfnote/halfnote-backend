@@ -735,10 +735,10 @@ const ReviewDetailPage: React.FC = () => {
       <ReviewHeader>
         <AlbumCoverContainer>
           <AlbumCover 
-            src={review!.album_cover || '/static/music/default-album.png'} 
+            src={review!.album_cover || '/static/music/default-album.svg'} 
             alt={review!.album_title}
             onError={(e) => {
-              (e.target as HTMLImageElement).src = '/static/music/default-album.png';
+              (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
             }}
           />
         </AlbumCoverContainer>

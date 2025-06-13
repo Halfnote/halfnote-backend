@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Music review app with Django backend and React frontend",
   "scripts": {
-    "build": "cd frontend && npm install && CI= npm run build && cd .. && rm -rf staticfiles && mkdir staticfiles && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/",
+    "build": "cd frontend && npm install && CI= npm run build && cd .. && rm -rf staticfiles && mkdir staticfiles && cp frontend/build/index.html staticfiles/ && cp -r frontend/build/static/* staticfiles/ && cp accounts/static/accounts/default-avatar.svg staticfiles/ && cp music/static/music/default-album.svg staticfiles/",
     "vercel-build": "npm run build"
   },
   "engines": {

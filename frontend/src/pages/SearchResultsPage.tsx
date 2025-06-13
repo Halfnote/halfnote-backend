@@ -355,7 +355,7 @@ const SearchResultsPage: React.FC = () => {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<SearchResult | null>(null);
   const [reviewData, setReviewData] = useState({
-    rating: 5,
+    rating: 1,
     content: '',
     genres: [] as string[]
   });
@@ -489,7 +489,7 @@ const SearchResultsPage: React.FC = () => {
 
   const renderStars = (rating: number, onStarClick?: (rating: number) => void) => {
     const stars = [];
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 10; i++) {
       stars.push(
         <Star
           key={i}

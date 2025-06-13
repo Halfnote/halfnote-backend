@@ -1023,11 +1023,11 @@ const ProfilePage: React.FC = () => {
   const renderReview = (review: Review) => (
     <ReviewItem key={review.id}>
       <ReviewAlbumCover 
-        src={review.album_cover || '/static/music/default-album.png'} 
+        src={review.album_cover || '/static/music/default-album.svg'} 
         alt={review.album_title}
         onClick={() => navigate(`/review/${review.id}/`)}
         onError={(e) => {
-          (e.target as HTMLImageElement).src = '/static/music/default-album.png';
+          (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
         }}
       />
       <ReviewContentWrapper>
