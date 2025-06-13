@@ -11,6 +11,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings')
 import django
 django.setup()
 
+# Run collectstatic once at cold start (noinput)
+from django.core.management import call_command
+try:
+    call_command('collectstatic', interactive=False, verbosity=0)
+except Exception as e:
+    # Ignore if it fails inside serverless environment
+    print(f'collectstatic skipped: {e}')
+
 # Import Django WSGI application
 from django.core.wsgi import get_wsgi_application
 
