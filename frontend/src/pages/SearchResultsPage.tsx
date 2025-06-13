@@ -279,23 +279,57 @@ const TextArea = styled.textarea`
   }
 `;
 
-const StarRating = styled.div`
-  display: flex;
-  gap: 4px;
+const RatingContainer = styled.div`
   margin-bottom: 16px;
 `;
 
-const Star = styled.button<{ $filled: boolean }>`
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: ${props => props.$filled ? '#fbbf24' : '#d1d5db'};
-  cursor: pointer;
-  transition: color 0.2s ease;
+const Slider = styled.input`
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #d1d5db;
+  outline: none;
+  margin: 12px 0;
 
-  &:hover {
-    color: #fbbf24;
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
+
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+`;
+
+const RatingDisplay = styled.div`
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 8px;
+`;
+
+const RatingLabels = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
 `;
 
 const GenreGrid = styled.div`
@@ -487,22 +521,7 @@ const SearchResultsPage: React.FC = () => {
     }));
   };
 
-  const renderStars = (rating: number, onStarClick?: (rating: number) => void) => {
-    const stars = [];
-    for (let i = 1; i <= 10; i++) {
-      stars.push(
-        <Star
-          key={i}
-          $filled={i <= rating}
-          onClick={() => onStarClick && onStarClick(i)}
-          disabled={!onStarClick}
-        >
-          ★
-        </Star>
-      );
-    }
-    return stars;
-  };
+  // Remove star rendering function - now using slider
 
   const totalResults = albums.length + users.length;
 
@@ -621,11 +640,23 @@ const SearchResultsPage: React.FC = () => {
           <ModalBody>
             <FormGroup>
               <Label>Rating</Label>
-              <StarRating>
-                {renderStars(reviewData.rating, (rating) => 
-                  setReviewData(prev => ({ ...prev, rating }))
-                )}
-              </StarRating>
+              <RatingContainer>
+                <RatingDisplay>{reviewData.rating}/10</RatingDisplay>
+                <Slider
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={reviewData.rating}
+                  onChange={(e) => setReviewData(prev => ({ 
+                    ...prev, 
+                    rating: parseInt(e.target.value) 
+                  }))}
+                />
+                <RatingLabels>
+                  <span>Terrible (1)</span>
+                  <span>Masterpiece (10)</span>
+                </RatingLabels>
+              </RatingContainer>
             </FormGroup>
             
             <FormGroup>

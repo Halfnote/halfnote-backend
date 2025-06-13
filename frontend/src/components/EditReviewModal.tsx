@@ -282,10 +282,14 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
                 min="1"
                 max="10"
                 value={formData.rating}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  rating: parseInt(e.target.value) || 1 
-                }))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  const clampedValue = Math.max(1, Math.min(10, value)); // Clamp between 1-10
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    rating: clampedValue 
+                  }));
+                }}
                 required
               />
             </FormGroup>

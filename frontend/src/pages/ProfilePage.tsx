@@ -353,9 +353,14 @@ const EngagementButton = styled.button<{ $active?: boolean }>`
   padding: 4px;
   border-radius: 4px;
   
-  &:hover {
+  &:hover:not(:disabled) {
     color: ${props => props.$active ? '#dc2626' : '#374151'};
     background: #f9fafb;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -750,6 +755,7 @@ const ProfilePage: React.FC = () => {
   // Edit review modal state
   const [showEditReviewModal, setShowEditReviewModal] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [likingReviews, setLikingReviews] = useState<Set<number>>(new Set()); // Track which reviews are being liked
 
   const isOwnProfile = user?.username === username;
   const pinnedReviews = reviews.filter(review => review.is_pinned);
@@ -980,8 +986,9 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleLikeReview = async (reviewId: number, currentlyLiked: boolean) => {
-    if (!user) return;
+    if (!user || likingReviews.has(reviewId)) return; // Prevent double-clicks
     
+    setLikingReviews(prev => new Set(prev).add(reviewId));
     try {
       await musicAPI.likeReview(reviewId);
       
@@ -1001,6 +1008,12 @@ const ProfilePage: React.FC = () => {
     } catch (error: any) {
       console.error('Error toggling like:', error);
       alert('Error updating like status');
+    } finally {
+      setLikingReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
     }
   };
 
@@ -1060,9 +1073,10 @@ const ProfilePage: React.FC = () => {
             <EngagementButton 
               $active={review.is_liked_by_user}
               onClick={() => handleLikeReview(review.id, review.is_liked_by_user)}
+              disabled={likingReviews.has(review.id)}
               title={review.is_liked_by_user ? 'Unlike' : 'Like'}
             >
-              ❤️ {review.likes_count}
+              {likingReviews.has(review.id) ? '⏳' : '❤️'} {review.likes_count}
             </EngagementButton>
             <EngagementButton 
               onClick={() => navigate(`/review/${review.id}/`)}

@@ -202,9 +202,15 @@ const LikeButton = styled.button<{ $liked?: boolean }>`
   height: 28px;
   margin-right: 8px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     opacity: 0.8;
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -516,6 +522,7 @@ const ReviewDetailPage: React.FC = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
+  const [likingReview, setLikingReview] = useState(false); // Add loading state for likes
   
   // Edit review modal state
   const [showEditReviewModal, setShowEditReviewModal] = useState(false);
@@ -557,8 +564,9 @@ const ReviewDetailPage: React.FC = () => {
   }, [loadReview, loadComments]);
 
   const toggleLike = async () => {
-    if (!review || !user) return;
+    if (!review || !user || likingReview) return; // Prevent double-clicks
     
+    setLikingReview(true);
     try {
       await musicAPI.likeReview(review.id);
       setReview(prev => prev ? {
@@ -568,6 +576,8 @@ const ReviewDetailPage: React.FC = () => {
       } : null);
     } catch (error: any) {
       console.error('Error toggling like:', error);
+    } finally {
+      setLikingReview(false);
     }
   };
 
@@ -751,9 +761,10 @@ const ReviewDetailPage: React.FC = () => {
                 <LikeButton 
                   $liked={review!.is_liked_by_user}
                   onClick={toggleLike}
+                  disabled={likingReview}
                   title="Like"
                 >
-                  {review!.is_liked_by_user ? '❤️' : '🤍'}
+                  {likingReview ? '⏳' : (review!.is_liked_by_user ? '❤️' : '🤍')}
                 </LikeButton>
               )}
               {user && review!.username === user.username && (
