@@ -6,7 +6,7 @@ A comprehensive Django-based API for music reviews and social features, inspired
 
 - **🔐 User Authentication & Profiles**: JWT-based auth with customizable user profiles, avatars, and bios
 - **🎼 Music Discovery**: Search albums via Discogs API integration with rich metadata
-- **⭐ Review System**: Rate albums (1-10), write detailed reviews, pin favorites, edit/delete reviews
+- **⭐ Review System**: Rate albums (1-10 scale), write detailed reviews, pin favorites, edit/delete reviews with slider UI
 - **👥 Social Features**: Follow users, activity feeds, like reviews, comment threads
 - **🏷️ Genre Tagging**: User-assigned genres for personalized organization and discovery
 - **💬 Comments & Interactions**: Threaded comments, edit/delete own comments, pagination
@@ -211,7 +211,7 @@ const newReview = await fetch('/api/music/albums/1123456/review/', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    rating: 9,
+    rating: 9, // Rating must be between 1-10
     content: 'A groundbreaking album that redefined alternative rock. Every track is perfectly crafted.',
     genres: ['Alternative Rock', 'Experimental']
   })
@@ -243,7 +243,7 @@ await fetch('/api/music/reviews/123/', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    rating: 10,
+    rating: 10, // Rating must be between 1-10
     content: 'Updated: This album is absolutely perfect. A masterpiece.',
     genres: ['Alternative Rock', 'Art Rock', 'Experimental']
   })
@@ -383,6 +383,18 @@ const following = await fetch('/api/accounts/users/viv360/following/', {
   headers: { 'Authorization': `Bearer ${authToken}` }
 })
 .then(res => res.json());
+```
+
+### Search Users
+**GET** `/api/accounts/users/search/?q={query}`
+
+```javascript
+const users = await fetch('/api/accounts/users/search/?q=viv', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns: { users: [{ id, username, bio, avatar, is_following }, ...] }
 ```
 
 ## 🎨 Frontend Integration Examples
@@ -653,6 +665,7 @@ The API will be available at `http://127.0.0.1:8000/`
 | GET | `/api/accounts/users/{username}/reviews/` | Get user's reviews | Optional |
 | GET | `/api/accounts/users/{username}/followers/` | Get user's followers | Yes |
 | GET | `/api/accounts/users/{username}/following/` | Get users they follow | Yes |
+| GET | `/api/accounts/users/search/?q={query}` | Search users by username | Yes |
 | POST | `/api/accounts/users/{username}/follow/` | Follow user | Yes |
 | POST | `/api/accounts/users/{username}/unfollow/` | Unfollow user | Yes |
 
@@ -687,6 +700,13 @@ The API will be available at `http://127.0.0.1:8000/`
 | GET | `/api/music/activity/?type=friends` | Get friends' activity | Yes |
 | GET | `/api/music/activity/?type=you` | Get your activity | Yes |
 | GET | `/api/music/activity/?type=incoming` | Get incoming activity | Yes |
+
+### Static File Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/static/{path}` | Serve static files (CSS, JS, images) | No |
+| GET | `/static/accounts/default-avatar.svg` | Default user avatar | No |
+| GET | `/static/default-album.svg` | Default album cover | No |
 
 ## ⚠️ Error Handling & Status Codes
 
@@ -769,10 +789,11 @@ async function apiCall(url, options = {}) {
 
 ### 🎵 Music & Reviews
 - **Discogs Integration**: Access to comprehensive music database
-- **Rich Review System**: 1-10 ratings with detailed text reviews
+- **Rich Review System**: Consistent 1-10 ratings with detailed text reviews and intuitive slider UI
 - **Custom Genre Tagging**: User-assigned genres for personalized organization
 - **Review Management**: Edit, delete, pin/unpin reviews with modal interface
-- **Social Interactions**: Like reviews, follow users, comment on reviews
+- **Social Interactions**: Like reviews with race condition prevention, follow users, comment on reviews
+- **Rating Validation**: Automatic clamping to prevent ratings outside 1-10 range
 
 ### 💬 Comments & Interactions
 - **Threaded Comments**: Full comment system with edit/delete functionality
@@ -792,6 +813,9 @@ async function apiCall(url, options = {}) {
 - **Grid-based CSS**: Modern layout using CSS Grid and Flexbox
 - **Compact UI Elements**: Emoji-only action buttons, optimized spacing
 - **Modal Interfaces**: In-place editing without page navigation
+- **Slider UI**: Intuitive rating slider with live feedback and clear value labels
+- **Loading States**: Visual feedback with spinner icons to prevent double-clicks
+- **Avatar System**: Fallback to default avatars with proper static file serving
 
 ### 📱 Mobile Optimization
 - **Responsive Breakpoints**: Optimized for 768px (tablet) and 480px (mobile)
