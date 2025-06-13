@@ -23,8 +23,12 @@ urlpatterns = [
     # Like/unlike review endpoint
     path('reviews/<int:review_id>/like/', views.like_review, name='like-review'),
     
+    # Get review likes endpoint
+    path('reviews/<int:review_id>/likes/', views.review_likes, name='review-likes'),
+    
     # Activity feed endpoint
     path('activity/', views.activity_feed, name='activity-feed'),
+    path('activity/<int:activity_id>/delete/', views.delete_activity, name='delete-activity'),
     
     # Comment endpoints
     path('reviews/<int:review_id>/comments/', views.review_comments, name='review-comments'),

@@ -2,14 +2,23 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse
+from django.template import loader
 import requests
 from django.contrib.auth import get_user_model
+import os
 
 User = get_user_model()
 
 def frontend(request):
-    """Serve the frontend interface"""
-    return render(request, 'index.html')
+    """Serve the React frontend"""
+    # Load React's index.html
+    template = loader.get_template('index.html')
+    return HttpResponse(template.render({}, request))
+
+def legacy_frontend(request):
+    """Serve the legacy Django template interface"""
+    return render(request, 'legacy/index.html')
 
 def activity_page(request):
     """Display the activity feed page"""

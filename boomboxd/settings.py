@@ -51,7 +51,9 @@ ROOT_URLCONF = 'boomboxd.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'frontend' / 'build',  # React build directory
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -69,8 +71,10 @@ WSGI_APPLICATION = 'boomboxd.wsgi.application'
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Add React build static files
 STATICFILES_DIRS = [
-    # No additional static directories needed - Django will find app static files automatically
+    BASE_DIR / 'frontend' / 'build' / 'static',
 ]
 
 # Cloudinary configuration for django-cloudinary-storage
@@ -100,12 +104,21 @@ DATABASES = {
     }
 }
 
-# Cache - using default cache for simplicity
+# Redis Cache Configuration
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'boomboxd',
+        'TIMEOUT': 300,  # 5 minutes default timeout
     }
 }
+
+# Cache time to live is 300 seconds.
+CACHE_TTL = 60 * 5
 
 # JWT settings
 SIMPLE_JWT = {
@@ -133,9 +146,7 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
 
-# CORS - Allow all origins for development simplicity
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
 
 # Security
 SECURE_BROWSER_XSS_FILTER = True

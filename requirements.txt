@@ -9,3 +9,5 @@ cloudinary
 django-cloudinary-storage
 Pillow
 dj-database-url
+redis
+django-redis

@@ -2,15 +2,22 @@ import logging
 import requests
 
 from django.conf import settings
-from django.db.models import Avg
+from django.db.models import Avg, Prefetch
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Album, Review, Genre, Activity, ReviewLike, Comment
 from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer, GenreSerializer
 from .services import ExternalMusicService
+from .cache_utils import (
+    cache_key_for_user_reviews, cache_key_for_album_details, 
+    cache_key_for_activity_feed, cache_key_for_search_results,
+    invalidate_user_cache, invalidate_album_cache, cache_expensive_query
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +46,18 @@ def search_discogs(query):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def search(request):
     query = request.GET.get('q')
     if not query:
         return Response({'error': 'Query parameter required'}, status=400)
+    
+    # Check cache first
+    cache_key = cache_key_for_search_results(query)
+    cached_results = cache.get(cache_key)
+    if cached_results:
+        return Response({'results': cached_results, 'cached': True})
+    
     try:
         results = search_discogs(query)
         
@@ -79,7 +94,11 @@ def search(request):
             })
         
         serializer = AlbumSearchResultSerializer(processed_results, many=True)
-        return Response({'results': serializer.data})
+        
+        # Cache results for 10 minutes
+        cache.set(cache_key, serializer.data, 600)
+        
+        return Response({'results': serializer.data, 'cached': False})
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return Response({'error': 'Search failed', 'details': str(e)}, status=500)
@@ -99,20 +118,33 @@ def unified_album_view(request, discogs_id):
     """
     Unified view for album details - handles both database albums and Discogs preview
     """
+    # Check cache first
+    cache_key = cache_key_for_album_details(discogs_id)
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return Response({**cached_data, 'cached': True})
+    
     # First, check if album exists in our database
     album = Album.objects.filter(discogs_id=discogs_id).first()
     
     if album:
-        # Album exists in our database
-        reviews = Review.objects.filter(album=album).order_by('-created_at')
+        # Album exists in our database - use optimized queries
+        reviews = Review.objects.filter(album=album).select_related('user').prefetch_related(
+            'user_genres', 'likes', 'comments'
+        ).order_by('-created_at')
         
-        return Response({
+        response_data = {
             'album': AlbumSerializer(album).data,
             'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
             'review_count': reviews.count(),
             'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
-            'exists_in_db': True
-        })
+            'exists_in_db': True,
+            'cached': False
+        }
+        
+        # Cache for 5 minutes
+        cache.set(cache_key, response_data, 300)
+        return Response(response_data)
     else:
         # Album doesn't exist - fetch from Discogs
         service = ExternalMusicService()
@@ -121,13 +153,18 @@ def unified_album_view(request, discogs_id):
         if not album_data:
             return Response({'error': 'Album not found'}, status=404)
         
-        return Response({
+        response_data = {
             'album': album_data,
             'reviews': [],
             'review_count': 0,
             'average_rating': None,
-            'exists_in_db': False
-        })
+            'exists_in_db': False,
+            'cached': False
+        }
+        
+        # Cache for 15 minutes (longer since it's from external API)
+        cache.set(cache_key, response_data, 900)
+        return Response(response_data)
 
 def import_album_from_discogs(discogs_id):
     """Import an album from Discogs if it doesn't exist in the database"""
@@ -203,6 +240,10 @@ def create_review(request, discogs_id):
         
         # Create activity for new review
         create_activity('review_created', request.user, review=review)
+        
+        # Invalidate relevant caches
+        invalidate_album_cache(discogs_id)
+        invalidate_user_cache(request.user.username)
         
         # Return info about genre validation
         response_data = ReviewSerializer(review, context={'request': request}).data
@@ -359,6 +400,13 @@ def like_review(request, review_id):
         # Unlike - delete the like
         like.delete()
         action = "unliked"
+        
+        # Remove the like activity from the feed
+        Activity.objects.filter(
+            user=request.user,
+            activity_type='review_liked',
+            review=review
+        ).delete()
     else:
         # Create activity for liking
         create_activity('review_liked', request.user, target_user=review.user, review=review)
@@ -368,6 +416,29 @@ def like_review(request, review_id):
         "message": f"Review {action} successfully",
         "is_liked": created,
         "likes_count": review.likes.count()
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def review_likes(request, review_id):
+    """Get users who liked a review"""
+    try:
+        review = Review.objects.get(id=review_id)
+    except Review.DoesNotExist:
+        return Response({"error": "Review not found"}, status=404)
+    
+    # Get users who liked this review
+    likes = ReviewLike.objects.filter(review=review).select_related('user')
+    users = [like.user for like in likes]
+    
+    # Use a simple serializer for user data
+    from accounts.serializers import UserSerializer
+    serializer = UserSerializer(users, many=True)
+    
+    return Response({
+        'users': serializer.data,
+        'count': len(users)
     })
 
 
@@ -394,7 +465,7 @@ def activity_feed(request):
         activities = Activity.objects.filter(user__in=following_users).exclude(activity_type='review_pinned')[:50]
     
     serializer = ActivitySerializer(activities, many=True)
-    return Response({'activities': serializer.data})
+    return Response(serializer.data)
 
 
 @api_view(['GET', 'POST'])
@@ -412,7 +483,7 @@ def review_comments(request, review_id):
         limit = int(request.GET.get('limit', 10))
         
         total_comments = Comment.objects.filter(review=review).count()
-        comments = Comment.objects.filter(review=review).order_by('-created_at')[offset:offset + limit]
+        comments = Comment.objects.filter(review=review).order_by('created_at')[offset:offset + limit]
         serializer = CommentSerializer(comments, many=True)
         
         return Response({
@@ -471,8 +542,52 @@ def edit_comment(request, comment_id):
         
         comment.content = content
         comment.save()
+        
+        # Update the comment in any related activities (the serializer will automatically get the new content)
+        # No need to do anything special here as the ActivitySerializer will fetch the latest comment content
+        
         return Response(CommentSerializer(comment).data)
     
     elif request.method == 'DELETE':
+        # Remove the comment activity from the feed
+        Activity.objects.filter(
+            user=request.user,
+            activity_type='comment_created',
+            comment=comment
+        ).delete()
+        
         comment.delete()
-        return Response({"message": "Comment deleted successfully"}, status=200) 
+        return Response({"message": "Comment deleted successfully"}, status=200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_activity(request, activity_id):
+    """Delete an activity - only by the activity creator"""
+    try:
+        activity = Activity.objects.get(id=activity_id)
+    except Activity.DoesNotExist:
+        return Response({"error": "Activity not found"}, status=404)
+    
+    # Check if user owns this activity
+    if activity.user != request.user:
+        return Response({"error": "You can only delete your own activities"}, status=403)
+    
+    # Handle different activity types and their effects
+    if activity.activity_type == 'user_followed' and activity.target_user:
+        # Unfollow the user
+        request.user.following.remove(activity.target_user)
+    elif activity.activity_type == 'review_liked' and activity.review:
+        # Unlike the review
+        ReviewLike.objects.filter(user=request.user, review=activity.review).delete()
+    elif activity.activity_type == 'comment_created' and activity.comment:
+        # Delete the comment
+        activity.comment.delete()
+    elif activity.activity_type == 'review_created' and activity.review:
+        # Delete the review
+        activity.review.delete()
+    
+    # Delete the activity
+    activity.delete()
+    
+    return Response({"message": "Activity deleted successfully"}, status=200) 

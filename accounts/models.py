@@ -12,10 +12,21 @@ class User(AbstractUser):
         unique=True,
         validators=[validate_username]
     )
+    name = models.CharField(
+        max_length=100, 
+        blank=True,
+        help_text='Your full name'
+    )
     bio = models.TextField(
         blank=True,
         null=True,
         validators=[validate_bio]
+    )
+    location = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Your location (city, country, etc.)'
     )
     avatar = models.ImageField(
         upload_to='avatars/',

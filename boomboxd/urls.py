@@ -1,21 +1,27 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views as root_views
 
 urlpatterns = [
+    # Admin and API routes first
     path('admin/', admin.site.urls),
-    path('api/', root_views.api_root, name='api-root'),  # Move JSON API info to /api/
-    path('search/', root_views.search_results, name='search_results'),  # Dedicated search results page
-    path('activity/', root_views.activity_page, name='activity_page'),  # Activity feed page
-    path('users/<str:username>/', root_views.user_profile, name='user_profile'),  # User profile page
-    path('users/<str:username>/followers/', root_views.followers_page, name='followers_page'),  # Followers page
-    path('users/<str:username>/following/', root_views.following_page, name='following_page'),  # Following page
-    path('review/<int:review_id>/', root_views.review_detail, name='review_detail'),  # Individual review page
-    path('', root_views.frontend, name='frontend'),       # HTML landing page at root
+    path('api/', root_views.api_root, name='api-root'),
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),
+    
+    # Legacy Django template routes (for comparison/testing)
+    path('legacy/', root_views.legacy_frontend, name='legacy-frontend'),
+    path('legacy/search/', root_views.search_results, name='legacy-search_results'),
+    path('legacy/activity/', root_views.activity_page, name='legacy-activity_page'),
+    path('legacy/users/<str:username>/', root_views.user_profile, name='legacy-user_profile'),
+    path('legacy/users/<str:username>/followers/', root_views.followers_page, name='legacy-followers_page'),
+    path('legacy/users/<str:username>/following/', root_views.following_page, name='legacy-following_page'),
+    path('legacy/review/<int:review_id>/', root_views.review_detail, name='legacy-review_detail'),
+    
+    # React frontend routes (catch-all for SPA)
+    re_path(r'^(?!api|admin|legacy|static|media).*$', root_views.frontend, name='react-frontend'),
 ]
 
 # Serve static and media files during development

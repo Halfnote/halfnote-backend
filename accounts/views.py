@@ -72,15 +72,30 @@ def profile(request):
         return Response(serializer.data)
     
     # PUT - Handle both JSON and form data
-    data = request.data.copy()
+    data = {}
     
-    # Handle favorite_genres if it's JSON string
-    if 'favorite_genres' in data and isinstance(data['favorite_genres'], str):
+    # Copy basic fields
+    if 'bio' in request.data:
+        data['bio'] = request.data['bio']
+    if 'name' in request.data:
+        data['name'] = request.data['name']
+    if 'location' in request.data:
+        data['location'] = request.data['location']
+    
+    # Handle favorite_genres - parse JSON string to list of objects
+    if 'favorite_genres' in request.data:
         try:
             import json
-            data['favorite_genres'] = json.loads(data['favorite_genres'])
+            raw_genres = request.data['favorite_genres']
+            genre_names = json.loads(raw_genres)
+            
+            # Convert list of strings to list of objects for serializer
+            data['favorite_genres'] = [
+                {'id': hash(name) % 1000000, 'name': name} 
+                for name in genre_names
+            ]
         except (json.JSONDecodeError, TypeError):
-            pass
+            data['favorite_genres'] = []
     
     # Handle avatar file upload
     if 'avatar' in request.FILES:
@@ -90,7 +105,8 @@ def profile(request):
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -113,7 +129,7 @@ def get_profile(request, username=None):
     else:
         user = request.user
     
-    serializer = UserProfileSerializer(user)
+    serializer = UserProfileSerializer(user, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['PUT'])
@@ -158,6 +174,15 @@ def unfollow_user(request, username):
     """Unfollow a user"""
     user_to_unfollow = get_object_or_404(User, username=username)
     request.user.following.remove(user_to_unfollow)
+    
+    # Remove the follow activity from the feed
+    from music.models import Activity
+    Activity.objects.filter(
+        user=request.user,
+        activity_type='user_followed',
+        target_user=user_to_unfollow
+    ).delete()
+    
     return Response({'status': 'unfollowed'})
 
 @api_view(['GET'])

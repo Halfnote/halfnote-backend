@@ -5,21 +5,46 @@ from music.models import Review
 User = get_user_model()
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    followers_count = serializers.SerializerMethodField()
+    follower_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     pinned_reviews = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+    favorite_genres = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'bio', 'avatar',
-            'favorite_genres', 'followers_count', 'following_count',
-            'review_count', 'pinned_reviews'
+            'id', 'username', 'email', 'name', 'display_name',
+            'bio', 'location', 'avatar', 'favorite_genres', 'follower_count', 
+            'following_count', 'review_count', 'pinned_reviews', 'is_following'
         ]
-        read_only_fields = ['id', 'email']
+        read_only_fields = ['id', 'email', 'display_name']
     
-    def get_followers_count(self, obj):
+    def get_display_name(self, obj):
+        """Return the name if available, otherwise username"""
+        return obj.name if obj.name else obj.username
+    
+    def get_favorite_genres(self, obj):
+        """Convert list of strings to list of objects for frontend"""
+        if not obj.favorite_genres:
+            return []
+        return [
+            {'id': hash(genre) % 1000000, 'name': genre}
+            for genre in obj.favorite_genres
+        ]
+    
+    def update(self, instance, validated_data):
+        """Handle favorite_genres conversion from objects to strings"""
+        if 'favorite_genres' in validated_data:
+            genres_data = validated_data['favorite_genres']
+            if genres_data and isinstance(genres_data[0], dict):
+                # Convert from objects to strings for database storage
+                validated_data['favorite_genres'] = [g['name'] for g in genres_data]
+        return super().update(instance, validated_data)
+    
+    def get_follower_count(self, obj):
         return obj.followers.count()
     
     def get_following_count(self, obj):
@@ -29,17 +54,41 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return Review.objects.filter(user=obj).count()
     
     def get_pinned_reviews(self, obj):
-        from music.serializers import ReviewSerializer
-        pinned_reviews = Review.objects.filter(user=obj, is_pinned=True).order_by('-created_at')[:4]
-        return ReviewSerializer(pinned_reviews, many=True).data
+        try:
+            from music.serializers import ReviewSerializer
+            pinned_reviews = Review.objects.filter(user=obj, is_pinned=True).order_by('-created_at')[:4]
+            return ReviewSerializer(pinned_reviews, many=True, context=self.context).data
+        except Exception as e:
+            # Return empty list if there's any issue to prevent profile page from breaking
+            return []
+    
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user != obj:
+            return request.user.following.filter(id=obj.id).exists()
+        return False
 
 class UserFollowSerializer(serializers.ModelSerializer):
+    follower_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar']
+        fields = ['id', 'username', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count']
+    
+    def get_follower_count(self, obj):
+        return obj.followers.count()
+    
+    def get_following_count(self, obj):
+        return obj.following.count()
+    
+    def get_review_count(self, obj):
+        from music.models import Review
+        return Review.objects.filter(user=obj).count()
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'bio', 'avatar']
+        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar']
         read_only_fields = ['id', 'email']

@@ -23,6 +23,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_avatar = serializers.SerializerMethodField()
     user_genres = GenreSerializer(many=True, read_only=True)
     album_title = serializers.CharField(source='album.title', read_only=True)
     album_artist = serializers.CharField(source='album.artist', read_only=True)
@@ -34,10 +35,15 @@ class ReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'rating', 'content', 'user_genres', 'created_at', 
+        fields = ['id', 'username', 'user_avatar', 'rating', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
+    
+    def get_user_avatar(self, obj):
+        if obj.user.avatar:
+            return obj.user.avatar.url
+        return None
     
     def get_likes_count(self, obj):
         return obj.likes.count()
@@ -73,9 +79,8 @@ class AlbumSearchResultSerializer(serializers.Serializer):
 
 
 class ActivitySerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
-    user_avatar = serializers.SerializerMethodField()
-    target_username = serializers.CharField(source='target_user.username', read_only=True)
+    user = serializers.SerializerMethodField()
+    target_user = serializers.SerializerMethodField()
     
     # Review details if activity is review-related
     review_details = serializers.SerializerMethodField()
@@ -83,12 +88,21 @@ class ActivitySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Activity
-        fields = ['id', 'username', 'user_avatar', 'activity_type', 'target_username', 
+        fields = ['id', 'user', 'activity_type', 'target_user', 
                   'review_details', 'comment_details', 'created_at']
     
-    def get_user_avatar(self, obj):
-        if obj.user.avatar:
-            return obj.user.avatar.url
+    def get_user(self, obj):
+        return {
+            'username': obj.user.username,
+            'avatar': obj.user.avatar.url if obj.user.avatar else None
+        }
+    
+    def get_target_user(self, obj):
+        if obj.target_user:
+            return {
+                'username': obj.target_user.username,
+                'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None
+            }
         return None
     
     def get_review_details(self, obj):
@@ -97,11 +111,15 @@ class ActivitySerializer(serializers.ModelSerializer):
                 'id': obj.review.id,
                 'rating': obj.review.rating,
                 'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
-                'album_title': obj.review.album.title,
-                'album_artist': obj.review.album.artist,
-                'album_cover': obj.review.album.cover_url,
-                'review_username': obj.review.user.username,
-                'comments_count': obj.review.comments.count(),
+                'album': {
+                    'title': obj.review.album.title,
+                    'artist': obj.review.album.artist,
+                    'cover_url': obj.review.album.cover_url,
+                },
+                'user': {
+                    'username': obj.review.user.username,
+                    'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None
+                }
             }
         return None
     

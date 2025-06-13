@@ -1,27 +1,52 @@
 {
-  "buildCommand": "python manage.py collectstatic --noinput",
+  "version": 2,
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.9"
+      }
     },
     {
-      "src": "staticfiles/**",
-      "use": "@vercel/static"
+      "src": "frontend/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "buildCommand": "cd frontend && npm ci && npm run build"
+      }
     }
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/staticfiles/$1"
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
     },
     {
-      "src": "/staticfiles/(.*)",
-      "dest": "/staticfiles/$1"
+      "src": "/admin/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/media/(.*)",
+      "dest": "api/index.py"
     },
     {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
-  ]
+  ],
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "boomboxd.settings",
+    "PYTHONPATH": "$PYTHONPATH:.",
+    "DEBUG": "False"
+  },
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "**"
+    }
+  }
 } 
