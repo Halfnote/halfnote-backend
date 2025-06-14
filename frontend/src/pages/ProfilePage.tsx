@@ -87,6 +87,7 @@ const ProfileBio = styled.p`
   color: #6b7280;
   font-size: 16px;
   margin-bottom: 16px;
+  white-space: pre-wrap;
 `;
 
 const ProfileStats = styled.div`
@@ -697,12 +698,13 @@ const GenreOption = styled.label`
 `;
 
 const AvatarPreview = styled.img`
-  width: 100px;
-  height: 100px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
   object-fit: cover;
-  margin-top: 10px;
-  border: 2px solid #e5e7eb;
+  margin: 20px auto 0;
+  border: 3px solid #e5e7eb;
+  display: block;
 `;
 
 interface User {
@@ -1320,43 +1322,44 @@ const ProfilePage: React.FC = () => {
             />
           </FormGroup>
           
-                     <FormGroup>
-             <Label>Favorite Genres</Label>
-             <GenreGrid>
-               {availableGenres.map(genre => (
-                 <GenreOption key={genre.id}>
-                   <input
-                     type="checkbox"
-                     checked={editFavoriteGenres.includes(genre.name)}
-                     onChange={() => handleGenreToggle(genre.name)}
-                   />
-                   {genre.name}
-                 </GenreOption>
-               ))}
-             </GenreGrid>
-           </FormGroup>
-           
-           <FormGroup>
-             <Label>Avatar</Label>
-             <Input
-               type="file"
-               accept="image/*"
-               onChange={handleAvatarChange}
-             />
-             {avatarPreview && (
-               <AvatarPreview
-                 src={avatarPreview}
-                 alt="Avatar Preview"
-               />
-             )}
-           </FormGroup>
+                               <FormGroup>
+            <Label>Favorite Genres</Label>
+            <GenreGrid>
+              {availableGenres.map(genre => (
+                <GenreOption key={genre.id}>
+                  <input
+                    type="checkbox"
+                    checked={editFavoriteGenres.includes(genre.name)}
+                    onChange={() => handleGenreToggle(genre.name)}
+                  />
+                  {genre.name}
+                </GenreOption>
+              ))}
+            </GenreGrid>
+          </FormGroup>
           
+          <FormGroup>
+            <Label>Avatar</Label>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+            />
+          </FormGroup>
+         
           <SaveButton 
             onClick={handleSaveProfile}
             disabled={saving}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </SaveButton>
+          
+          {avatarPreview && (
+            <AvatarPreview
+              src={avatarPreview}
+              alt="Avatar Preview"
+            />
+          )}
         </ModalContent>
       </EditProfileModal>
 
