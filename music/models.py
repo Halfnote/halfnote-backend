@@ -115,7 +115,10 @@ class Activity(models.Model):
         verbose_name_plural = "Activities"
         indexes = [
             models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['target_user', '-created_at']),
             models.Index(fields=['activity_type', '-created_at']),
+            models.Index(fields=['user', 'activity_type', '-created_at']),  # Compound index for filtered queries
+            models.Index(fields=['target_user', 'activity_type', '-created_at']),  # For incoming feeds
         ]
     
     def __str__(self):

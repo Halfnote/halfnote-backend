@@ -165,6 +165,11 @@ def follow_user(request, username):
             activity_type='user_followed',
             target_user=user_to_follow
         )
+        
+        # Invalidate activity feed caches
+        from music.cache_utils import invalidate_activity_cache
+        invalidate_activity_cache(request.user.id)  # Invalidate follower's feed
+        invalidate_activity_cache(user_to_follow.id)  # Invalidate target user's incoming feed
     
     return Response({'status': 'following'})
 
@@ -182,6 +187,11 @@ def unfollow_user(request, username):
         activity_type='user_followed',
         target_user=user_to_unfollow
     ).delete()
+    
+    # Invalidate activity feed caches
+    from music.cache_utils import invalidate_activity_cache
+    invalidate_activity_cache(request.user.id)  # Invalidate unfollower's feed
+    invalidate_activity_cache(user_to_unfollow.id)  # Invalidate target user's incoming feed
     
     return Response({'status': 'unfollowed'})
 

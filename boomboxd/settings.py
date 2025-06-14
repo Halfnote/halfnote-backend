@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+import redis
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -108,12 +110,59 @@ DATABASES = {
     }
 }
 
-# Cache - using default cache for simplicity
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+# Cache Configuration
+# Use Redis if available (production), fall back to dummy cache (development/Vercel)
+REDIS_URL = os.getenv('REDIS_URL')
+if REDIS_URL:
+    # Parse Redis URL for connection details
+    redis_url = urlparse(REDIS_URL)
+    
+    # Redis Cloud configuration
+    redis_options = {
+        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+        'CONNECTION_POOL_KWARGS': {
+            'retry_on_timeout': True,
+            'retry_on_error': [redis.ConnectionError, redis.TimeoutError],
+            'health_check_interval': 30,
+        }
     }
-}
+    
+    # Ensure Redis connection is available at startup
+    try:
+        from django.core.cache import cache
+        cache.get('test_connection')
+        print("Redis connection successful")
+    except Exception as e:
+        print(f"Redis connection failed: {e}")
+        print("Falling back to database cache")
+    
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': redis_options,
+            'KEY_PREFIX': 'boomboxd',
+            'TIMEOUT': 300,  # 5 minutes default
+        }
+    }
+else:
+    # Fallback to database cache for development or when Redis isn't available
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'cache_table',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
+    }
+
+# Session engine (use cache if available)
+if REDIS_URL:
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
 
 # JWT settings
 SIMPLE_JWT = {

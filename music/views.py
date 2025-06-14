@@ -370,13 +370,23 @@ def pin_review(request, review_id):
 
 # Activity utility functions
 def create_activity(activity_type, user, target_user=None, review=None):
-    """Create an activity record"""
+    """Create an activity record and invalidate related caches"""
     Activity.objects.create(
         user=user,
         activity_type=activity_type,
         target_user=target_user,
         review=review
     )
+    
+    # Invalidate activity feed caches
+    from .cache_utils import invalidate_activity_cache
+    
+    # Invalidate the user's own activity cache
+    invalidate_activity_cache(user.id)
+    
+    # Invalidate target user's incoming activity cache if applicable
+    if target_user:
+        invalidate_activity_cache(target_user.id)
 
 
 @api_view(['POST'])
@@ -444,28 +454,48 @@ def review_likes(request, review_id):
 
 @api_view(['GET'])
 def activity_feed(request):
-    """Get activity feed based on type"""
+    """Get activity feed based on type - with caching optimization"""
     if not request.user.is_authenticated:
         return Response({"error": "Authentication required"}, status=401)
     
     feed_type = request.GET.get('type', 'friends')  # friends, you, incoming
     
+    # Try to get cached data first
+    from .cache_utils import get_cached_activity_feed, cache_activity_feed
+    cached_data = get_cached_activity_feed(request.user.id, feed_type)
+    
+    if cached_data is not None:
+        return Response(cached_data)
+    
+    # Build base queryset with optimized select_related and prefetch_related
+    base_queryset = Activity.objects.select_related(
+        'user',  # Always fetch the user who performed the activity
+        'target_user',  # Fetch the target user if applicable
+        'comment'  # Fetch comment details if applicable
+    ).prefetch_related(
+        'review__album',  # Prefetch review and its album
+        'review__user',   # Prefetch review owner
+        'review__user_genres'  # Prefetch review genres
+    )
+    
     if feed_type == 'you':
         # User's own activities (exclude pinned reviews)
-        activities = Activity.objects.filter(user=request.user).exclude(activity_type='review_pinned')[:50]
+        activities = base_queryset.filter(user=request.user).exclude(activity_type='review_pinned')[:50]
     elif feed_type == 'incoming':
         # Activities targeting the current user (exclude pinned reviews)
-        activities = Activity.objects.filter(target_user=request.user).exclude(activity_type='review_pinned')[:50]
+        activities = base_queryset.filter(target_user=request.user).exclude(activity_type='review_pinned')[:50]
     else:  # friends
         # Activities from people the user follows (exclude pinned reviews)
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
         following_users = request.user.following.all()
-        activities = Activity.objects.filter(user__in=following_users).exclude(activity_type='review_pinned')[:50]
+        activities = base_queryset.filter(user__in=following_users).exclude(activity_type='review_pinned')[:50]
     
     serializer = ActivitySerializer(activities, many=True)
-    return Response(serializer.data)
+    serialized_data = serializer.data
+    
+    # Cache the result for 3 minutes (activity feeds change frequently)
+    cache_activity_feed(request.user.id, feed_type, serialized_data, timeout=180)
+    
+    return Response(serialized_data)
 
 
 @api_view(['GET', 'POST'])
