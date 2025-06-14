@@ -1,5 +1,5 @@
 """
-ASGI config for boomboxd project.
+ASGI config for halfnote project.
 """
 
 import os

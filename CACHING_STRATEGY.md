@@ -1,8 +1,8 @@
-# BoomBoxd Caching Strategy
+# Halfnote Caching Strategy
 
 ## Overview
 
-BoomBoxd implements a comprehensive multi-tier caching strategy to achieve **90% faster performance** on the Activity feed and **85% reduction** in database queries. The system uses Redis Cloud as the primary cache with automatic fallback to database caching.
+Halfnote implements a comprehensive multi-tier caching strategy to achieve **90% faster performance** on the Activity feed and **85% reduction** in database queries. The system uses Redis Cloud as the primary cache with automatic fallback to database caching.
 
 ## Performance Results
 
@@ -56,7 +56,7 @@ if REDIS_URL:
                     'health_check_interval': 30,
                 }
             },
-            'KEY_PREFIX': 'boomboxd',
+            'KEY_PREFIX': 'halfnote',
             'TIMEOUT': 300,  # 5 minutes default
         }
     }
@@ -355,7 +355,7 @@ python manage.py shell
 
 ## Summary
 
-The BoomBoxd caching strategy provides:
+The Halfnote caching strategy provides:
 
 - ⚡ **90% faster performance** on critical endpoints
 - 🔄 **Intelligent invalidation** maintaining data consistency  

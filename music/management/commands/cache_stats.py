@@ -51,13 +51,13 @@ class Command(BaseCommand):
             
             # Get cache keys  
             all_keys = redis_client.keys("*")
-            boomboxd_keys = [key.decode() if isinstance(key, bytes) else str(key) 
+            halfnote_keys = [key.decode() if isinstance(key, bytes) else str(key) 
                            for key in all_keys 
-                           if (key.decode() if isinstance(key, bytes) else str(key)).startswith('boomboxd:')]
+                           if (key.decode() if isinstance(key, bytes) else str(key)).startswith('halfnote:')]
             
             # Categorize keys
             key_categories = {}
-            for key in boomboxd_keys:
+            for key in halfnote_keys:
                 parts = key.split(':')
                 category = parts[1] if len(parts) > 1 else 'other'
                 if category not in key_categories:
@@ -70,16 +70,16 @@ class Command(BaseCommand):
                 'redis_version': redis_info.get('redis_version', 'Unknown'),
                 'memory_used': redis_info.get('used_memory_human', 'Unknown'),
                 'total_keys': len(all_keys),
-                'boomboxd_keys': len(boomboxd_keys),
+                'halfnote_keys': len(halfnote_keys),
                 'key_categories': key_categories,
                 'uptime_seconds': redis_info.get('uptime_in_seconds', 0),
                 'connected_clients': redis_info.get('connected_clients', 0),
             }
             
             if show_keys:
-                stats['sample_keys'] = boomboxd_keys[:20]  # Show first 20 keys
-                if len(boomboxd_keys) > 20:
-                    stats['sample_keys'].append(f'... and {len(boomboxd_keys) - 20} more')
+                stats['sample_keys'] = halfnote_keys[:20]  # Show first 20 keys
+                if len(halfnote_keys) > 20:
+                    stats['sample_keys'].append(f'... and {len(halfnote_keys) - 20} more')
             
             return stats
             
@@ -97,7 +97,7 @@ class Command(BaseCommand):
                     'redis_version': 'Unknown (limited access)',
                     'memory_used': 'Unknown',
                     'total_keys': 'Unknown',
-                    'boomboxd_keys': 'Unknown',
+                    'halfnote_keys': 'Unknown',
                     'note': 'Basic Redis connection verified, but detailed stats unavailable',
                     'error_details': str(e)
                 }
@@ -184,7 +184,7 @@ class Command(BaseCommand):
             self.stdout.write(f'👥 Connected Clients: {stats.get("connected_clients", 0)}')
             self.stdout.write('')
             self.stdout.write(f'🗝️  Total Keys: {stats.get("total_keys", 0)}')
-            self.stdout.write(f'🎵 BoomBoxd Keys: {stats.get("boomboxd_keys", 0)}')
+            self.stdout.write(f'🎵 Halfnote Keys: {stats.get("halfnote_keys", 0)}')
             
             categories = stats.get('key_categories', {})
             if categories:

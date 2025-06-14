@@ -142,7 +142,7 @@ if REDIS_URL:
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
             'OPTIONS': redis_options,
-            'KEY_PREFIX': 'boomboxd',
+            'KEY_PREFIX': 'halfnote',
             'TIMEOUT': 300,  # 5 minutes default
         }
     }

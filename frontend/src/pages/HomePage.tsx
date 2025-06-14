@@ -330,7 +330,7 @@ const HomePage: React.FC = () => {
   return (
     <Container>
       <MainCard>
-        <Title>BoomBoxd</Title>
+        <Title>Halfnote</Title>
         <Subtitle>Discover, rate, and review music with fellow enthusiasts</Subtitle>
         <Links>
           <BtnPrimary onClick={() => navigate('/search?q=')}>

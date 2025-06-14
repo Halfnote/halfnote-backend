@@ -31,7 +31,7 @@ def generate_cache_key(*args, **kwargs) -> str:
     
     # Create a hash for consistent key length
     key_hash = hashlib.md5(key_string.encode()).hexdigest()
-    return f"boomboxd:{key_hash}"
+    return f"halfnote:{key_hash}"
 
 
 def cache_key_for_activity_feed(user_id: int, feed_type: str) -> str:

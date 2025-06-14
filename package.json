@@ -1,5 +1,5 @@
 {
-  "name": "boomboxd-backend",
+  "name": "halfnote-backend",
   "version": "1.0.0",
   "description": "Music review app with Django backend and React frontend",
   "scripts": {

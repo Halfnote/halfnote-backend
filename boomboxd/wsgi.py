@@ -1,5 +1,5 @@
 """
-WSGI config for boomboxd project.
+WSGI config for halfnote project.
 """
 
 import os

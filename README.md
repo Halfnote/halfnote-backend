@@ -621,7 +621,7 @@ The API serves a complete web application with responsive design and modern UX:
 1. **Clone and Install**
 ```bash
 git clone <repository>
-cd boomboxd-backend
+cd halfnote-backend
 pip install -r requirements.txt
 ```
 
