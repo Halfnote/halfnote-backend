@@ -198,9 +198,7 @@ const FormattedTextEditor: React.FC<FormattedTextEditorProps> = ({
         disabled={disabled}
       />
       
-      <FormatHint>
-        <strong>Formatting:</strong> **bold** • *italic* • __underline__ • ~~strikethrough~~
-      </FormatHint>
+
     </EditorContainer>
   );
 };
