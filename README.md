@@ -99,7 +99,7 @@ const userProfile = await fetch('/api/accounts/profile/', {
 .then(res => res.json());
 
 // Response includes:
-// { id, username, email, bio, avatar, favorite_genres, followers_count, following_count, review_count }
+// { id, username, email, bio, avatar, favorite_genres, followers_count, following_count, review_count, is_staff }
 ```
 
 ### Get Another User's Profile
@@ -156,7 +156,8 @@ const userReviews = await fetch('/api/accounts/users/viv360/reviews/', {
 })
 .then(res => res.json());
 
-// Returns array of reviews with album info, ratings, content, genres, etc.
+// Returns array of reviews with album info, ratings, content, genres, staff status, etc.
+// Each review includes: { id, rating, content, user_genres, album_title, username, user_is_staff, ... }
 ```
 
 ## 🎵 Music & Albums
@@ -228,8 +229,8 @@ const review = await fetch('/api/music/reviews/123/', {
 })
 .then(res => res.json());
 
-// Returns detailed review with album info, user data, like status, etc.
-// { id, rating, content, user_genres, album_title, username, is_liked_by_user, likes_count, is_pinned, created_at }
+// Returns detailed review with album info, user data, like status, staff verification, etc.
+// { id, rating, content, user_genres, album_title, username, user_is_staff, is_liked_by_user, likes_count, is_pinned, created_at }
 ```
 
 ### Edit a Review
@@ -397,6 +398,113 @@ const users = await fetch('/api/accounts/users/search/?q=viv', {
 // Returns: { users: [{ id, username, bio, avatar, is_following }, ...] }
 ```
 
+## ✅ Staff Verification System
+
+The API includes a staff verification system that displays blue checkmark badges next to verified staff members' usernames throughout the application.
+
+### Staff Status in API Responses
+
+**User Profile Responses** now include an `is_staff` field:
+```javascript
+// GET /api/accounts/profile/ or /api/accounts/users/{username}/
+{
+  "id": 1,
+  "username": "staffmember",
+  "email": "staff@example.com",
+  "bio": "Official staff member",
+  "is_staff": true,  // ← Staff verification status
+  "followers_count": 150,
+  "following_count": 75,
+  "review_count": 42
+}
+```
+
+**Review Responses** include `user_is_staff` field:
+```javascript
+// GET /api/music/reviews/{id}/ or user review lists
+{
+  "id": 123,
+  "username": "staffmember",
+  "user_is_staff": true,  // ← Staff status of review author
+  "rating": 9,
+  "content": "Excellent album with innovative production...",
+  "album_title": "OK Computer",
+  "album_artist": "Radiohead",
+  "likes_count": 25,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Activity Feed Responses** include staff status:
+```javascript
+// GET /api/music/activity/
+{
+  "activity_type": "review",
+  "username": "staffmember",
+  "user_is_staff": true,  // ← Staff status in activity
+  "created_at": "2024-01-15T10:30:00Z",
+  "review_details": {
+    "id": 123,
+    "rating": 9,
+    "album_title": "OK Computer",
+    "user_is_staff": true  // ← Also included in nested review data
+  }
+}
+```
+
+### Frontend Display
+
+Staff verification is automatically displayed throughout the UI:
+
+- **Profile Pages**: Blue checkmark (✓) next to staff usernames
+- **Review Pages**: Verification badge next to reviewer name  
+- **Activity Feed**: Checkmarks in activity items
+- **Comment Sections**: Staff verification in comment headers
+
+### Security Notes
+
+- **Read-only Field**: The `is_staff` field is read-only in all API responses
+- **Admin-only Management**: Staff status can only be modified through Django admin interface
+- **No Self-Assignment**: Users cannot modify their own staff status via API
+- **Secure Implementation**: Staff status is determined server-side and cannot be manipulated by clients
+
+## 📝 Rich Text Formatting System
+
+The application includes a rich text formatting system for reviews and comments, supporting markdown-style syntax with a visual toolbar.
+
+### Supported Formatting
+
+- **Bold Text**: `**bold text**` or use Bold button (B)
+- **Italic Text**: `*italic text*` or use Italic button (I)  
+- **Underlined Text**: `__underlined text__` or use Underline button (U)
+- **Strikethrough Text**: `~~strikethrough text~~` or use Strikethrough button (S)
+
+### Toolbar Interface
+
+The rich text editor includes a formatting toolbar with buttons for:
+- **Bold (B)**: Apply/remove bold formatting
+- **Italic (I)**: Apply/remove italic formatting  
+- **Underline (U)**: Apply/remove underline formatting
+- **Strikethrough (S)**: Apply/remove strikethrough formatting
+
+### Usage in Reviews and Comments
+
+```javascript
+// Example formatted review content
+const reviewContent = `This album is **absolutely incredible**. The production quality is *outstanding*, and tracks like "__Paranoid Android__" showcase the band's ~~experimental~~ **innovative** approach.`;
+
+// The formatting is automatically rendered in the UI as:
+// "This album is absolutely incredible. The production quality is outstanding, 
+// and tracks like "Paranoid Android" showcase the band's innovative approach."
+```
+
+### Implementation Details
+
+- **Client-side Rendering**: Formatting is applied in real-time as users type
+- **Server Storage**: Raw markdown-style text is stored in the database
+- **Cross-platform**: Formatting works consistently across all devices
+- **Accessibility**: Proper semantic HTML is generated for screen readers
+
 ## 🎨 Frontend Integration Examples
 
 ### Complete Review Management Component
@@ -538,8 +646,9 @@ class ActivityFeed {
       return `
         <div class="activity-item">
           <div class="activity-header">
-            <strong>${activity.username}</strong> reviewed
-            <strong>${review.album_title}</strong> by ${review.album_artist}
+            <strong>${activity.username}</strong>
+            ${activity.user_is_staff ? '<span style="color: #3b82f6; margin-left: 4px;">✓</span>' : ''}
+            reviewed <strong>${review.album_title}</strong> by ${review.album_artist}
           </div>
           <div class="activity-content">
             <img src="${review.album_cover}" alt="${review.album_title}" class="activity-album-cover">
@@ -808,11 +917,13 @@ async function apiCall(url, options = {}) {
 ### 🔐 Authentication & Security
 - **JWT-based Authentication**: Secure token-based auth with refresh tokens
 - **Permission System**: Granular permissions for editing/deleting own content
+- **Staff Verification System**: Blue checkmark badges for verified staff members
 - **Rate Limiting**: Protection against API abuse
 
 ### 🎵 Music & Reviews
 - **Discogs Integration**: Access to comprehensive music database
 - **Rich Review System**: Consistent 1-10 ratings with detailed text reviews and intuitive slider UI
+- **Rich Text Editor**: Markdown-style formatting with toolbar buttons for enhanced review writing
 - **Custom Genre Tagging**: User-assigned genres for personalized organization
 - **Review Management**: Edit, delete, pin/unpin reviews with modal interface
 - **Social Interactions**: Like reviews with race condition prevention, follow users, comment on reviews
@@ -820,6 +931,7 @@ async function apiCall(url, options = {}) {
 
 ### 💬 Comments & Interactions
 - **Threaded Comments**: Full comment system with edit/delete functionality
+- **Rich Text Formatting**: Markdown-style formatting with toolbar (Bold, Italic, Underline, Strikethrough)
 - **Pagination**: Efficient loading of large comment threads
 - **Real-time Updates**: Immediate UI feedback for all interactions
 - **Permission-based Actions**: Users can only edit/delete their own content
