@@ -1025,6 +1025,10 @@ async function apiCall(url, options = {}) {
 - **Multi-Tier Caching**: Redis Cloud + database cache fallback (90% faster activity feeds)
 - **Query Optimization**: 85% reduction in database queries (from 50+ to 3-5 per request)
 - **Smart Cache Invalidation**: Maintains data consistency with intelligent cache clearing
+- **Profile Cache Invalidation**: Automatic cache refresh when profiles are updated
+  - Invalidates user profile cache, activity feeds, and follower feeds
+  - Ensures immediate visibility of profile changes across the platform
+  - Triggers comprehensive cache refresh for optimal user experience
 - **Efficient Pagination**: Offset-based pagination for large datasets
 - **Optimized Database Indexes**: Compound indexes for activity feeds and user queries
 - **Lazy Loading**: Comments and activity load on demand
