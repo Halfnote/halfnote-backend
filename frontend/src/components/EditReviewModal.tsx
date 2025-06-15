@@ -304,7 +304,7 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
                   content 
                 }))}
                 placeholder="Share your thoughts about this album..."
-                minHeight="120px"
+                minHeight="150px"
                 disabled={saving}
               />
             </FormGroup>

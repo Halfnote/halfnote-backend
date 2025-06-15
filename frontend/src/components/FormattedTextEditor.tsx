@@ -63,7 +63,7 @@ const TextArea = styled.textarea<{ minHeight?: string }>`
   font-family: inherit;
   font-size: 14px;
   resize: vertical;
-  min-height: ${props => props.minHeight || '100px'};
+  min-height: ${props => props.minHeight || '120px'};
   outline: none;
   line-height: 1.5;
 

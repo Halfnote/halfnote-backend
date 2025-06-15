@@ -865,7 +865,7 @@ const ReviewDetailPage: React.FC = () => {
               value={newComment}
               onChange={setNewComment}
               placeholder="Write a comment..."
-              minHeight="80px"
+              minHeight="120px"
               disabled={submittingComment}
             />
             <CommentSubmit 

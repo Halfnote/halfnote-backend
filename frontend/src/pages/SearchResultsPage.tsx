@@ -666,7 +666,7 @@ const SearchResultsPage: React.FC = () => {
                 value={reviewData.content}
                 onChange={(content) => setReviewData(prev => ({ ...prev, content }))}
                 placeholder="Share your thoughts about this album..."
-                minHeight="120px"
+                minHeight="150px"
                 disabled={reviewLoading}
               />
             </FormGroup>
