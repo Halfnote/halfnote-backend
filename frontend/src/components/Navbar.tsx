@@ -132,6 +132,7 @@ const Navbar: React.FC = () => {
   return (
     <NavbarContainer>
       <Logo href="/" onClick={handleLogoClick}>halfnote API Testing Interface</Logo>
+      <MenuButton onClick={toggleMenu} aria-label="Toggle menu">☰</MenuButton>
       
       <NavButtons $menuOpen={menuOpen}>
         <NavLinks $loggedIn={!!user}>
