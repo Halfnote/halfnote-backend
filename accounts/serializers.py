@@ -10,7 +10,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     review_count = serializers.SerializerMethodField()
     pinned_reviews = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
-    favorite_genres = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
     
     class Meta:
@@ -26,14 +25,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Return the name if available, otherwise username"""
         return obj.name if obj.name else obj.username
     
-    def get_favorite_genres(self, obj):
-        """Convert list of strings to list of objects for frontend"""
-        if not obj.favorite_genres:
-            return []
-        return [
-            {'id': hash(genre) % 1000000, 'name': genre}
-            for genre in obj.favorite_genres
-        ]
+    def to_representation(self, instance):
+        """Convert favorite_genres from list of strings to list of objects for frontend"""
+        data = super().to_representation(instance)
+        if data.get('favorite_genres'):
+            data['favorite_genres'] = [
+                {'id': hash(genre) % 1000000, 'name': genre}
+                for genre in data['favorite_genres']
+            ]
+        else:
+            data['favorite_genres'] = []
+        return data
     
     def update(self, instance, validated_data):
         """Handle favorite_genres conversion from objects to strings"""
@@ -42,6 +44,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
             if genres_data and isinstance(genres_data[0], dict):
                 # Convert from objects to strings for database storage
                 validated_data['favorite_genres'] = [g['name'] for g in genres_data]
+            elif genres_data is None or genres_data == []:
+                # Handle empty list or None (user cleared all genres)
+                validated_data['favorite_genres'] = []
         return super().update(instance, validated_data)
     
     def get_follower_count(self, obj):
