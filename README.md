@@ -157,7 +157,7 @@ const userReviews = await fetch('/api/accounts/users/viv360/reviews/', {
 .then(res => res.json());
 
 // Returns array of reviews with album info, ratings, content, genres, staff status, etc.
-// Each review includes: { id, rating, content, user_genres, album_title, username, user_is_staff, ... }
+// Each review includes: { id, rating, content, user_genres, album_title, album_artist, album_year, username, user_is_staff, ... }
 ```
 
 ## 🎵 Music & Albums
@@ -230,7 +230,7 @@ const review = await fetch('/api/music/reviews/123/', {
 .then(res => res.json());
 
 // Returns detailed review with album info, user data, like status, staff verification, etc.
-// { id, rating, content, user_genres, album_title, username, user_is_staff, is_liked_by_user, likes_count, is_pinned, created_at }
+// { id, rating, content, user_genres, album_title, album_artist, album_year, username, user_is_staff, is_liked_by_user, likes_count, is_pinned, created_at }
 ```
 
 ### Edit a Review
@@ -467,6 +467,62 @@ Staff verification is automatically displayed throughout the UI:
 - **Admin-only Management**: Staff status can only be modified through Django admin interface
 - **No Self-Assignment**: Users cannot modify their own staff status via API
 - **Secure Implementation**: Staff status is determined server-side and cannot be manipulated by clients
+
+## 📅 Album Year Display
+
+The application displays album release years alongside album information to provide users with additional context when browsing reviews.
+
+### Where Album Years Appear
+
+- **✅ Review Detail Pages**: Shows year next to artist name (`Artist • Year`)
+- **✅ Profile Page Reviews**: Displays year in review cards (`Artist • Year`)  
+- **❌ Activity Feed**: Year removed to reduce clutter in activity stream
+
+### API Response Format
+
+Album year is included in review responses as `album_year`:
+
+```javascript
+// GET /api/music/reviews/{id}/
+{
+  "id": 123,
+  "album_title": "OK Computer",
+  "album_artist": "Radiohead", 
+  "album_year": 1997,  // ← Album release year
+  "rating": 9,
+  "content": "A groundbreaking album...",
+  "username": "reviewer",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Frontend Display Examples
+
+**Review Detail Page:**
+```
+OK Computer
+Radiohead • 1997
+★★★★★★★★★☆ 9/10
+```
+
+**Profile Page Review Card:**
+```
+OK Computer
+Radiohead • 1997
+"A groundbreaking album that redefined alternative rock..."
+```
+
+**Activity Feed (no year):**
+```
+username reviewed OK Computer by Radiohead and rated it 9/10
+```
+
+### Implementation Notes
+
+- **Optional Field**: Year only displays when available (`album_year` can be null)
+- **Graceful Fallback**: Missing years don't break the display
+- **Consistent Formatting**: Uses bullet separator (•) for clean visual separation
+- **Selective Display**: Shown in detailed views but omitted from activity feed for brevity
 
 ## 📝 Rich Text Formatting System
 
