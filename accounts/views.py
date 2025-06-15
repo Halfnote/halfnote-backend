@@ -23,7 +23,8 @@ def register(request):
     - username: Required. The username for the new account
     - password: Required. The password for the new account
     - bio: Optional. A short bio for the user
-    - avatar_url: Optional. URL to the user's avatar image
+    - avatar: Optional. Image file for the user's avatar, provided as
+      ``avatar`` in ``request.FILES``
     """
     try:
         user = User.objects.create_user(
