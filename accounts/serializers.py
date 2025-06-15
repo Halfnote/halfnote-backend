@@ -18,9 +18,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'name', 'display_name',
             'bio', 'location', 'avatar', 'favorite_genres', 'follower_count', 
-            'following_count', 'review_count', 'pinned_reviews', 'is_following'
+            'following_count', 'review_count', 'pinned_reviews', 'is_following', 'is_staff'
         ]
-        read_only_fields = ['id', 'email', 'display_name']
+        read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""

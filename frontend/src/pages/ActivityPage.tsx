@@ -229,10 +229,12 @@ interface Activity {
   user: {
     username: string;
     avatar?: string;
+    is_staff?: boolean;
   };
   target_user?: {
     username: string;
     avatar?: string;
+    is_staff?: boolean;
   };
   activity_type: string;
   created_at: string;
@@ -241,6 +243,7 @@ interface Activity {
     album: {
       title: string;
       artist: string;
+      year?: number;
       cover_url?: string;
     };
     rating: number;
@@ -248,6 +251,7 @@ interface Activity {
     user: {
       username: string;
       avatar?: string;
+      is_staff?: boolean;
     };
   };
   comment_details?: {
@@ -303,6 +307,32 @@ const ActivityPage: React.FC = () => {
     }
   };
 
+  const renderUsername = (username: string, isStaff?: boolean, navigateToUser?: boolean) => {
+    return (
+      <>
+        {navigateToUser ? (
+          <ActivityUser onClick={() => navigate(`/users/${username}`)}>
+            {username}
+          </ActivityUser>
+        ) : (
+          username
+        )}
+        {isStaff && (
+          <span 
+            style={{ 
+              marginLeft: '4px', 
+              fontSize: '12px',
+              color: '#3b82f6'
+            }}
+            title="Verified Staff"
+          >
+            ✓
+          </span>
+        )}
+      </>
+    );
+  };
+
   const renderActivityText = (activity: Activity) => {
     try {
       const isCurrentUser = activity.user.username === user?.username;
@@ -316,9 +346,7 @@ const ActivityPage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                renderUsername(activity.user.username, activity.user.is_staff, true)
               )}
               {' reviewed '}
               <ActivityAlbum onClick={() => navigate(`/review/${activity.review_details?.id}/`)}>

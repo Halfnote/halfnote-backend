@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI, musicAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
+import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -720,6 +721,7 @@ interface User {
   review_count: number;
   favorite_genres: Array<{ id: number; name: string }>;
   is_following?: boolean;
+  is_staff?: boolean;
 }
 
 interface Review {
@@ -729,6 +731,7 @@ interface Review {
   album_title: string;
   album_artist: string;
   album_cover?: string;
+  album_year?: number;
   rating: number;
   content: string;
   created_at: string;
@@ -1071,7 +1074,10 @@ const ProfilePage: React.FC = () => {
                 {review.is_pinned && ' 📌'}
               </ReviewTitleLink>
             </ReviewAlbumTitle>
-            <ReviewAlbumArtist>{review.album_artist}</ReviewAlbumArtist>
+            <ReviewAlbumArtist>
+              {review.album_artist}
+              {review.album_year && ` • ${review.album_year}`}
+            </ReviewAlbumArtist>
           </div>
           <ReviewHeaderRight>
             <ReviewRatingSection>
@@ -1083,7 +1089,9 @@ const ProfilePage: React.FC = () => {
             </ReviewRatingSection>
           </ReviewHeaderRight>
         </ReviewHeader>
-        <ReviewContent>{review.content}</ReviewContent>
+        <ReviewContent>
+          {renderFormattedText(review.content)}
+        </ReviewContent>
         <ReviewBottomActions>
           <ReviewMeta>
             {getTimeAgo(review.created_at)}
@@ -1191,7 +1199,22 @@ const ProfilePage: React.FC = () => {
             style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
           />
           <ProfileDetails>
-            <ProfileName>{profileUser.display_name}</ProfileName>
+            <ProfileName>
+              {profileUser.display_name}
+              {profileUser.is_staff && (
+                <span 
+                  style={{ 
+                    marginLeft: '8px', 
+                    fontSize: '24px',
+                    color: '#3b82f6',
+                    fontWeight: 'bold'
+                  }}
+                  title="Verified Staff"
+                >
+                  ✓
+                </span>
+              )}
+            </ProfileName>
             <ProfileBio>@{profileUser.username}</ProfileBio>
             {profileUser.location && <ProfileBio>📍 {profileUser.location}</ProfileBio>}
             {profileUser.bio && <ProfileBio>{profileUser.bio}</ProfileBio>}
