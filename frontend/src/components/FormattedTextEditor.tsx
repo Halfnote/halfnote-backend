@@ -13,6 +13,8 @@ const EditorContainer = styled.div`
   border: 1px solid #d1d5db;
   border-radius: 8px;
   overflow: hidden;
+  width: 100%;
+  max-width: 800px;
   
   &:focus-within {
     border-color: #667eea;
@@ -63,7 +65,7 @@ const TextArea = styled.textarea<{ minHeight?: string }>`
   font-family: inherit;
   font-size: 14px;
   resize: vertical;
-  min-height: ${props => props.minHeight || '120px'};
+  min-height: ${props => props.minHeight || '100px'};
   outline: none;
   line-height: 1.5;
 

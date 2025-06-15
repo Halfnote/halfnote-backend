@@ -224,7 +224,7 @@ const Modal = styled.div<{ $visible: boolean }>`
 const ModalContent = styled.div`
   background: white;
   border-radius: 16px;
-  max-width: 500px;
+  max-width: 800px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
