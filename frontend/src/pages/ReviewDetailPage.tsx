@@ -488,6 +488,7 @@ interface Review {
   id: number;
   username: string;
   user_avatar?: string;
+  user_is_staff?: boolean;
   album_title: string;
   album_artist: string;
   album_cover?: string;
@@ -816,7 +817,21 @@ const ReviewDetailPage: React.FC = () => {
                     (e.target as HTMLImageElement).src = '/static/accounts/default-avatar.svg';
                   }}
                 />
-                <span>{review!.username}</span>
+                <span>
+                  {review!.username}
+                  {review!.user_is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '12px',
+                        color: '#3b82f6'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </span>
               </ReviewerInfo>
               {review!.likes_count > 0 && (
                 <>

@@ -24,6 +24,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_avatar = serializers.SerializerMethodField()
+    user_is_staff = serializers.BooleanField(source='user.is_staff', read_only=True)
     user_genres = GenreSerializer(many=True, read_only=True)
     album_title = serializers.CharField(source='album.title', read_only=True)
     album_artist = serializers.CharField(source='album.artist', read_only=True)
@@ -35,7 +36,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'user_avatar', 'rating', 'content', 'user_genres', 'created_at', 
+        fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
@@ -94,14 +95,16 @@ class ActivitySerializer(serializers.ModelSerializer):
     def get_user(self, obj):
         return {
             'username': obj.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None
+            'avatar': obj.user.avatar.url if obj.user.avatar else None,
+            'is_staff': obj.user.is_staff
         }
     
     def get_target_user(self, obj):
         if obj.target_user:
             return {
                 'username': obj.target_user.username,
-                'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None
+                'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None,
+                'is_staff': obj.target_user.is_staff
             }
         return None
     
@@ -118,7 +121,8 @@ class ActivitySerializer(serializers.ModelSerializer):
                 },
                 'user': {
                     'username': obj.review.user.username,
-                    'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None
+                    'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None,
+                    'is_staff': obj.review.user.is_staff
                 }
             }
         return None
