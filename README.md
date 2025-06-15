@@ -853,6 +853,22 @@ async function apiCall(url, options = {}) {
 - **CSS Grid & Flexbox**: Modern layout techniques
 - **JWT Token Management**: Secure client-side token handling
 
+#### System Architecture
+
+```mermaid
+graph TD
+    subgraph Vercel Hosting
+        Frontend["React Frontend"]
+        Backend["Django REST API"]
+    end
+    User["User Browser"] --> Frontend
+    Frontend -->|REST Calls| Backend
+    Backend --> PostgreSQL[("PostgreSQL DB")]
+    Backend --> Redis[("Redis Cache")]
+    Backend --> Cloudinary[("Cloudinary Storage")]
+    Backend -->|Album Metadata| Discogs["Discogs API"]
+```
+
 ### 🚀 Performance & Caching
 - **Multi-Tier Caching**: Redis Cloud + database cache fallback (90% faster activity feeds)
 - **Query Optimization**: 85% reduction in database queries (from 50+ to 3-5 per request)
