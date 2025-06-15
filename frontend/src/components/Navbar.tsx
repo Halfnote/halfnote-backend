@@ -11,6 +11,11 @@ const NavbarContainer = styled.nav`
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
 `;
 
 const Logo = styled.a`
@@ -21,10 +26,30 @@ const Logo = styled.a`
   cursor: pointer;
 `;
 
-const NavButtons = styled.div`
+const MenuButton = styled.button`
+  display: none;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+
+  @media (max-width: 768px) {
+    display: block;
+  }
+`;
+
+const NavButtons = styled.div<{ $menuOpen: boolean }>`
   display: flex;
   gap: 12px;
   align-items: center;
+
+  @media (max-width: 768px) {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    display: ${props => (props.$menuOpen ? 'flex' : 'none')};
+    gap: 8px;
+  }
 `;
 
 const NavBtn = styled(Link)<{ $active?: boolean }>`
@@ -39,6 +64,11 @@ const NavBtn = styled(Link)<{ $active?: boolean }>`
   transition: all 0.2s ease;
   text-decoration: none;
 
+  @media (max-width: 768px) {
+    width: 100%;
+    text-align: center;
+  }
+
   &:hover {
     background: ${props => props.$active ? '#374151' : '#f9fafb'};
   }
@@ -52,6 +82,10 @@ const SearchNav = styled.div<{ $disabled?: boolean }>`
   align-items: center;
   padding: 8px 16px;
   min-width: 200px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
   
   &::before {
     content: "🔍";
@@ -77,6 +111,11 @@ const SearchInput = styled.input<{ $disabled?: boolean }>`
 const NavLinks = styled.div<{ $loggedIn: boolean }>`
   display: ${props => props.$loggedIn ? 'flex' : 'none'};
   gap: 12px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    width: 100%;
+  }
 `;
 
 const LogoutBtn = styled.button`
@@ -91,6 +130,10 @@ const LogoutBtn = styled.button`
   text-decoration: none;
   font-size: 14px;
 
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
   &:hover {
     background: #f9fafb;
   }
@@ -101,6 +144,7 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +156,10 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const toggleMenu = () => {
+    setMenuOpen(prev => !prev);
   };
 
   const handleLogoClick = (e: React.MouseEvent) => {
@@ -126,8 +174,9 @@ const Navbar: React.FC = () => {
   return (
     <NavbarContainer>
       <Logo href="/" onClick={handleLogoClick}>halfnote API Testing Interface</Logo>
-      
-      <NavButtons>
+      <MenuButton onClick={toggleMenu} aria-label="Toggle menu">☰</MenuButton>
+
+      <NavButtons $menuOpen={menuOpen}>
         <form onSubmit={handleSearch}>
           <SearchNav $disabled={!user}>
             <SearchInput
