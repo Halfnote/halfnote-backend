@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,36 +44,6 @@ const NavBtn = styled(Link)<{ $active?: boolean }>`
   }
 `;
 
-const SearchNav = styled.div<{ $disabled?: boolean }>`
-  position: relative;
-  background: #f3f4f6;
-  border-radius: 25px;
-  display: flex;
-  align-items: center;
-  padding: 8px 16px;
-  min-width: 200px;
-  
-  &::before {
-    content: "🔍";
-    margin-right: 8px;
-  }
-`;
-
-const SearchInput = styled.input<{ $disabled?: boolean }>`
-  border: none;
-  background: none;
-  outline: none;
-  flex: 1;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: ${props => props.$disabled ? '#9ca3af' : 'inherit'};
-  cursor: ${props => props.$disabled ? 'not-allowed' : 'text'};
-
-  &::placeholder {
-    color: #9ca3af;
-  }
-`;
-
 const NavLinks = styled.div<{ $loggedIn: boolean }>`
   display: ${props => props.$loggedIn ? 'flex' : 'none'};
   gap: 12px;
@@ -100,14 +70,6 @@ const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim() && user) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
 
   const handleLogout = () => {
     logout();
@@ -128,19 +90,6 @@ const Navbar: React.FC = () => {
       <Logo href="/" onClick={handleLogoClick}>halfnote API Testing Interface</Logo>
       
       <NavButtons>
-        <form onSubmit={handleSearch}>
-          <SearchNav $disabled={!user}>
-            <SearchInput
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={!user}
-              $disabled={!user}
-            />
-          </SearchNav>
-        </form>
-
         <NavLinks $loggedIn={!!user}>
           <NavBtn to="/" $active={location.pathname === '/'}>
             Home
