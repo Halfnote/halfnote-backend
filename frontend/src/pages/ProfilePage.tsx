@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI, musicAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
+import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -1085,9 +1086,7 @@ const ProfilePage: React.FC = () => {
           </ReviewHeaderRight>
         </ReviewHeader>
         <ReviewContent>
-          {review.content.split('\n').map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
+          {renderFormattedText(review.content)}
         </ReviewContent>
         <ReviewBottomActions>
           <ReviewMeta>
@@ -1202,8 +1201,9 @@ const ProfilePage: React.FC = () => {
                 <span 
                   style={{ 
                     marginLeft: '8px', 
-                    fontSize: '16px',
-                    color: '#3b82f6'
+                    fontSize: '24px',
+                    color: '#3b82f6',
+                    fontWeight: 'bold'
                   }}
                   title="Verified Staff"
                 >

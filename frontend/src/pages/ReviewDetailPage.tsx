@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { musicAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
+import FormattedTextEditor from '../components/FormattedTextEditor';
+import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
   max-width: 800px;
@@ -819,18 +821,19 @@ const ReviewDetailPage: React.FC = () => {
                 />
                 <span>
                   {review!.username}
-                  {review!.user_is_staff && (
-                    <span 
-                      style={{ 
-                        marginLeft: '4px', 
-                        fontSize: '12px',
-                        color: '#3b82f6'
-                      }}
-                      title="Verified Staff"
-                    >
-                      ✓
-                    </span>
-                  )}
+                                     {review!.user_is_staff && (
+                     <span 
+                       style={{ 
+                         marginLeft: '4px', 
+                         fontSize: '18px',
+                         color: '#3b82f6',
+                         fontWeight: 'bold'
+                       }}
+                       title="Verified Staff"
+                     >
+                       ✓
+                     </span>
+                   )}
                 </span>
               </ReviewerInfo>
               {review!.likes_count > 0 && (
@@ -850,9 +853,7 @@ const ReviewDetailPage: React.FC = () => {
       </ReviewHeader>
 
       <ReviewContent>
-        {review!.content.split('\n').map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
+        {renderFormattedText(review!.content)}
       </ReviewContent>
 
       <CommentsSection>
@@ -860,15 +861,12 @@ const ReviewDetailPage: React.FC = () => {
         
         {user && (
           <CommentForm>
-            <CommentInput
+            <FormattedTextEditor
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={setNewComment}
               placeholder="Write a comment..."
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  submitComment();
-                }
-              }}
+              minHeight="80px"
+              disabled={submittingComment}
             />
             <CommentSubmit 
               onClick={submitComment}
@@ -919,7 +917,7 @@ const ReviewDetailPage: React.FC = () => {
                   </CommentEditForm>
                 ) : (
                   <>
-                    <CommentContent>{comment.content}</CommentContent>
+                    <CommentContent>{renderFormattedText(comment.content)}</CommentContent>
                     {user && comment.username === user.username && (
                       <CommentActions>
                         <CommentActionButton onClick={() => startEditComment(comment)}>

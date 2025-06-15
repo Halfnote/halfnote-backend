@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { musicAPI, userAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import FormattedTextEditor from '../components/FormattedTextEditor';
 
 const Container = styled.div`
   max-width: 1000px;
@@ -661,10 +662,12 @@ const SearchResultsPage: React.FC = () => {
             
             <FormGroup>
               <Label>Review</Label>
-              <TextArea
+              <FormattedTextEditor
                 value={reviewData.content}
-                onChange={(e) => setReviewData(prev => ({ ...prev, content: e.target.value }))}
+                onChange={(content) => setReviewData(prev => ({ ...prev, content }))}
                 placeholder="Share your thoughts about this album..."
+                minHeight="120px"
+                disabled={reviewLoading}
               />
             </FormGroup>
             

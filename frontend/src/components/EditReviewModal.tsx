@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { musicAPI } from '../services/api';
+import FormattedTextEditor from './FormattedTextEditor';
 
 interface Genre {
   id: number;
@@ -296,14 +297,15 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
 
             <FormGroup>
               <Label htmlFor="edit-content">Review</Label>
-              <TextArea
-                id="edit-content"
+              <FormattedTextEditor
                 value={formData.content}
-                onChange={(e) => setFormData(prev => ({ 
+                onChange={(content) => setFormData(prev => ({ 
                   ...prev, 
-                  content: e.target.value 
+                  content 
                 }))}
                 placeholder="Share your thoughts about this album..."
+                minHeight="120px"
+                disabled={saving}
               />
             </FormGroup>
 
