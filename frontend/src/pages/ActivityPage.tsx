@@ -243,6 +243,7 @@ interface Activity {
     album: {
       title: string;
       artist: string;
+      year?: number;
       cover_url?: string;
     };
     rating: number;
@@ -352,6 +353,7 @@ const ActivityPage: React.FC = () => {
                 {activity.review_details?.album.title || 'an album'}
               </ActivityAlbum>
               {activity.review_details?.album.artist && ` by ${activity.review_details.album.artist}`}
+              {activity.review_details?.album.year && ` (${activity.review_details.album.year})`}
               {activity.review_details?.rating && ` and rated it ${activity.review_details.rating}/10`}
             </>
           );

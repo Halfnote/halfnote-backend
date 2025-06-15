@@ -117,6 +117,7 @@ class ActivitySerializer(serializers.ModelSerializer):
                 'album': {
                     'title': obj.review.album.title,
                     'artist': obj.review.album.artist,
+                    'year': obj.review.album.year,
                     'cover_url': obj.review.album.cover_url,
                 },
                 'user': {

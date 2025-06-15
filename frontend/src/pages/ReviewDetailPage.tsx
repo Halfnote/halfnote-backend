@@ -799,7 +799,10 @@ const ReviewDetailPage: React.FC = () => {
             </RatingContainer>
           </TitleRatingRow>
           
-          <ArtistName>{review!.album_artist}</ArtistName>
+          <ArtistName>
+            {review!.album_artist}
+            {review!.album_year && ` • ${review!.album_year}`}
+          </ArtistName>
           
           {review!.user_genres && review!.user_genres.length > 0 && (
             <Genres>

@@ -731,6 +731,7 @@ interface Review {
   album_title: string;
   album_artist: string;
   album_cover?: string;
+  album_year?: number;
   rating: number;
   content: string;
   created_at: string;
@@ -1073,7 +1074,10 @@ const ProfilePage: React.FC = () => {
                 {review.is_pinned && ' 📌'}
               </ReviewTitleLink>
             </ReviewAlbumTitle>
-            <ReviewAlbumArtist>{review.album_artist}</ReviewAlbumArtist>
+            <ReviewAlbumArtist>
+              {review.album_artist}
+              {review.album_year && ` • ${review.album_year}`}
+            </ReviewAlbumArtist>
           </div>
           <ReviewHeaderRight>
             <ReviewRatingSection>
