@@ -183,19 +183,27 @@ class CacheManager:
         """Execute all cached operations"""
         if not self.operations:
             return
-        
-        # Group operations by type for efficiency
-        sets = [(key, value, timeout) for op, key, value, timeout in self.operations if op == 'set']
-        deletes = [key for op, key in self.operations if op == 'delete']
-        
-        # Execute set operations
-        if sets:
-            cache.set_many({key: value for key, value, _ in sets})
-        
+
+        sets = []
+        deletes = []
+
+        # Separate set and delete operations while safely unpacking tuples
+        for op in self.operations:
+            if op[0] == 'set':
+                _, key, value, timeout = op
+                sets.append((key, value, timeout))
+            elif op[0] == 'delete':
+                _, key = op
+                deletes.append(key)
+
+        # Execute set operations with individual timeouts
+        for key, value, timeout in sets:
+            cache.set(key, value, timeout)
+
         # Execute delete operations
         if deletes:
             cache.delete_many(deletes)
-        
+
         self.operations.clear()
 
 
