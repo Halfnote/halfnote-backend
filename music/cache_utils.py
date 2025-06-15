@@ -255,3 +255,41 @@ def cached_result(cache_key_func, timeout=300):
             return result
         return wrapper
     return decorator 
+
+
+def invalidate_profile_cache(user_id: int, username: str) -> None:
+    """Invalidate all profile-related cache entries for a user"""
+    # Invalidate user reviews cache
+    cache.delete(cache_key_for_user_reviews(username))
+    
+    # Invalidate profile-specific cache keys
+    cache.delete(f"profile:{user_id}")
+    cache.delete(f"profile:{username}")
+    cache.delete(f"user_profile:{user_id}")
+    cache.delete(f"user_profile:{username}")
+    
+    # Invalidate user following cache
+    cache.delete(f"user_following:{user_id}")
+    cache.delete(f"user_followers:{user_id}")
+
+
+def invalidate_user_related_caches_on_profile_update(user_id: int, username: str) -> None:
+    """Comprehensive cache invalidation when a user profile is updated"""
+    # Invalidate profile caches
+    invalidate_profile_cache(user_id, username)
+    
+    # Invalidate activity feed caches (user's own feeds and incoming feeds)
+    invalidate_activity_cache(user_id)
+    
+    # Invalidate followers' activity feeds since profile changes affect their feeds
+    # Note: This is a simplified approach - in production you might want to be more selective
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+        # Invalidate activity feeds of users who follow this user
+        follower_ids = user.followers.values_list('id', flat=True)
+        for follower_id in follower_ids:
+            invalidate_activity_cache(follower_id)
+    except User.DoesNotExist:
+        pass 

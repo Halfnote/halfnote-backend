@@ -104,6 +104,11 @@ def profile(request):
     serializer = UserProfileSerializer(request.user, data=data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        
+        # Invalidate all profile and activity caches after profile update
+        from music.cache_utils import invalidate_user_related_caches_on_profile_update
+        invalidate_user_related_caches_on_profile_update(request.user.id, request.user.username)
+        
         return Response(serializer.data)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -139,6 +144,11 @@ def update_profile(request):
     serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        
+        # Invalidate all profile and activity caches after profile update
+        from music.cache_utils import invalidate_user_related_caches_on_profile_update
+        invalidate_user_related_caches_on_profile_update(request.user.id, request.user.username)
+        
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -329,5 +339,9 @@ def remove_avatar(request):
         # Clear the avatar field
         user.avatar = None
         user.save()
+        
+        # Invalidate all profile and activity caches after avatar removal
+        from music.cache_utils import invalidate_user_related_caches_on_profile_update
+        invalidate_user_related_caches_on_profile_update(user.id, user.username)
     
     return Response({'message': 'Avatar removed successfully'})
