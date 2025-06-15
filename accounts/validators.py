@@ -3,7 +3,15 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 def validate_username(value):
-    """Validate username format"""
+    """Validate username format and check for blocked usernames"""
+    # List of blocked usernames
+    blocked_usernames = {
+        'vivek',
+        'admin', 'administrator', 'root', 'api', 'www', 'mail', 'ftp',
+        'support', 'help', 'info', 'contact', 'about', 'terms', 'privacy',
+        'security', 'staff', 'moderator', 'mod', 'null', 'undefined'
+    }
+    
     if len(value) < 3:
         raise ValidationError(
             _('Username must be at least 3 characters long.')
@@ -15,6 +23,10 @@ def validate_username(value):
     if not value.isalnum():
         raise ValidationError(
             _('Username must contain only letters and numbers.')
+        )
+    if value.lower() in blocked_usernames:
+        raise ValidationError(
+            _('This username is not available. Please choose a different one.')
         )
 
 def validate_password(value):
