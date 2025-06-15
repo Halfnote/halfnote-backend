@@ -308,7 +308,9 @@ def edit_review(request, review_id):
             album.genres.set(all_review_genres)
             
             # Return response with warnings if needed
-            response_data = ReviewSerializer(review).data
+            response_data = ReviewSerializer(
+                review, context={'request': request}
+            ).data
             if invalid_genres:
                 response_data['warnings'] = {
                     'invalid_genres': invalid_genres,
