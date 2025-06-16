@@ -36,12 +36,23 @@ const ProfileHeader = styled.div`
   margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
+
+  @media (max-width: 768px) {
+    text-align: center;
+    padding: 24px;
+  }
 `;
 
 const ProfileInfo = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 24px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
 `;
 
 const ProfileTopRight = styled.div`
@@ -51,6 +62,12 @@ const ProfileTopRight = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+
+  @media (max-width: 768px) {
+    position: static;
+    margin-top: 16px;
+    flex-direction: column;
+  }
 `;
 
 const ProfileAllStats = styled.div`
@@ -67,6 +84,10 @@ const ProfileAvatar = styled.img`
   object-fit: cover;
   cursor: pointer;
   transition: transform 0.2s ease;
+
+  @media (max-width: 768px) {
+    margin: 0 auto;
+  }
 
   &:hover {
     transform: scale(1.05);
@@ -96,6 +117,10 @@ const ProfileStats = styled.div`
   gap: 32px;
   margin-bottom: 16px;
   align-items: center;
+
+  @media (max-width: 768px) {
+    gap: 16px;
+  }
 `;
 
 const Stat = styled.div`
