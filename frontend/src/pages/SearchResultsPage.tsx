@@ -400,7 +400,7 @@ const SearchResultsPage: React.FC = () => {
   useEffect(() => {
     if (query) {
       performSearch();
-      loadGenres();
+      setAvailableGenres(COMMON_GENRES.map((name, index) => ({ id: index + 1, name })));
     }
   }, [query]);
 
@@ -430,14 +430,32 @@ const SearchResultsPage: React.FC = () => {
     }
   };
 
-  const loadGenres = async () => {
-    try {
-      const genresData = await musicAPI.getGenres();
-      setAvailableGenres(genresData.genres || []);
-    } catch (error) {
-      console.error('Error loading genres:', error);
-    }
-  };
+  // Hardcoded list of common music genres
+  const COMMON_GENRES = [
+    'Alternative',
+    'Blues',
+    'Classical',
+    'Country',
+    'Dance',
+    'Electronic',
+    'Folk',
+    'Funk',
+    'Hip-Hop',
+    'House',
+    'Indie',
+    'Jazz',
+    'Latin',
+    'Metal',
+    'Pop',
+    'Punk',
+    'R&B',
+    'Rap',
+    'Reggae',
+    'Rock',
+    'Soul',
+    'Techno',
+    'World'
+  ];
 
   const openReviewModal = (album: SearchResult) => {
     if (!user) {

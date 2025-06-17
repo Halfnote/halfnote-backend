@@ -110,10 +110,18 @@ class ActivitySerializer(serializers.ModelSerializer):
     
     def get_review_details(self, obj):
         if obj.review:
-            return {
+            request = self.context.get('request')
+            feed_type = self.context.get('feed_type', 'friends')
+            is_liked_by_user = False
+            if request and request.user.is_authenticated:
+                is_liked_by_user = obj.review.likes.filter(user=request.user).exists()
+            
+            review_data = {
                 'id': obj.review.id,
                 'rating': obj.review.rating,
                 'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
+                'is_liked_by_user': is_liked_by_user,
+                'user_genres': [{'id': g.id, 'name': g.name} for g in obj.review.user_genres.all()],
                 'album': {
                     'title': obj.review.album.title,
                     'artist': obj.review.album.artist,
@@ -126,6 +134,13 @@ class ActivitySerializer(serializers.ModelSerializer):
                     'is_staff': obj.review.user.is_staff
                 }
             }
+            
+            # Only include counts for friends feed, not for "you" or "incoming" feeds
+            if feed_type == 'friends':
+                review_data['likes_count'] = obj.review.likes.count()
+                review_data['comments_count'] = obj.review.comments.count()
+            
+            return review_data
         return None
     
     def get_comment_details(self, obj):

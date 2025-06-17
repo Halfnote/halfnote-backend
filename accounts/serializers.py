@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from music.models import Review
+from django.db.models import Count
 
 User = get_user_model()
 
@@ -11,19 +12,41 @@ class UserProfileSerializer(serializers.ModelSerializer):
     pinned_reviews = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
+    most_reviewed_genres = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'name', 'display_name',
-            'bio', 'location', 'avatar', 'favorite_genres', 'follower_count', 
-            'following_count', 'review_count', 'pinned_reviews', 'is_following', 'is_staff'
+            'bio', 'location', 'avatar', 'favorite_genres', 'most_reviewed_genres',
+            'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
+            'is_following', 'is_staff'
         ]
         read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
         return obj.name if obj.name else obj.username
+    
+    def get_most_reviewed_genres(self, obj):
+        """Get user's most reviewed genres with counts"""
+        from music.models import Genre
+        from django.db.models import Q
+        
+        genre_stats = Genre.objects.filter(
+            reviews__user=obj
+        ).annotate(
+            review_count=Count('reviews', filter=Q(reviews__user=obj))
+        ).order_by('-review_count')[:10]  # Top 10 genres
+        
+        return [
+            {
+                'id': genre.id,
+                'name': genre.name,
+                'count': genre.review_count
+            }
+            for genre in genre_stats
+        ]
     
     def to_representation(self, instance):
         """Convert favorite_genres from list of strings to list of objects for frontend"""
@@ -93,7 +116,21 @@ class UserFollowSerializer(serializers.ModelSerializer):
         return Review.objects.filter(user=obj).count()
 
 class UserSerializer(serializers.ModelSerializer):
+    follower_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar']
+        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count']
         read_only_fields = ['id', 'email']
+    
+    def get_follower_count(self, obj):
+        return obj.followers.count()
+    
+    def get_following_count(self, obj):
+        return obj.following.count()
+    
+    def get_review_count(self, obj):
+        from music.models import Review
+        return Review.objects.filter(user=obj).count()

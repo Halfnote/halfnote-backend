@@ -189,7 +189,7 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
   useEffect(() => {
     if (isVisible && reviewId) {
       loadReviewData();
-      loadGenres();
+      setAvailableGenres(COMMON_GENRES.map((name, index) => ({ id: index + 1, name })));
     }
   }, [isVisible, reviewId]);
 
@@ -214,14 +214,32 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
     }
   };
 
-  const loadGenres = async () => {
-    try {
-      const genresData = await musicAPI.getGenres();
-      setAvailableGenres(genresData.genres || genresData);
-    } catch (error) {
-      console.error('Error loading genres:', error);
-    }
-  };
+  // Hardcoded list of common music genres
+  const COMMON_GENRES = [
+    'Alternative',
+    'Blues',
+    'Classical',
+    'Country',
+    'Dance',
+    'Electronic',
+    'Folk',
+    'Funk',
+    'Hip-Hop',
+    'House',
+    'Indie',
+    'Jazz',
+    'Latin',
+    'Metal',
+    'Pop',
+    'Punk',
+    'R&B',
+    'Rap',
+    'Reggae',
+    'Rock',
+    'Soul',
+    'Techno',
+    'World'
+  ];
 
   const handleGenreToggle = (genreName: string) => {
     setFormData(prev => ({

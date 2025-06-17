@@ -15,6 +15,8 @@ import SearchResultsPage from './pages/SearchResultsPage';
 import ActivityPage from './pages/ActivityPage';
 import FollowersPage from './pages/FollowersPage';
 import FollowingPage from './pages/FollowingPage';
+import ReviewLikesPage from './pages/ReviewLikesPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -166,6 +168,8 @@ const AppRoutes: React.FC = () => {
               <ReviewDetailPage />
             </ProtectedRoute>
           } />
+          <Route path="/review/:reviewId/likes" element={<ReviewLikesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           
           {/* Catch all - redirect based on auth status */}
           <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />

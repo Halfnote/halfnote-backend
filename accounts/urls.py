@@ -12,6 +12,8 @@ urlpatterns = [
     path('users/<str:username>/follow/', views.follow_user, name='follow_user'),
     path('users/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),
     path('users/<str:username>/followers/', views.get_followers, name='get_followers'),
-    path('users/<str:username>/following/', views.get_following, name='get_following'),
+    path('users/<str:username>/following/', views.get_following, name='get-following'),
+    path('users/<str:username>/genre-stats/', views.user_genre_stats, name='user-genre-stats'),
+    path('users/<str:username>/debug/', views.debug_profile, name='debug-profile'),
     path('feed/', views.user_feed, name='user-feed'),
 ]

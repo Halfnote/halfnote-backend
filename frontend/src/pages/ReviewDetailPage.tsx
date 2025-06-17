@@ -109,9 +109,18 @@ const PipeSeparator = styled.span`
   margin: 0 4px;
 `;
 
-const LikeCount = styled.span`
+const LikeCount = styled.button`
+  background: none;
+  border: none;
   color: #666;
   font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  
+  &:hover {
+    color: #374151;
+    text-decoration: underline;
+  }
 `;
 
 const ReviewInfo = styled.div`
@@ -842,7 +851,9 @@ const ReviewDetailPage: React.FC = () => {
               {review!.likes_count > 0 && (
                 <>
                   <PipeSeparator>|</PipeSeparator>
-                  <LikeCount>❤️ {review!.likes_count} {review!.likes_count === 1 ? 'like' : 'likes'}</LikeCount>
+                  <LikeCount onClick={() => navigate(`/review/${review!.id}/likes`)}>
+                    ❤️ {review!.likes_count} {review!.likes_count === 1 ? 'like' : 'likes'}
+                  </LikeCount>
                 </>
               )}
             </UserLikeLine>

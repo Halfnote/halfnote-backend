@@ -239,6 +239,15 @@ export const musicAPI = {
     }
   },
   
+  getReviewLikesPage: async (reviewId: number, offset = 0) => {
+    try {
+      const response = await api.get(`/api/music/reviews/${reviewId}/likes/?offset=${offset}&include_review=true`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get review likes page');
+    }
+  },
+  
   pinReview: async (reviewId: number) => {
     try {
       const response = await api.post(`/api/music/reviews/${reviewId}/pin/`);
@@ -248,14 +257,7 @@ export const musicAPI = {
     }
   },
   
-  getGenres: async () => {
-    try {
-      const response = await api.get('/api/music/genres/');
-      return response.data; // Backend returns {genres: [...]}
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get genres');
-    }
-  },
+
   
   getActivityFeed: async (type: 'friends' | 'you' | 'incoming' = 'friends') => {
     try {
@@ -332,7 +334,7 @@ export const userAPI = {
     }
   },
   
-  updateProfile: async (data: FormData | { bio?: string; avatar?: File }) => {
+  updateProfile: async (data: FormData | { bio?: string; name?: string; location?: string; favorite_genres?: string[]; avatar?: File }) => {
     try {
       let formData: FormData;
       
@@ -342,6 +344,15 @@ export const userAPI = {
         formData = new FormData();
         if (data.bio !== undefined) {
           formData.append('bio', data.bio);
+        }
+        if (data.name !== undefined) {
+          formData.append('name', data.name);
+        }
+        if (data.location !== undefined) {
+          formData.append('location', data.location);
+        }
+        if (data.favorite_genres !== undefined) {
+          formData.append('favorite_genres', JSON.stringify(data.favorite_genres));
         }
         if (data.avatar) {
           formData.append('avatar', data.avatar);
@@ -401,6 +412,33 @@ export const userAPI = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'User search failed');
+    }
+  },
+
+  async getUserFollowing(username: string): Promise<any> {
+    try {
+      const response = await api.get(`/api/accounts/users/${username}/following/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get following');
+    }
+  },
+
+  async getUserGenreStats(username: string): Promise<any> {
+    try {
+      const response = await api.get(`/api/accounts/users/${username}/genre-stats/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get genre stats');
+    }
+  },
+
+  getReviewLikes: async (reviewId: number) => {
+    try {
+      const response = await api.get(`/api/music/reviews/${reviewId}/likes/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get review likes');
     }
   }
 };

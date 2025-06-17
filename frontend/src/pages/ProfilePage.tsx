@@ -199,6 +199,55 @@ const EditProfileButton = styled.button`
   }
 `;
 
+const GenreSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
+const GenreSectionTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 16px;
+`;
+
+const GenreStatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+`;
+
+const GenreStatItem = styled.div`
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #e9ecef;
+`;
+
+const GenreStatName = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 4px;
+`;
+
+const GenreStatCount = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #667eea;
+`;
+
+const EmptyGenreMessage = styled.div`
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 20px;
+`;
+
 const GenresList = styled.div`
   display: flex;
   gap: 8px;
@@ -745,6 +794,7 @@ interface User {
   following_count: number;
   review_count: number;
   favorite_genres: Array<{ id: number; name: string }>;
+  most_reviewed_genres?: Array<{ id: number; name: string; count: number }>;
   is_following?: boolean;
   is_staff?: boolean;
 }
@@ -764,6 +814,7 @@ interface Review {
   likes_count: number;
   comments_count: number;
   is_liked_by_user: boolean;
+  user_genres?: Array<{ id: number; name: string }>;
 }
 
 const ProfilePage: React.FC = () => {
@@ -863,14 +914,32 @@ const ProfilePage: React.FC = () => {
     }
   }, [username, loadProfile, loadReviews]);
 
-  const loadGenres = useCallback(async () => {
-    try {
-      const genresData = await musicAPI.getGenres();
-      setAvailableGenres(genresData.genres || []);
-    } catch (error) {
-      console.error('Error loading genres:', error);
-    }
-  }, []);
+  // Hardcoded list of common music genres
+  const COMMON_GENRES = [
+    'Alternative',
+    'Blues',
+    'Classical',
+    'Country',
+    'Dance',
+    'Electronic',
+    'Folk',
+    'Funk',
+    'Hip-Hop',
+    'House',
+    'Indie',
+    'Jazz',
+    'Latin',
+    'Metal',
+    'Pop',
+    'Punk',
+    'R&B',
+    'Rap',
+    'Reggae',
+    'Rock',
+    'Soul',
+    'Techno',
+    'World'
+  ];
 
   const handleFollow = async () => {
     if (!profileUser || !user) return;
@@ -897,7 +966,7 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleEditProfile = () => {
-    loadGenres();
+    setAvailableGenres(COMMON_GENRES.map((name, index) => ({ id: index + 1, name })));
     setSuccess('');
     setProfileError('');
     setShowEditModal(true);
@@ -1065,19 +1134,7 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleShowLikes = async (reviewId: number) => {
-    setLoadingLikes(true);
-    setShowLikesModal(true);
-    
-    try {
-      const data = await musicAPI.getReviewLikes(reviewId);
-      setLikesData(data);
-    } catch (error: any) {
-      console.error('Error loading likes:', error);
-      alert('Error loading likes');
-      setShowLikesModal(false);
-    } finally {
-      setLoadingLikes(false);
-    }
+    navigate(`/review/${reviewId}/likes`);
   };
 
   const renderReview = (review: Review) => (
@@ -1117,6 +1174,18 @@ const ProfilePage: React.FC = () => {
         <ReviewContent>
           {renderFormattedText(review.content)}
         </ReviewContent>
+        
+        {/* Show genres for this review */}
+        {review.user_genres && review.user_genres.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <GenresList>
+              {review.user_genres.map(genre => (
+                <GenreTag key={genre.id}>{genre.name}</GenreTag>
+              ))}
+            </GenresList>
+          </div>
+        )}
+        
         <ReviewBottomActions>
           <ReviewMeta>
             {getTimeAgo(review.created_at)}
@@ -1128,8 +1197,16 @@ const ProfilePage: React.FC = () => {
               disabled={likingReviews.has(review.id)}
               title={review.is_liked_by_user ? 'Unlike' : 'Like'}
             >
-              {likingReviews.has(review.id) ? '⏳' : '❤️'} {review.likes_count}
+              {likingReviews.has(review.id) ? '⏳' : '❤️'}
             </EngagementButton>
+            {review.likes_count > 0 && (
+              <EngagementButton 
+                onClick={() => handleShowLikes(review.id)}
+                title="See who liked this"
+              >
+                {review.likes_count} {review.likes_count === 1 ? 'like' : 'likes'}
+              </EngagementButton>
+            )}
             <EngagementButton 
               onClick={() => navigate(`/review/${review.id}/`)}
               title="View comments"
@@ -1300,6 +1377,23 @@ const ProfilePage: React.FC = () => {
         <TabContent>
           {activeTab === 'reviews' && (
             <>
+
+
+              {/* Most Reviewed Genres Section */}
+              {profileUser.most_reviewed_genres && profileUser.most_reviewed_genres.length > 0 && (
+                <GenreSection>
+                  <GenreSectionTitle>Most Reviewed Genres</GenreSectionTitle>
+                  <GenreStatsGrid>
+                    {profileUser.most_reviewed_genres.map(genre => (
+                      <GenreStatItem key={genre.name}>
+                        <GenreStatName>{genre.name}</GenreStatName>
+                        <GenreStatCount>{genre.count}</GenreStatCount>
+                      </GenreStatItem>
+                    ))}
+                  </GenreStatsGrid>
+                </GenreSection>
+              )}
+
               {/* Pinned Reviews Section */}
               {pinnedReviews.length > 0 && (
                 <ReviewsSection>

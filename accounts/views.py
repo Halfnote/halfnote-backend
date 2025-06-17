@@ -6,9 +6,10 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 import os
+from django.db import models
 
 from .serializers import UserProfileSerializer, UserFollowSerializer, UserSerializer
-from music.models import Review
+from music.models import Review, Genre
 from music.serializers import ReviewSerializer
 
 User = get_user_model()
@@ -82,19 +83,23 @@ def profile(request):
     if 'location' in request.data:
         data['location'] = request.data['location']
     
-    # Handle favorite_genres - parse JSON string to list of objects
+    # Handle favorite_genres - can be JSON string or list
     if 'favorite_genres' in request.data:
         try:
             import json
             raw_genres = request.data['favorite_genres']
-            genre_names = json.loads(raw_genres)
             
-            # Convert list of strings to list of objects for serializer
-            data['favorite_genres'] = [
-                {'id': hash(name) % 1000000, 'name': name} 
-                for name in genre_names
-            ]
-        except (json.JSONDecodeError, TypeError):
+            # Handle both JSON string and direct list
+            if isinstance(raw_genres, str):
+                genre_names = json.loads(raw_genres)
+            elif isinstance(raw_genres, list):
+                genre_names = raw_genres
+            else:
+                genre_names = []
+            
+            # Keep as list of strings - the serializer expects strings, not objects
+            data['favorite_genres'] = [name for name in genre_names if isinstance(name, str)]
+        except (json.JSONDecodeError, TypeError, ValueError):
             data['favorite_genres'] = []
     
     # Handle avatar file upload
@@ -105,9 +110,9 @@ def profile(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Invalidate all profile and activity caches after profile update
-        from music.cache_utils import invalidate_user_related_caches_on_profile_update
-        invalidate_user_related_caches_on_profile_update(request.user.id, request.user.username)
+        # Comprehensive cache invalidation for profile updates
+        from music.cache_utils import invalidate_comprehensive_profile_cache
+        invalidate_comprehensive_profile_cache(request.user.id, request.user.username)
         
         return Response(serializer.data)
     else:
@@ -145,9 +150,9 @@ def update_profile(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Invalidate all profile and activity caches after profile update
-        from music.cache_utils import invalidate_user_related_caches_on_profile_update
-        invalidate_user_related_caches_on_profile_update(request.user.id, request.user.username)
+        # Comprehensive cache invalidation for profile updates
+        from music.cache_utils import invalidate_comprehensive_profile_cache
+        invalidate_comprehensive_profile_cache(request.user.id, request.user.username)
         
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -176,10 +181,9 @@ def follow_user(request, username):
             target_user=user_to_follow
         )
         
-        # Invalidate activity feed caches
-        from music.cache_utils import invalidate_activity_cache
-        invalidate_activity_cache(request.user.id)  # Invalidate follower's feed
-        invalidate_activity_cache(user_to_follow.id)  # Invalidate target user's incoming feed
+        # Comprehensive cache invalidation for follow actions
+        from music.cache_utils import invalidate_on_follow_action
+        invalidate_on_follow_action(request.user.id, user_to_follow.id)
     
     return Response({'status': 'following'})
 
@@ -198,10 +202,9 @@ def unfollow_user(request, username):
         target_user=user_to_unfollow
     ).delete()
     
-    # Invalidate activity feed caches
-    from music.cache_utils import invalidate_activity_cache
-    invalidate_activity_cache(request.user.id)  # Invalidate unfollower's feed
-    invalidate_activity_cache(user_to_unfollow.id)  # Invalidate target user's incoming feed
+    # Comprehensive cache invalidation for unfollow actions
+    from music.cache_utils import invalidate_on_follow_action
+    invalidate_on_follow_action(request.user.id, user_to_unfollow.id)
     
     return Response({'status': 'unfollowed'})
 
@@ -340,8 +343,59 @@ def remove_avatar(request):
         user.avatar = None
         user.save()
         
-        # Invalidate all profile and activity caches after avatar removal
-        from music.cache_utils import invalidate_user_related_caches_on_profile_update
-        invalidate_user_related_caches_on_profile_update(user.id, user.username)
+        # Comprehensive cache invalidation for avatar removal (profile update)
+        from music.cache_utils import invalidate_comprehensive_profile_cache
+        invalidate_comprehensive_profile_cache(user.id, user.username)
     
     return Response({'message': 'Avatar removed successfully'})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_genre_stats(request, username):
+    """Get user's most reviewed genres"""
+    user = get_object_or_404(User, username=username)
+    
+    # Get genres from user's reviews with counts
+    from music.models import Genre
+    from django.db.models import Count
+    
+    genre_stats = Genre.objects.filter(
+        reviews__user=user
+    ).annotate(
+        review_count=Count('reviews', filter=models.Q(reviews__user=user))
+    ).order_by('-review_count')[:10]  # Top 10 genres
+    
+    stats_data = [
+        {
+            'name': genre.name,
+            'count': genre.review_count
+        }
+        for genre in genre_stats
+    ]
+    
+    return Response({
+        'username': username,
+        'genres': stats_data,
+        'total_reviews': user.album_reviews.count()
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_profile(request, username):
+    """Debug endpoint to test profile serialization"""
+    user = get_object_or_404(User, username=username)
+    
+    # Raw user data
+    raw_data = {
+        'username': user.username,
+        'favorite_genres_raw': user.favorite_genres,
+        'favorite_genres_type': type(user.favorite_genres).__name__,
+    }
+    
+    # Serialized data
+    serializer = UserProfileSerializer(user, context={'request': request})
+    
+    return Response({
+        'raw_data': raw_data,
+        'serialized_data': serializer.data
+    })

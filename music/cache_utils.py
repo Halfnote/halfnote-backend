@@ -292,4 +292,114 @@ def invalidate_user_related_caches_on_profile_update(user_id: int, username: str
         for follower_id in follower_ids:
             invalidate_activity_cache(follower_id)
     except User.DoesNotExist:
+        pass
+
+
+def invalidate_on_user_interaction(acting_user_id: int, target_user_id: int = None, review_owner_id: int = None) -> None:
+    """
+    Comprehensive cache invalidation for any user interaction that affects activity feeds.
+    This includes likes, comments, follows, unfollows, etc.
+    
+    Args:
+        acting_user_id: ID of the user performing the action
+        target_user_id: ID of the user being targeted (for follows/unfollows)
+        review_owner_id: ID of the user who owns the review being liked/commented on
+    """
+    # Always invalidate the acting user's activity cache
+    invalidate_activity_cache(acting_user_id)
+    
+    # If there's a target user (follow/unfollow), invalidate their incoming feed
+    if target_user_id:
+        invalidate_activity_cache(target_user_id)
+    
+    # If there's a review owner (like/comment), invalidate their incoming feed
+    if review_owner_id and review_owner_id != acting_user_id:
+        invalidate_activity_cache(review_owner_id)
+    
+    # Invalidate friends' feeds who follow the acting user
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        acting_user = User.objects.get(id=acting_user_id)
+        # Invalidate activity feeds of users who follow the acting user
+        follower_ids = acting_user.followers.values_list('id', flat=True)
+        for follower_id in follower_ids:
+            invalidate_activity_cache(follower_id)
+    except User.DoesNotExist:
+        pass
+
+
+def invalidate_on_review_action(review_id: int, acting_user_id: int) -> None:
+    """
+    Cache invalidation specifically for review-related actions (like, unlike, comment)
+    
+    Args:
+        review_id: ID of the review being acted upon
+        acting_user_id: ID of the user performing the action
+    """
+    from music.models import Review
+    try:
+        review = Review.objects.select_related('user').get(id=review_id)
+        review_owner_id = review.user.id
+        
+        # Use the comprehensive invalidation function
+        invalidate_on_user_interaction(
+            acting_user_id=acting_user_id,
+            review_owner_id=review_owner_id
+        )
+        
+        # Also invalidate the specific review cache
+        invalidate_review_cache(review_id)
+        
+    except Review.DoesNotExist:
+        # Still invalidate the acting user's cache even if review not found
+        invalidate_activity_cache(acting_user_id)
+
+
+def invalidate_on_follow_action(acting_user_id: int, target_user_id: int) -> None:
+    """
+    Cache invalidation specifically for follow/unfollow actions
+    
+    Args:
+        acting_user_id: ID of the user doing the following/unfollowing
+        target_user_id: ID of the user being followed/unfollowed
+    """
+    # Use the comprehensive invalidation function
+    invalidate_on_user_interaction(
+        acting_user_id=acting_user_id,
+        target_user_id=target_user_id
+    )
+    
+    # Also invalidate following/followers caches
+    cache.delete(f"user_following:{acting_user_id}")
+    cache.delete(f"user_followers:{target_user_id}")
+
+
+def invalidate_comprehensive_profile_cache(user_id: int, username: str) -> None:
+    """
+    Most comprehensive profile cache invalidation - use this for any profile-related change
+    """
+    # Invalidate basic profile caches
+    invalidate_profile_cache(user_id, username)
+    
+    # Invalidate user's own activity feeds
+    invalidate_activity_cache(user_id)
+    
+    # Invalidate all related user caches
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Invalidate caches for all followers (their friends feed will show updated profile)
+        follower_ids = user.followers.values_list('id', flat=True)
+        for follower_id in follower_ids:
+            invalidate_activity_cache(follower_id)
+        
+        # Invalidate caches for all users this user follows (their incoming feed)  
+        following_ids = user.following.values_list('id', flat=True)
+        for following_id in following_ids:
+            invalidate_activity_cache(following_id)
+            
+    except User.DoesNotExist:
         pass 

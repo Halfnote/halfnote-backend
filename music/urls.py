@@ -5,8 +5,7 @@ urlpatterns = [
     # Search endpoint - searches Discogs
     path('search/', views.search, name='album-search'),
     
-    # Genres endpoint
-    path('genres/', views.list_genres, name='genres-list'),
+
     
     # Unified album view - handles both database and Discogs preview
     path('albums/<str:discogs_id>/', views.unified_album_view, name='album-detail'),
@@ -23,7 +22,7 @@ urlpatterns = [
     # Like/unlike review endpoint
     path('reviews/<int:review_id>/like/', views.like_review, name='like-review'),
     
-    # Get review likes endpoint
+    # Get review likes endpoint (with optional pagination and review details)
     path('reviews/<int:review_id>/likes/', views.review_likes, name='review-likes'),
     
     # Activity feed endpoint

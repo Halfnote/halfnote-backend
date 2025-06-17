@@ -224,6 +224,38 @@ const NoActivity = styled.div`
   }
 `;
 
+const ActivityEngagement = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+`;
+
+const EngagementButton = styled.button<{ $active?: boolean }>`
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: ${props => props.$active ? '#ef4444' : '#6b7280'};
+  transition: color 0.2s ease;
+  padding: 4px;
+  border-radius: 4px;
+  
+  &:hover:not(:disabled) {
+    color: ${props => props.$active ? '#dc2626' : '#374151'};
+    background: #f9fafb;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 interface Activity {
   id: number;
   user: {
@@ -248,6 +280,10 @@ interface Activity {
     };
     rating: number;
     content: string;
+    likes_count: number;
+    is_liked_by_user: boolean;
+    comments_count: number;
+    user_genres: Array<{ id: number; name: string }>;
     user: {
       username: string;
       avatar?: string;
@@ -268,6 +304,7 @@ const ActivityPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'friends' | 'you' | 'incoming'>('friends');
+  const [likingReviews, setLikingReviews] = useState<Set<number>>(new Set());
 
   const loadActivities = useCallback(async () => {
     if (!user) return;
@@ -304,6 +341,41 @@ const ActivityPage: React.FC = () => {
       return 'Just now';
     } catch (error) {
       return 'Unknown time';
+    }
+  };
+
+  const handleLikeReview = async (reviewId: number, currentlyLiked: boolean) => {
+    if (!user || likingReviews.has(reviewId)) return;
+    
+    setLikingReviews(prev => new Set(prev).add(reviewId));
+    
+    try {
+      await musicAPI.likeReview(reviewId);
+      
+      // Update the activity's review details
+      setActivities(prev => prev.map(activity => {
+        if (activity.review_details?.id === reviewId) {
+          return {
+            ...activity,
+            review_details: {
+              ...activity.review_details,
+              is_liked_by_user: !currentlyLiked,
+              likes_count: currentlyLiked 
+                ? activity.review_details.likes_count - 1 
+                : activity.review_details.likes_count + 1
+            }
+          };
+        }
+        return activity;
+      }));
+    } catch (error) {
+      console.error('Error liking review:', error);
+    } finally {
+      setLikingReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
     }
   };
 
@@ -564,6 +636,26 @@ const ActivityPage: React.FC = () => {
                   <CommentContent>
                     "{activity.comment_details.content}"
                   </CommentContent>
+                )}
+                
+                {/* Show engagement buttons for reviews - only in Friends tab */}
+                {activity.review_details && user && activeTab === 'friends' && (
+                  <ActivityEngagement>
+                    <EngagementButton 
+                      $active={activity.review_details.is_liked_by_user}
+                      onClick={() => handleLikeReview(activity.review_details!.id, activity.review_details!.is_liked_by_user)}
+                      disabled={likingReviews.has(activity.review_details.id)}
+                      title={activity.review_details.is_liked_by_user ? 'Unlike' : 'Like'}
+                    >
+                      {likingReviews.has(activity.review_details.id) ? '⏳' : '❤️'} {activity.review_details.likes_count}
+                    </EngagementButton>
+                    <EngagementButton 
+                      onClick={() => navigate(`/review/${activity.review_details!.id}/`)}
+                      title="View comments"
+                    >
+                      💬 {activity.review_details.comments_count}
+                    </EngagementButton>
+                  </ActivityEngagement>
                 )}
               </ActivityContent>
               

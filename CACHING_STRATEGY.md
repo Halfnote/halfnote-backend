@@ -182,30 +182,63 @@ def get_user_reviews(user_id):
 
 ## Cache Invalidation Strategy
 
-### Smart Invalidation
+### Comprehensive Smart Invalidation
 
-The system implements intelligent cache invalidation to maintain data consistency:
+The system implements **comprehensive intelligent cache invalidation** to maintain data consistency across all user interactions. Any action that affects activity feeds or user profiles triggers appropriate cache invalidation.
+
+#### User Interaction Cache Invalidation
+
+**Comprehensive coverage for all user interactions:**
 
 ```python
-def create_activity(activity_type, user, **kwargs):
-    """Create activity and invalidate affected caches"""
-    activity = Activity.objects.create(
-        activity_type=activity_type,
-        user=user,
-        **kwargs
-    )
+def invalidate_on_user_interaction(acting_user_id, target_user_id=None, review_owner_id=None):
+    """
+    Comprehensive cache invalidation for any user interaction.
+    Covers: likes, comments, follows, unfollows, reviews, etc.
+    """
+    # Always invalidate the acting user's activity cache
+    invalidate_activity_cache(acting_user_id)
     
-    # Invalidate user's activity feed
-    cache_key = f"activity_feed:user:{user.id}"
-    cache.delete(cache_key)
+    # Invalidate target user's cache if applicable
+    if target_user_id:
+        invalidate_activity_cache(target_user_id)
     
-    # Invalidate target user's feed if applicable
-    if 'target_user' in kwargs:
-        target_cache_key = f"activity_feed:user:{kwargs['target_user'].id}"
-        cache.delete(target_cache_key)
+    # Invalidate review owner's cache if applicable  
+    if review_owner_id and review_owner_id != acting_user_id:
+        invalidate_activity_cache(review_owner_id)
     
-    return activity
+    # Invalidate followers' feeds who see this user's activity
+    acting_user = User.objects.get(id=acting_user_id)
+    follower_ids = acting_user.followers.values_list('id', flat=True)
+    for follower_id in follower_ids:
+        invalidate_activity_cache(follower_id)
 ```
+
+#### Specific Invalidation Triggers
+
+**Review Actions (Like/Unlike/Comment):**
+- ✅ Acting user's activity feeds (all types: friends, you, incoming)  
+- ✅ Review owner's activity feeds (incoming feed shows the interaction)
+- ✅ Followers of acting user (their friends feed shows the action)
+- ✅ Review-specific cache entries
+
+**Follow/Unfollow Actions:**
+- ✅ Acting user's activity feeds 
+- ✅ Target user's activity feeds (incoming feed shows new follower)
+- ✅ Followers of acting user (their friends feed shows follow action)
+- ✅ Following/followers count caches
+
+**Profile Updates (bio, avatar, name, location, genres):**
+- ✅ User's own profile cache
+- ✅ User's activity feeds (all types)
+- ✅ Followers' activity feeds (updated profile info in their friends feed)
+- ✅ Following users' activity feeds (updated profile info in their incoming feed)
+
+**Review Creation/Edit/Delete:**
+- ✅ Acting user's activity feeds
+- ✅ Followers' activity feeds (friends feed shows new/updated reviews)
+- ✅ Review-specific cache entries
+- ✅ Album-related cache entries
 
 ### Profile Cache Invalidation
 

@@ -103,13 +103,7 @@ def search(request):
         logger.error(f"Search error: {str(e)}")
         return Response({'error': 'Search failed', 'details': str(e)}, status=500)
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def list_genres(request):
-    """Get all available genres"""
-    genres = Genre.objects.all().order_by('name')
-    serializer = GenreSerializer(genres, many=True)
-    return Response({'genres': serializer.data})
+
 
 
 
@@ -241,6 +235,10 @@ def create_review(request, discogs_id):
         # Create activity for new review
         create_activity('review_created', request.user, review=review)
         
+        # Comprehensive cache invalidation for new reviews
+        from .cache_utils import invalidate_on_user_interaction
+        invalidate_on_user_interaction(acting_user_id=request.user.id)
+        
         # Invalidate relevant caches
         invalidate_album_cache(discogs_id)
         invalidate_user_cache(request.user.username)
@@ -307,6 +305,10 @@ def edit_review(request, review_id):
             all_review_genres = Genre.objects.filter(reviews__album=album).distinct()
             album.genres.set(all_review_genres)
             
+            # Comprehensive cache invalidation for review updates
+            from .cache_utils import invalidate_on_user_interaction
+            invalidate_on_user_interaction(acting_user_id=request.user.id)
+            
             # Return response with warnings if needed
             response_data = ReviewSerializer(review).data
             if invalid_genres:
@@ -315,6 +317,10 @@ def edit_review(request, review_id):
                     'valid_genres_accepted': valid_genres
                 }
             return Response(response_data)
+        
+        # Comprehensive cache invalidation for review updates
+        from .cache_utils import invalidate_on_user_interaction
+        invalidate_on_user_interaction(acting_user_id=request.user.id)
         
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
@@ -327,6 +333,10 @@ def edit_review(request, review_id):
         album.genres.clear()
         all_review_genres = Genre.objects.filter(reviews__album=album).distinct()
         album.genres.set(all_review_genres)
+        
+        # Comprehensive cache invalidation for review deletion
+        from .cache_utils import invalidate_on_user_interaction
+        invalidate_on_user_interaction(acting_user_id=request.user.id)
         
         return Response({"message": "Review deleted successfully"}, status=200)
 
@@ -360,6 +370,10 @@ def pin_review(request, review_id):
     # Create activity for pinning
     if review.is_pinned:
         create_activity('review_pinned', request.user, review=review)
+    
+    # Comprehensive cache invalidation for review pinning
+    from .cache_utils import invalidate_on_user_interaction
+    invalidate_on_user_interaction(acting_user_id=request.user.id)
     
     return Response({
         "message": f"Review {action} successfully",
@@ -422,6 +436,10 @@ def like_review(request, review_id):
         create_activity('review_liked', request.user, target_user=review.user, review=review)
         action = "liked"
     
+    # Comprehensive cache invalidation for review interactions
+    from .cache_utils import invalidate_on_review_action
+    invalidate_on_review_action(review_id, request.user.id)
+    
     return Response({
         "message": f"Review {action} successfully",
         "is_liked": created,
@@ -432,24 +450,53 @@ def like_review(request, review_id):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def review_likes(request, review_id):
-    """Get users who liked a review"""
+    """Get users who liked a review with optional pagination and review details"""
     try:
-        review = Review.objects.get(id=review_id)
+        review = Review.objects.select_related('user', 'album').get(id=review_id)
     except Review.DoesNotExist:
         return Response({"error": "Review not found"}, status=404)
+
+    # Get pagination parameters
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 20))
+    include_review = request.GET.get('include_review', 'false').lower() == 'true'
+
+    # Get users who liked this review with pagination
+    likes = ReviewLike.objects.filter(review=review).select_related('user').order_by('-created_at')
+    total_likes = likes.count()
     
-    # Get users who liked this review
-    likes = ReviewLike.objects.filter(review=review).select_related('user')
-    users = [like.user for like in likes]
-    
-    # Use a simple serializer for user data
+    # Apply pagination if offset/limit provided
+    if offset > 0 or limit < total_likes:
+        paginated_likes = likes[offset:offset + limit]
+    else:
+        paginated_likes = likes
+
+    # Serialize user data
     from accounts.serializers import UserSerializer
-    serializer = UserSerializer(users, many=True)
-    
-    return Response({
-        'users': serializer.data,
-        'count': len(users)
-    })
+    users = [like.user for like in paginated_likes]
+    users_data = UserSerializer(users, many=True).data
+
+    response_data = {
+        'users': users_data,
+        'total_count': total_likes,
+        'has_more': total_likes > offset + limit,
+        'next_offset': offset + limit if total_likes > offset + limit else None
+    }
+
+    # Include review details if requested
+    if include_review:
+        response_data['review'] = {
+            'id': review.id,
+            'username': review.user.username,
+            'album_title': review.album.title,
+            'album_artist': review.album.artist,
+            'album_cover': review.album.cover_url,
+            'rating': review.rating,
+            'content': review.content,
+            'created_at': review.created_at
+        }
+
+    return Response(response_data)
 
 
 @api_view(['GET'])
@@ -489,7 +536,7 @@ def activity_feed(request):
         following_users = request.user.following.all()
         activities = base_queryset.filter(user__in=following_users).exclude(activity_type='review_pinned')[:50]
     
-    serializer = ActivitySerializer(activities, many=True)
+    serializer = ActivitySerializer(activities, many=True, context={'request': request, 'feed_type': feed_type})
     serialized_data = serializer.data
     
     # Cache the result for 3 minutes (activity feeds change frequently)
@@ -547,6 +594,10 @@ def review_comments(request, review_id):
             comment=comment
         )
         
+        # Comprehensive cache invalidation for review interactions
+        from .cache_utils import invalidate_on_review_action
+        invalidate_on_review_action(review.id, request.user.id)
+        
         return Response(CommentSerializer(comment).data, status=201)
 
 
@@ -573,12 +624,15 @@ def edit_comment(request, comment_id):
         comment.content = content
         comment.save()
         
-        # Update the comment in any related activities (the serializer will automatically get the new content)
-        # No need to do anything special here as the ActivitySerializer will fetch the latest comment content
+        # Comprehensive cache invalidation for comment updates
+        from .cache_utils import invalidate_on_review_action
+        invalidate_on_review_action(comment.review.id, request.user.id)
         
         return Response(CommentSerializer(comment).data)
     
     elif request.method == 'DELETE':
+        review_id = comment.review.id
+        
         # Remove the comment activity from the feed
         Activity.objects.filter(
             user=request.user,
@@ -587,6 +641,11 @@ def edit_comment(request, comment_id):
         ).delete()
         
         comment.delete()
+        
+        # Comprehensive cache invalidation for comment deletion
+        from .cache_utils import invalidate_on_review_action
+        invalidate_on_review_action(review_id, request.user.id)
+        
         return Response({"message": "Comment deleted successfully"}, status=200)
 
 
@@ -620,4 +679,6 @@ def delete_activity(request, activity_id):
     # Delete the activity
     activity.delete()
     
-    return Response({"message": "Activity deleted successfully"}, status=200) 
+    return Response({"message": "Activity deleted successfully"}, status=200)
+
+ 

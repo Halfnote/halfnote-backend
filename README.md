@@ -283,6 +283,54 @@ await fetch('/api/music/reviews/123/like/', {
 });
 ```
 
+### Get Review Likes
+**GET** `/api/music/reviews/{review_id}/likes/?offset={offset}&limit={limit}&include_review={true|false}`
+
+**Query Parameters:**
+- `offset` (optional): Starting position for pagination (default: 0)
+- `limit` (optional): Number of results per page (default: 20)
+- `include_review` (optional): Include review details in response (default: false)
+
+```javascript
+// Simple likes data
+const simpleLikes = await fetch('/api/music/reviews/123/likes/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+}).then(res => res.json());
+
+// Paginated likes with review details (for likes page UI)
+const likesPageData = await fetch('/api/music/reviews/123/likes/?offset=0&limit=20&include_review=true', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+}).then(res => res.json());
+
+// Returns (with include_review=true):
+// {
+//   "review": {
+//     "id": 123,
+//     "username": "reviewer",
+//     "album_title": "OK Computer",
+//     "album_artist": "Radiohead",
+//     "album_cover": "https://...",
+//     "rating": 9,
+//     "content": "Amazing album...",
+//     "created_at": "2024-01-15T10:30:00Z"
+//   },
+//   "users": [
+//     {
+//       "id": 1,
+//       "username": "musiclover",
+//       "name": "John Doe",
+//       "avatar": "https://...",
+//       "follower_count": 25,
+//       "following_count": 30,
+//       "review_count": 12
+//     }
+//   ],
+//   "total_count": 1,
+//   "has_more": false,
+//   "next_offset": null
+// }
+```
+
 ## 💬 Comments
 
 ### Get Review Comments
@@ -770,6 +818,17 @@ The API serves a complete web application with responsive design and modern UX:
 - **Edit Modal**: In-place editing with genre selection grid
 - **Responsive**: Adapts beautifully to mobile devices
 
+### 👥 Review Likes Pages (`/review/{id}/likes/`)
+- **Clean User Display**: Shows users who liked a review in a grid layout
+- **User Stats**: Displays follower count, following count, and review count for each user
+- **Username Format**: Shows display name and @username for clear identification
+- **Profile Links**: Clickable user cards that navigate to user profiles
+- **Pagination**: Load more users with smooth scrolling
+- **Review Context**: Shows review details at the top (album, artist, reviewer without rating text)
+- **Minimalist Design**: Focuses on user statistics instead of bio text for cleaner presentation
+- **Responsive Grid**: Adapts to different screen sizes with auto-fill columns
+- **Data Available**: While bio and location data are available in the API, the UI shows only stats for better UX
+
 ### 🔍 Search & Discovery (`/search/`)
 - **Discogs Integration**: Search vast music database
 - **Rich Results**: Album covers, artist info, release years
@@ -873,6 +932,7 @@ For optimal performance in production, configure Redis Cloud:
 | DELETE | `/api/music/reviews/{review_id}/` | Delete review (own only) | Yes |
 | POST | `/api/music/reviews/{review_id}/pin/` | Toggle pin status (own only) | Yes |
 | POST | `/api/music/reviews/{review_id}/like/` | Toggle like status | Yes |
+| GET | `/api/music/reviews/{review_id}/likes/` | Get review likes (with optional pagination & review details) | Optional |
 
 ### Comment Endpoints
 | Method | Endpoint | Description | Auth Required |
@@ -991,6 +1051,8 @@ async function apiCall(url, options = {}) {
 - **Pagination**: Efficient loading of large comment threads
 - **Real-time Updates**: Immediate UI feedback for all interactions
 - **Permission-based Actions**: Users can only edit/delete their own content
+- **Review Likes Pages**: Dedicated pages showing users who liked reviews with user stats (followers, following, review count)
+- **Enhanced User Display**: Clean user cards with @username format and social statistics instead of bio text
 
 ### 📊 Activity & Social Features
 - **Multi-view Activity Feed**: Friends, personal, and incoming activity streams
@@ -1016,6 +1078,7 @@ async function apiCall(url, options = {}) {
 
 ### 🔧 Technical Architecture
 - **Django REST Framework**: Robust API with serializers and viewsets
+- **Enhanced User Serializers**: UserSerializer now includes follower_count, following_count, and review_count for comprehensive user statistics
 - **PostgreSQL**: Reliable database with proper indexing
 - **Modern JavaScript**: ES6+ features, async/await, fetch API
 - **CSS Grid & Flexbox**: Modern layout techniques
