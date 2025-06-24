@@ -7,6 +7,7 @@ A comprehensive Django-based API for music reviews and social features, inspired
 - **🔐 User Authentication & Profiles**: JWT-based auth with customizable user profiles, avatars, and bios
 - **🎼 Music Discovery**: Search albums via Discogs API integration with rich metadata
 - **⭐ Review System**: Rate albums (1-10 scale), write detailed reviews, pin favorites, edit/delete reviews with slider UI
+- **📝 Lists & Collections**: Create and manage custom album lists, like/unlike lists, browse public lists
 - **👥 Social Features**: Follow users, activity feeds, like reviews, comment threads
 - **🏷️ Genre Tagging**: User-assigned genres for personalized organization and discovery
 - **💬 Comments & Interactions**: Threaded comments, edit/delete own comments, pagination
@@ -386,6 +387,262 @@ await fetch('/api/music/comments/456/', {
   method: 'DELETE',
   headers: { 'Authorization': `Bearer ${authToken}` }
 });
+```
+
+## 📝 Lists
+
+### Get Public Lists
+**GET** `/api/music/lists/?offset={offset}&limit={limit}`
+
+**Query Parameters:**
+- `offset` (optional): Starting position for pagination (default: 0)
+- `limit` (optional): Number of results per page (default: 20)
+
+```javascript
+const publicLists = await fetch('/api/music/lists/?offset=0&limit=20', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns:
+// {
+//   "lists": [
+//     {
+//       "id": 1,
+//       "name": "Best Albums of 2024",
+//       "description": "My favorite releases this year",
+//       "user": {
+//         "username": "musiclover",
+//         "avatar": "https://..."
+//       },
+//       "album_count": 15,
+//       "likes_count": 8,
+//       "is_liked_by_user": false,
+//       "is_public": true,
+//       "created_at": "2024-01-15T10:30:00Z",
+//       "updated_at": "2024-01-20T14:22:00Z"
+//     }
+//   ],
+//   "total_count": 42,
+//   "has_more": true,
+//   "next_offset": 20
+// }
+```
+
+### Create a List
+**POST** `/api/music/lists/`
+
+```javascript
+const newList = await fetch('/api/music/lists/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Best Jazz Albums',
+    description: 'Essential jazz recordings every music lover should hear', // Optional
+    is_public: true
+  })
+})
+.then(res => res.json());
+
+// Returns the created list with full details
+```
+
+### Get List Details
+**GET** `/api/music/lists/{list_id}/`
+
+```javascript
+const listDetails = await fetch('/api/music/lists/123/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns detailed list with albums:
+// {
+//   "id": 123,
+//   "name": "Best Jazz Albums",
+//   "description": "Essential jazz recordings...",
+//   "user": {
+//     "username": "jazzlover",
+//     "avatar": "https://..."
+//   },
+//   "items": [
+//     {
+//       "id": 1,
+//       "order": 1,
+//       "album": {
+//         "id": 456,
+//         "title": "Kind of Blue",
+//         "artist": "Miles Davis",
+//         "year": 1959,
+//         "cover_url": "https://...",
+//         "discogs_id": 12345,
+//         "user_review_id": 789 // If user has reviewed this album
+//       }
+//     }
+//   ],
+//   "album_count": 10,
+//   "likes_count": 25,
+//   "is_liked_by_user": true,
+//   "is_public": true,
+//   "created_at": "2024-01-15T10:30:00Z",
+//   "updated_at": "2024-01-20T14:22:00Z"
+// }
+```
+
+### Update a List
+**PUT** `/api/music/lists/{list_id}/`
+
+```javascript
+await fetch('/api/music/lists/123/', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Essential Jazz Albums',
+    description: 'Updated description with more context...',
+    is_public: false
+  })
+});
+
+// Only the list owner can update
+```
+
+### Delete a List
+**DELETE** `/api/music/lists/{list_id}/`
+
+```javascript
+await fetch('/api/music/lists/123/', {
+  method: 'DELETE',
+  headers: { 'Authorization': `Bearer ${authToken}` }
+});
+
+// Only the list owner can delete
+```
+
+### Add Album to List
+**POST** `/api/music/lists/{list_id}/albums/`
+
+```javascript
+// Add album by Discogs ID (most common - imports if needed)
+await fetch('/api/music/lists/123/albums/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    discogs_id: 12345
+  })
+});
+
+// Or add existing album by internal ID
+await fetch('/api/music/lists/123/albums/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    album_id: 456
+  })
+});
+
+// Returns the created list item with album details
+```
+
+### Remove Album from List
+**DELETE** `/api/music/lists/{list_id}/albums/`
+
+```javascript
+// Remove by Discogs ID
+await fetch('/api/music/lists/123/albums/', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    discogs_id: 12345
+  })
+});
+
+// Or remove by internal album ID
+await fetch('/api/music/lists/123/albums/', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    album_id: 456
+  })
+});
+```
+
+### Like/Unlike a List
+**POST** `/api/music/lists/{list_id}/like/`
+
+```javascript
+// Toggles like status
+const response = await fetch('/api/music/lists/123/like/', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns: { "status": "liked", "likes_count": 26 }
+// or: { "status": "unliked", "likes_count": 24 }
+```
+
+### Get List Likes
+**GET** `/api/music/lists/{list_id}/likes/?offset={offset}&limit={limit}`
+
+**Query Parameters:**
+- `offset` (optional): Starting position for pagination (default: 0)
+- `limit` (optional): Number of results per page (default: 20)
+
+```javascript
+const listLikes = await fetch('/api/music/lists/123/likes/?offset=0&limit=20', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns:
+// {
+//   "users": [
+//     {
+//       "id": 1,
+//       "username": "musicfan",
+//       "name": "John Smith",
+//       "avatar": "https://...",
+//       "follower_count": 45,
+//       "following_count": 32,
+//       "review_count": 28
+//     }
+//   ],
+//   "total_count": 15,
+//   "has_more": false,
+//   "next_offset": null
+// }
+```
+
+### Get User's Lists
+**GET** `/api/music/users/{username}/lists/`
+
+```javascript
+const userLists = await fetch('/api/music/users/musiclover/lists/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Returns array of user's lists
+// - Shows all lists if viewing own profile
+// - Shows only public lists if viewing others
 ```
 
 ## 📈 Activity Feed
