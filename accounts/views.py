@@ -121,12 +121,23 @@ def profile(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_reviews(request, username):
-    """Get all reviews by a specific user"""
+    """Get all reviews by a specific user - with caching optimization"""
     try:
-        user = User.objects.get(username=username)
-        reviews = Review.objects.filter(user=user).order_by('-created_at')
-        serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data)
+        # Try to get cached reviews first
+        from music.cache_utils import cache_key_for_user_reviews, cache_expensive_query
+        
+        cache_key = cache_key_for_user_reviews(username)
+        
+        def get_user_reviews():
+            user = User.objects.get(username=username)
+            reviews = Review.objects.filter(user=user).select_related('album', 'user').order_by('-created_at')
+            serializer = ReviewSerializer(reviews, many=True, context={'request': request})
+            return serializer.data
+        
+        # Cache for 10 minutes (600 seconds) - balance between freshness and performance
+        cached_data = cache_expensive_query(cache_key, get_user_reviews, timeout=600)
+        
+        return Response(cached_data)
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 

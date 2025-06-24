@@ -15,6 +15,28 @@ def cache_key_for_user_reviews(username):
     return f"user_reviews:{username}"
 
 
+def cache_key_for_user_activity(username):
+    """Generate cache key for user activity/profile activity"""
+    return f"user_activity:{username}"
+
+
+def cache_key_for_user_lists(username):
+    """Generate cache key for user lists"""
+    return f"user_lists:{username}"
+
+
+def cache_user_profile_data(username: str, data: dict, timeout: int = 600) -> None:
+    """Cache user profile activity data (10 minute timeout)"""
+    cache_key = cache_key_for_user_reviews(username)
+    cache.set(cache_key, data, timeout)
+
+
+def get_cached_user_profile_data(username: str) -> Optional[dict]:
+    """Get cached user profile activity data"""
+    cache_key = cache_key_for_user_reviews(username)
+    return cache.get(cache_key)
+
+
 def cache_key_for_album_details(discogs_id):
     """Generate cache key for album details"""
     return f"album_details:{discogs_id}"
@@ -261,6 +283,10 @@ def invalidate_profile_cache(user_id: int, username: str) -> None:
     """Invalidate all profile-related cache entries for a user"""
     # Invalidate user reviews cache
     cache.delete(cache_key_for_user_reviews(username))
+    
+    # Invalidate user activity and lists cache
+    cache.delete(cache_key_for_user_activity(username))
+    cache.delete(cache_key_for_user_lists(username))
     
     # Invalidate profile-specific cache keys
     cache.delete(f"profile:{user_id}")

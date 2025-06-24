@@ -719,6 +719,11 @@ def lists_view(request):
         serializer = ListSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             list_obj = serializer.save(user=request.user)
+            
+            # Invalidate user lists cache after creating new list
+            from .cache_utils import invalidate_profile_cache
+            invalidate_profile_cache(request.user.id, request.user.username)
+            
             return Response(ListSerializer(list_obj, context={'request': request}).data, status=201)
         return Response(serializer.errors, status=400)
 
@@ -750,6 +755,11 @@ def list_detail(request, list_id):
         serializer = ListSerializer(list_obj, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            
+            # Invalidate user lists cache after updating list
+            from .cache_utils import invalidate_profile_cache
+            invalidate_profile_cache(request.user.id, request.user.username)
+            
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
     
@@ -757,6 +767,10 @@ def list_detail(request, list_id):
         # Delete list - only owner can delete
         if not request.user.is_authenticated or list_obj.user != request.user:
             return Response({"error": "Permission denied"}, status=403)
+        
+        # Invalidate user lists cache before deleting list
+        from .cache_utils import invalidate_profile_cache
+        invalidate_profile_cache(request.user.id, request.user.username)
         
         list_obj.delete()
         return Response({"message": "List deleted successfully"}, status=200)
@@ -812,6 +826,10 @@ def list_albums(request, list_id):
         # Update list's updated_at
         list_obj.save()
         
+        # Invalidate user lists cache after adding album to list
+        from .cache_utils import invalidate_profile_cache
+        invalidate_profile_cache(request.user.id, request.user.username)
+        
         return Response(ListItemSerializer(list_item).data, status=201)
     
     elif request.method == 'DELETE':
@@ -834,6 +852,10 @@ def list_albums(request, list_id):
             
             # Update list's updated_at
             list_obj.save()
+            
+            # Invalidate user lists cache after removing album from list
+            from .cache_utils import invalidate_profile_cache
+            invalidate_profile_cache(request.user.id, request.user.username)
             
             return Response({"message": "Album removed from list"}, status=200)
         except (ListItem.DoesNotExist, Album.DoesNotExist):
@@ -907,7 +929,7 @@ def list_likes(request, list_id):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_lists(request, username):
-    """Get all lists by a specific user"""
+    """Get all lists by a specific user - with caching optimization"""
     try:
         from django.contrib.auth import get_user_model
         User = get_user_model()
@@ -915,18 +937,31 @@ def user_lists(request, username):
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=404)
     
-    # Get user's lists (public lists, or all lists if it's their own profile)
-    if request.user.is_authenticated and request.user == user:
-        lists = List.objects.filter(user=user)
-    else:
-        lists = List.objects.filter(user=user, is_public=True)
+    # Try to get cached lists first
+    from .cache_utils import cache_key_for_user_lists, cache_expensive_query
     
-    lists = lists.select_related('user').prefetch_related(
-        'items__album', 'likes'
-    ).order_by('-updated_at')
+    # Create different cache keys for public vs private views
+    is_owner = request.user.is_authenticated and request.user == user
+    cache_key = f"{cache_key_for_user_lists(username)}:{'private' if is_owner else 'public'}"
     
-    serializer = ListSummarySerializer(lists, many=True, context={'request': request})
-    return Response(serializer.data)
+    def get_user_lists():
+        # Get user's lists (public lists, or all lists if it's their own profile)
+        if is_owner:
+            lists = List.objects.filter(user=user)
+        else:
+            lists = List.objects.filter(user=user, is_public=True)
+        
+        lists = lists.select_related('user').prefetch_related(
+            'items__album', 'likes'
+        ).order_by('-updated_at')
+        
+        serializer = ListSummarySerializer(lists, many=True, context={'request': request})
+        return serializer.data
+    
+    # Cache for 8 minutes (480 seconds) - slightly shorter than reviews since lists change more frequently
+    cached_data = cache_expensive_query(cache_key, get_user_lists, timeout=480)
+    
+    return Response(cached_data)
 
 
 @api_view(['GET'])
