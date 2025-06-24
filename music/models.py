@@ -140,4 +140,56 @@ class Comment(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.user.username} commented on {self.review.user.username}'s review" 
+        return f"{self.user.username} commented on {self.review.user.username}'s review"
+
+
+class List(models.Model):
+    """User-created lists of albums"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='lists')
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, max_length=500)
+    albums = models.ManyToManyField(Album, through='ListItem', related_name='lists')
+    is_public = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user', '-updated_at']),
+            models.Index(fields=['is_public', '-updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username}'s list: {self.name}"
+
+
+class ListItem(models.Model):
+    """Through model for List-Album relationship with ordering"""
+    list = models.ForeignKey(List, on_delete=models.CASCADE, related_name='items')
+    album = models.ForeignKey(Album, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField(default=0)
+    added_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ('list', 'album')
+        ordering = ['order', 'added_at']
+        indexes = [
+            models.Index(fields=['list', 'order']),
+        ]
+    
+    def __str__(self):
+        return f"{self.album.title} in {self.list.name}"
+
+
+class ListLike(models.Model):
+    """Track likes on lists"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='list_likes')
+    list = models.ForeignKey(List, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ('user', 'list')
+    
+    def __str__(self):
+        return f"{self.user.username} likes {self.list.name}" 

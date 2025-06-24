@@ -2,7 +2,7 @@ import logging
 import requests
 
 from django.conf import settings
-from django.db.models import Avg, Prefetch
+from django.db.models import Avg, Prefetch, Max
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from rest_framework import status
@@ -10,8 +10,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre, Activity, ReviewLike, Comment
-from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer, GenreSerializer
+from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike
+from .serializers import AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, ActivitySerializer, CommentSerializer, GenreSerializer, ListSerializer, ListSummarySerializer, ListItemSerializer
 from .services import ExternalMusicService
 from .cache_utils import (
     cache_key_for_user_reviews, cache_key_for_album_details, 
@@ -680,5 +680,261 @@ def delete_activity(request, activity_id):
     activity.delete()
     
     return Response({"message": "Activity deleted successfully"}, status=200)
+
+
+# LIST VIEWS
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def lists_view(request):
+    """Get all public lists or create a new list"""
+    if request.method == 'GET':
+        # Get public lists with pagination
+        offset = int(request.GET.get('offset', 0))
+        limit = int(request.GET.get('limit', 20))
+        
+        lists = List.objects.filter(is_public=True).select_related('user').prefetch_related(
+            'items__album', 'likes'
+        ).order_by('-updated_at')[offset:offset + limit]
+        
+        serializer = ListSummarySerializer(lists, many=True, context={'request': request})
+        
+        total_count = List.objects.filter(is_public=True).count()
+        
+        return Response({
+            'lists': serializer.data,
+            'total_count': total_count,
+            'has_more': total_count > offset + limit,
+            'next_offset': offset + limit if total_count > offset + limit else None
+        })
+    
+    elif request.method == 'POST':
+        # Create a new list
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=401)
+        
+        data = request.data.copy()
+        data['user'] = request.user.id
+        
+        serializer = ListSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            list_obj = serializer.save(user=request.user)
+            return Response(ListSerializer(list_obj, context={'request': request}).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([AllowAny])
+def list_detail(request, list_id):
+    """Get, update, or delete a specific list"""
+    try:
+        list_obj = List.objects.select_related('user').prefetch_related(
+            'items__album', 'likes'
+        ).get(id=list_id)
+    except List.DoesNotExist:
+        return Response({"error": "List not found"}, status=404)
+    
+    # Check if list is public or user owns it
+    if not list_obj.is_public and list_obj.user != request.user:
+        return Response({"error": "List not found"}, status=404)
+    
+    if request.method == 'GET':
+        serializer = ListSerializer(list_obj, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        # Update list - only owner can update
+        if not request.user.is_authenticated or list_obj.user != request.user:
+            return Response({"error": "Permission denied"}, status=403)
+        
+        serializer = ListSerializer(list_obj, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+    
+    elif request.method == 'DELETE':
+        # Delete list - only owner can delete
+        if not request.user.is_authenticated or list_obj.user != request.user:
+            return Response({"error": "Permission denied"}, status=403)
+        
+        list_obj.delete()
+        return Response({"message": "List deleted successfully"}, status=200)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def list_albums(request, list_id):
+    """Add or remove albums from a list"""
+    try:
+        list_obj = List.objects.get(id=list_id)
+    except List.DoesNotExist:
+        return Response({"error": "List not found"}, status=404)
+    
+    # Check if user owns the list
+    if list_obj.user != request.user:
+        return Response({"error": "Permission denied"}, status=403)
+    
+    if request.method == 'POST':
+        # Add album to list - handle both album_id and discogs_id
+        album_id = request.data.get('album_id')
+        discogs_id = request.data.get('discogs_id')
+        
+        if not album_id and not discogs_id:
+            return Response({"error": "album_id or discogs_id is required"}, status=400)
+        
+        if album_id:
+            # Use existing album by ID
+            try:
+                album = Album.objects.get(id=album_id)
+            except Album.DoesNotExist:
+                return Response({"error": "Album not found"}, status=404)
+        else:
+            # Import album from Discogs if needed
+            album = import_album_from_discogs(discogs_id)
+            if not album:
+                return Response({"error": "Album not found on Discogs"}, status=404)
+        
+        # Check if album is already in the list
+        if ListItem.objects.filter(list=list_obj, album=album).exists():
+            return Response({"error": "Album already in list"}, status=400)
+        
+        # Get the next order value
+        max_order = list_obj.items.aggregate(max_order=Max('order'))['max_order']
+        next_order = (max_order or 0) + 1
+        
+        list_item = ListItem.objects.create(
+            list=list_obj,
+            album=album,
+            order=next_order
+        )
+        
+        # Update list's updated_at
+        list_obj.save()
+        
+        return Response(ListItemSerializer(list_item).data, status=201)
+    
+    elif request.method == 'DELETE':
+        # Remove album from list - handle both album_id and discogs_id
+        album_id = request.data.get('album_id')
+        discogs_id = request.data.get('discogs_id')
+        
+        if not album_id and not discogs_id:
+            return Response({"error": "album_id or discogs_id is required"}, status=400)
+        
+        try:
+            if album_id:
+                list_item = ListItem.objects.get(list=list_obj, album_id=album_id)
+            else:
+                # Find by discogs_id
+                album = Album.objects.get(discogs_id=discogs_id)
+                list_item = ListItem.objects.get(list=list_obj, album=album)
+            
+            list_item.delete()
+            
+            # Update list's updated_at
+            list_obj.save()
+            
+            return Response({"message": "Album removed from list"}, status=200)
+        except (ListItem.DoesNotExist, Album.DoesNotExist):
+            return Response({"error": "Album not in list"}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def like_list(request, list_id):
+    """Like or unlike a list"""
+    try:
+        list_obj = List.objects.get(id=list_id)
+    except List.DoesNotExist:
+        return Response({"error": "List not found"}, status=404)
+    
+    # Check if list is public or user owns it
+    if not list_obj.is_public and list_obj.user != request.user:
+        return Response({"error": "List not found"}, status=404)
+    
+    like, created = ListLike.objects.get_or_create(user=request.user, list=list_obj)
+    
+    if created:
+        return Response({"status": "liked", "likes_count": list_obj.likes.count()}, status=201)
+    else:
+        like.delete()
+        return Response({"status": "unliked", "likes_count": list_obj.likes.count()}, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_likes(request, list_id):
+    """Get users who liked a list"""
+    try:
+        list_obj = List.objects.get(id=list_id)
+    except List.DoesNotExist:
+        return Response({"error": "List not found"}, status=404)
+    
+    # Check if list is public or user owns it
+    if not list_obj.is_public and list_obj.user != request.user:
+        return Response({"error": "List not found"}, status=404)
+
+    # Get pagination parameters
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 20))
+
+    # Get users who liked this list with pagination
+    likes = ListLike.objects.filter(list=list_obj).select_related('user').order_by('-created_at')
+    total_likes = likes.count()
+    
+    # Apply pagination if offset/limit provided
+    if offset > 0 or limit < total_likes:
+        paginated_likes = likes[offset:offset + limit]
+    else:
+        paginated_likes = likes
+
+    # Serialize user data
+    from accounts.serializers import UserSerializer
+    users = [like.user for like in paginated_likes]
+    users_data = UserSerializer(users, many=True).data
+
+    response_data = {
+        'users': users_data,
+        'total_count': total_likes,
+        'has_more': total_likes > offset + limit,
+        'next_offset': offset + limit if total_likes > offset + limit else None
+    }
+
+    return Response(response_data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_lists(request, username):
+    """Get all lists by a specific user"""
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+    
+    # Get user's lists (public lists, or all lists if it's their own profile)
+    if request.user.is_authenticated and request.user == user:
+        lists = List.objects.filter(user=user)
+    else:
+        lists = List.objects.filter(user=user, is_public=True)
+    
+    lists = lists.select_related('user').prefetch_related(
+        'items__album', 'likes'
+    ).order_by('-updated_at')
+    
+    serializer = ListSummarySerializer(lists, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def genre_list(request):
+    """Get all available genres"""
+    genres = Genre.objects.all().order_by('name')
+    serializer = GenreSerializer(genres, many=True)
+    return Response(serializer.data)
 
  

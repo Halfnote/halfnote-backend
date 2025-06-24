@@ -297,6 +297,134 @@ const TabContent = styled.div`
   padding: 32px;
 `;
 
+const ActivityFeed = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+`;
+
+const ActivityItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: #f9fafb;
+  }
+`;
+
+const ActivityAvatar = styled.img`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-right: 16px;
+  object-fit: cover;
+  flex-shrink: 0;
+`;
+
+const ActivityContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ActivityText = styled.div`
+  margin-bottom: 8px;
+  line-height: 1.5;
+  font-size: 15px;
+`;
+
+const ActivityUser = styled.span`
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const ActivityAlbum = styled.span`
+  font-weight: 600;
+  color: #667eea;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const ActivityTime = styled.div`
+  color: #9ca3af;
+  font-size: 14px;
+  margin-bottom: 8px;
+`;
+
+const ActivityReviewContent = styled.div`
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-style: italic;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.4;
+  border-left: 3px solid #e5e7eb;
+`;
+
+const ActivityCommentContent = styled.div`
+  background: #f0f9ff;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-style: italic;
+  color: #1e40af;
+  font-size: 14px;
+  line-height: 1.4;
+  border-left: 3px solid #3b82f6;
+`;
+
+const ActivityAlbumCover = styled.img`
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-left: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
+const NoActivity = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #374151;
+  }
+
+  p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+`;
+
 const ReviewsSection = styled.div`
   background: white;
   border-radius: 16px;
@@ -817,6 +945,47 @@ interface Review {
   user_genres?: Array<{ id: number; name: string }>;
 }
 
+interface Activity {
+  id: number;
+  user: {
+    username: string;
+    avatar?: string;
+    is_staff?: boolean;
+  };
+  target_user?: {
+    username: string;
+    avatar?: string;
+    is_staff?: boolean;
+  };
+  activity_type: string;
+  created_at: string;
+  review_details?: {
+    id: number;
+    album: {
+      title: string;
+      artist: string;
+      year?: number;
+      cover_url?: string;
+    };
+    rating: number;
+    content: string;
+    likes_count?: number;
+    is_liked_by_user?: boolean;
+    comments_count?: number;
+    user_genres: Array<{ id: number; name: string }>;
+    user: {
+      username: string;
+      avatar?: string;
+      is_staff?: boolean;
+    };
+  };
+  comment_details?: {
+    id: number;
+    content: string;
+    created_at: string;
+  };
+}
+
 const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
@@ -825,7 +994,7 @@ const ProfilePage: React.FC = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'reviews'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'activity' | 'lists'>('reviews');
   
   // Edit profile modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -849,6 +1018,20 @@ const ProfilePage: React.FC = () => {
   const [showEditReviewModal, setShowEditReviewModal] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
   const [likingReviews, setLikingReviews] = useState<Set<number>>(new Set()); // Track which reviews are being liked
+  
+  // Activity feed state
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  
+  // Lists state
+  const [lists, setLists] = useState<any[]>([]);
+  const [listsLoading, setListsLoading] = useState(false);
+  
+  // Create list modal state
+  const [showCreateListModal, setShowCreateListModal] = useState(false);
+  const [createListName, setCreateListName] = useState('');
+  const [createListDescription, setCreateListDescription] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
 
   const isOwnProfile = user?.username === username;
   const pinnedReviews = reviews.filter(review => review.is_pinned);
@@ -892,6 +1075,107 @@ const ProfilePage: React.FC = () => {
       console.error('Failed to load reviews:', err);
     }
   }, [username]);
+
+  const loadActivities = useCallback(async () => {
+    if (!username) return;
+    
+    setActivitiesLoading(true);
+    try {
+      const response = await fetch(`/api/accounts/users/${username}/activity/`, {
+        headers: {
+          'Authorization': user ? `Bearer ${localStorage.getItem('access_token')}` : '',
+        },
+      });
+      
+      if (response.ok) {
+        const activitiesData = await response.json();
+        setActivities(activitiesData);
+      }
+    } catch (err: any) {
+      console.error('Failed to load activities:', err);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  }, [username, user]);
+
+  const loadLists = useCallback(async () => {
+    if (!username) return;
+    
+    setListsLoading(true);
+    try {
+      const response = await fetch(`/api/music/users/${username}/lists/`, {
+        headers: {
+          'Authorization': user ? `Bearer ${localStorage.getItem('access_token')}` : '',
+        },
+      });
+      
+      if (response.ok) {
+        const listsData = await response.json();
+        setLists(listsData);
+      }
+    } catch (err: any) {
+      console.error('Failed to load lists:', err);
+    } finally {
+      setListsLoading(false);
+    }
+  }, [username, user]);
+
+  const handleCreateList = async () => {
+    if (!createListName.trim()) return;
+    
+    setCreatingList(true);
+    setProfileError(''); // Clear any previous errors
+    setSuccess(''); // Clear any previous success messages
+    try {
+      const response = await fetch('/api/music/lists/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({
+          name: createListName.trim(),
+          description: createListDescription.trim() || undefined, // Use undefined instead of null for optional field
+        }),
+      });
+
+      if (response.ok) {
+        const newList = await response.json();
+        setLists(prev => [newList, ...prev]);
+        setShowCreateListModal(false);
+        setCreateListName('');
+        setCreateListDescription('');
+        setSuccess('List created successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+        
+        // Navigate to the newly created list
+        navigate(`/lists/${newList.id}`);
+      } else {
+        const errorData = await response.json();
+        // Handle both types of error responses
+        let errorMessage = 'Failed to create list';
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.name && errorData.name[0]) {
+          errorMessage = `Name: ${errorData.name[0]}`;
+        } else if (typeof errorData === 'object') {
+          // Handle other field-specific errors
+          const firstField = Object.keys(errorData)[0];
+          if (firstField && errorData[firstField] && errorData[firstField][0]) {
+            errorMessage = `${firstField}: ${errorData[firstField][0]}`;
+          }
+        }
+        setProfileError(errorMessage);
+        setTimeout(() => setProfileError(''), 5000);
+      }
+    } catch (err: any) {
+      console.error('Failed to create list:', err);
+      setProfileError('Failed to create list');
+      setTimeout(() => setProfileError(''), 5000);
+    } finally {
+      setCreatingList(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!username) return;
@@ -1137,6 +1421,137 @@ const ProfilePage: React.FC = () => {
     navigate(`/review/${reviewId}/likes`);
   };
 
+  const formatActivityTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const renderActivityText = (activity: Activity) => {
+    const isCurrentUser = activity.user.username === user?.username;
+    const isTargetCurrentUser = activity.target_user?.username === user?.username;
+    
+    try {
+      switch (activity.activity_type) {
+        case 'review_created':
+          return (
+            <>
+              {isCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                  {activity.user.username}
+                </ActivityUser>
+              )}
+              {' reviewed '}
+              <ActivityAlbum onClick={() => navigate(`/review/${activity.review_details?.id}/`)}>
+                {activity.review_details?.album?.title || 'an album'}
+              </ActivityAlbum>
+            </>
+          );
+        case 'user_followed':
+          return (
+            <>
+              {isCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                  {activity.user.username}
+                </ActivityUser>
+              )}
+              {' followed '}
+              {isTargetCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>you</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.target_user?.username}`)}>
+                  {activity.target_user?.username}
+                </ActivityUser>
+              )}
+            </>
+          );
+        case 'review_liked':
+          return (
+            <>
+              {isCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                  {activity.user.username}
+                </ActivityUser>
+              )}
+              {' liked '}
+              {activity.review_details?.user?.username === user?.username ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>your</span>
+              ) : (
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.review_details?.user?.username}`)}>
+                    {activity.review_details?.user?.username}
+                  </ActivityUser>
+                  <span>'s</span>
+                </>
+              )}
+              {' review of '}
+              <ActivityAlbum onClick={() => navigate(`/review/${activity.review_details?.id}/`)}>
+                {activity.review_details?.album?.title || 'an album'}
+              </ActivityAlbum>
+            </>
+          );
+        case 'comment_created':
+          return (
+            <>
+              {isCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                  {activity.user.username}
+                </ActivityUser>
+              )}
+              {' commented on '}
+              {activity.review_details?.user?.username === user?.username ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>your</span>
+              ) : (
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.review_details?.user?.username}`)}>
+                    {activity.review_details?.user?.username}
+                  </ActivityUser>
+                  <span>'s</span>
+                </>
+              )}
+              {' review of '}
+              <ActivityAlbum onClick={() => navigate(`/review/${activity.review_details?.id}/`)}>
+                {activity.review_details?.album?.title || 'a review'}
+              </ActivityAlbum>
+            </>
+          );
+        default:
+          return (
+            <>
+              {isCurrentUser ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
+              ) : (
+                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                  {activity.user.username}
+                </ActivityUser>
+              )}
+              {' performed an action'}
+            </>
+          );
+      }
+    } catch (error) {
+      return `${activity.user?.username || 'Someone'} performed an action`;
+    }
+  };
+
   const renderReview = (review: Review) => (
     <ReviewItem key={review.id}>
       <ReviewAlbumCover 
@@ -1247,6 +1662,15 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+  
+  // Load additional data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      loadActivities();
+    } else if (activeTab === 'lists') {
+      loadLists();
+    }
+  }, [activeTab, loadActivities, loadLists]);
 
   if (loading) {
     return (
@@ -1372,6 +1796,18 @@ const ProfilePage: React.FC = () => {
           >
             Reviews ({profileUser.review_count})
           </Tab>
+          <Tab 
+            $active={activeTab === 'activity'} 
+            onClick={() => setActiveTab('activity')}
+          >
+            Activity
+          </Tab>
+          <Tab 
+            $active={activeTab === 'lists'} 
+            onClick={() => setActiveTab('lists')}
+          >
+            Lists
+          </Tab>
         </TabsList>
         
         <TabContent>
@@ -1412,6 +1848,176 @@ const ProfilePage: React.FC = () => {
                 )}
               </ReviewsSection>
             </>
+          )}
+          
+          {activeTab === 'activity' && (
+            <ActivityFeed>
+              {activitiesLoading ? (
+                <LoadingDiv>
+                  <Spinner />
+                  <p>Loading activities...</p>
+                </LoadingDiv>
+              ) : activities.length === 0 ? (
+                <NoActivity>
+                  <h3>No activity yet</h3>
+                  <p>
+                    {isOwnProfile 
+                      ? 'Start reviewing albums to see your activity here!'
+                      : `${profileUser.username} hasn't been active yet.`
+                    }
+                  </p>
+                </NoActivity>
+              ) : (
+                activities.map((activity) => (
+                  <ActivityItem key={activity.id}>
+                    <ActivityAvatar 
+                      src={activity.user?.avatar || '/static/accounts/default-avatar.svg'} 
+                      alt={activity.user?.username || 'User'}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/static/accounts/default-avatar.svg';
+                      }}
+                    />
+                    <ActivityContent>
+                      <ActivityText>
+                        {renderActivityText(activity)}
+                      </ActivityText>
+                      <ActivityTime>{formatActivityTime(activity.created_at)}</ActivityTime>
+                      
+                      {/* Show review content for review activities */}
+                      {activity.activity_type === 'review_created' && activity.review_details?.content && (
+                        <ActivityReviewContent>
+                          "{activity.review_details.content}"
+                        </ActivityReviewContent>
+                      )}
+                      
+                      {/* Show comment content for comment activities */}
+                      {activity.comment_details && (
+                        <ActivityCommentContent>
+                          "{activity.comment_details.content}"
+                        </ActivityCommentContent>
+                      )}
+                    </ActivityContent>
+                    
+                    {/* Show album cover for review-related activities */}
+                    {activity.review_details?.album?.cover_url && (
+                      <ActivityAlbumCover 
+                        src={activity.review_details.album.cover_url}
+                        alt={activity.review_details.album.title}
+                        onClick={() => navigate(`/review/${activity.review_details?.id}/`)}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </ActivityItem>
+                ))
+              )}
+            </ActivityFeed>
+          )}
+          
+          {activeTab === 'lists' && (
+            <div>
+              {isOwnProfile && (
+                <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => {
+                      setShowCreateListModal(true);
+                      setProfileError(''); // Clear any errors when opening modal
+                      setSuccess(''); // Clear any success messages when opening modal
+                    }}
+                    style={{
+                      background: '#ff6b35',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 24px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#e55a31'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b35'}
+                  >
+                    Create List
+                  </button>
+                </div>
+              )}
+              
+              {listsLoading ? (
+                <LoadingDiv>
+                  <Spinner />
+                  <p>Loading lists...</p>
+                </LoadingDiv>
+              ) : lists.length === 0 ? (
+                <NoActivity>
+                  <h3>No lists yet</h3>
+                  <p>
+                    {isOwnProfile 
+                      ? 'Create your first list to organize your favorite albums!'
+                      : `${profileUser.username} hasn't created any lists yet.`
+                    }
+                  </p>
+                </NoActivity>
+              ) : (
+                <div style={{ display: 'grid', gap: '24px' }}>
+                  {lists.map((list) => (
+                    <div 
+                      key={list.id}
+                      style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        border: '1px solid #e5e7eb',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease',
+                      }}
+                      onClick={() => navigate(`/lists/${list.id}`)}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div>
+                          <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px', color: '#111827' }}>
+                            {list.name}
+                          </h3>
+                          {list.description && (
+                            <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '12px' }}>
+                              {list.description}
+                            </p>
+                          )}
+                          <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#9ca3af' }}>
+                            <span>{list.album_count} {list.album_count === 1 ? 'album' : 'albums'}</span>
+                            <span>{list.likes_count} {list.likes_count === 1 ? 'like' : 'likes'}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {list.first_albums.slice(0, 4).map((album: any, index: number) => (
+                            album.cover_url && (
+                              <img
+                                key={album.id}
+                                src={album.cover_url}
+                                alt={album.title}
+                                style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '4px',
+                                  objectFit: 'cover',
+                                  border: '1px solid #e5e7eb'
+                                }}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            )
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </TabContent>
       </TabsContainer>
@@ -1502,6 +2108,64 @@ const ProfilePage: React.FC = () => {
               alt="Avatar Preview"
             />
           )}
+        </ModalContent>
+      </EditProfileModal>
+
+      {/* Create List Modal */}
+      <EditProfileModal $visible={showCreateListModal}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Create New List</ModalTitle>
+            <CloseButton onClick={() => {
+              setShowCreateListModal(false);
+              setCreateListName('');
+              setCreateListDescription('');
+              setProfileError(''); // Clear error when closing
+              setSuccess(''); // Clear success when closing
+            }}>×</CloseButton>
+          </ModalHeader>
+          
+          {success && (
+            <SuccessMessage>
+              {success}
+            </SuccessMessage>
+          )}
+          
+          {profileError && (
+            <ErrorMessage>
+              {profileError}
+            </ErrorMessage>
+          )}
+          
+          <FormGroup>
+            <Label>List Name *</Label>
+            <Input
+              value={createListName}
+              onChange={(e) => setCreateListName(e.target.value)}
+              placeholder="Enter list name"
+              maxLength={100}
+            />
+          </FormGroup>
+          
+          <FormGroup>
+            <Label>Description</Label>
+            <Textarea
+              value={createListDescription}
+              onChange={(e) => setCreateListDescription(e.target.value)}
+              placeholder="Describe your list (optional)"
+              maxLength={500}
+            />
+          </FormGroup>
+          
+          <SaveButton 
+            onClick={handleCreateList}
+            disabled={creatingList || !createListName.trim()}
+            style={{
+              opacity: creatingList || !createListName.trim() ? 0.6 : 1,
+            }}
+          >
+            {creatingList ? 'Creating...' : 'Create List'}
+          </SaveButton>
         </ModalContent>
       </EditProfileModal>
 

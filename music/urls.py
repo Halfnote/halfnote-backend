@@ -32,4 +32,15 @@ urlpatterns = [
     # Comment endpoints
     path('reviews/<int:review_id>/comments/', views.review_comments, name='review-comments'),
     path('comments/<int:comment_id>/', views.edit_comment, name='edit-comment'),
+    
+    # Genre endpoints
+    path('genres/', views.genre_list, name='genre-list'),
+    
+    # List endpoints
+    path('lists/', views.lists_view, name='lists'),
+    path('lists/<int:list_id>/', views.list_detail, name='list-detail'),
+    path('lists/<int:list_id>/albums/', views.list_albums, name='list-albums'),
+    path('lists/<int:list_id>/like/', views.like_list, name='like-list'),
+    path('lists/<int:list_id>/likes/', views.list_likes, name='list-likes'),
+    path('users/<str:username>/lists/', views.user_lists, name='user-lists'),
 ] 

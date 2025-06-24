@@ -16,7 +16,9 @@ import ActivityPage from './pages/ActivityPage';
 import FollowersPage from './pages/FollowersPage';
 import FollowingPage from './pages/FollowingPage';
 import ReviewLikesPage from './pages/ReviewLikesPage';
+import ListLikesPage from './pages/ListLikesPage';
 import SettingsPage from './pages/SettingsPage';
+import ListDetailPage from './pages/ListDetailPage';
 
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -169,6 +171,12 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/review/:reviewId/likes" element={<ReviewLikesPage />} />
+          <Route path="/lists/:listId/likes" element={<ListLikesPage />} />
+          <Route path="/lists/:listId" element={
+            <ProtectedRoute>
+              <ListDetailPage />
+            </ProtectedRoute>
+          } />
           <Route path="/settings" element={<SettingsPage />} />
           
           {/* Catch all - redirect based on auth status */}

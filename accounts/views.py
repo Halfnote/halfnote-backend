@@ -399,3 +399,29 @@ def debug_profile(request, username):
         'raw_data': raw_data,
         'serialized_data': serializer.data
     })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_activity_feed(request, username):
+    """Get activity feed for a specific user's profile page"""
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get user's activities (their reviews, likes, follows, comments)
+    from music.models import Activity
+    from music.serializers import ActivitySerializer
+    
+    activities = Activity.objects.filter(user=user).select_related(
+        'user',
+        'target_user',
+        'comment'
+    ).prefetch_related(
+        'review__album',
+        'review__user',
+        'review__user_genres'
+    ).order_by('-created_at')[:50]
+    
+    serializer = ActivitySerializer(activities, many=True, context={'request': request, 'feed_type': 'profile'})
+    return Response(serializer.data)

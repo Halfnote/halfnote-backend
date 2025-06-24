@@ -280,9 +280,9 @@ interface Activity {
     };
     rating: number;
     content: string;
-    likes_count: number;
+    likes_count?: number;
     is_liked_by_user: boolean;
-    comments_count: number;
+    comments_count?: number;
     user_genres: Array<{ id: number; name: string }>;
     user: {
       username: string;
@@ -363,8 +363,8 @@ const ActivityPage: React.FC = () => {
               ...activity.review_details,
               is_liked_by_user: !currentlyLiked,
               likes_count: currentlyLiked 
-                ? activity.review_details.likes_count - 1 
-                : activity.review_details.likes_count + 1
+                ? (activity.review_details.likes_count || 0) - 1 
+                : (activity.review_details.likes_count || 0) + 1
             }
           };
         }
@@ -649,13 +649,13 @@ const ActivityPage: React.FC = () => {
                       disabled={likingReviews.has(activity.review_details.id)}
                       title={activity.review_details.is_liked_by_user ? 'Unlike' : 'Like'}
                     >
-                      {likingReviews.has(activity.review_details.id) ? '⏳' : '❤️'} {activity.review_details.likes_count}
+                      {likingReviews.has(activity.review_details.id) ? '⏳' : '❤️'} {activity.review_details.likes_count || 0}
                     </EngagementButton>
                     <EngagementButton 
                       onClick={() => navigate(`/review/${activity.review_details!.id}/`)}
                       title="View comments"
                     >
-                      💬 {activity.review_details.comments_count}
+                      💬 {activity.review_details.comments_count || 0}
                     </EngagementButton>
                   </ActivityEngagement>
                 )}

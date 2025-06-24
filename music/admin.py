@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Avg
-from .models import Album, Review, Genre, Comment, Activity, ReviewLike
+from .models import Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
@@ -288,6 +288,23 @@ class ActivityAdmin(admin.ModelAdmin):
         """Export activity data (placeholder for future functionality)"""
         self.message_user(request, f'Export functionality for {queryset.count()} activities would be implemented here.')
     export_activity_data.short_description = "Export activity data"
+
+@admin.register(List)
+class ListAdmin(admin.ModelAdmin):
+    list_display = ['name', 'user', 'is_public', 'created_at', 'updated_at']
+    list_filter = ['is_public', 'created_at']
+    search_fields = ['name', 'description', 'user__username']
+
+@admin.register(ListItem)
+class ListItemAdmin(admin.ModelAdmin):
+    list_display = ['list', 'album', 'order', 'added_at']
+    list_filter = ['added_at']
+    search_fields = ['list__name', 'album__title']
+
+@admin.register(ListLike)
+class ListLikeAdmin(admin.ModelAdmin):
+    list_display = ['user', 'list', 'created_at']
+    search_fields = ['user__username', 'list__name']
 
 # Customize admin site headers
 admin.site.site_header = "halfnote Administration"

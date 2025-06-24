@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Album, Review, Genre, ReviewLike, Activity, Comment
+from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
@@ -135,10 +135,9 @@ class ActivitySerializer(serializers.ModelSerializer):
                 }
             }
             
-            # Only include counts for friends feed, not for "you" or "incoming" feeds
-            if feed_type == 'friends':
-                review_data['likes_count'] = obj.review.likes.count()
-                review_data['comments_count'] = obj.review.comments.count()
+            # Always include counts for all feed types (needed for proper UI rendering)
+            review_data['likes_count'] = obj.review.likes.count()
+            review_data['comments_count'] = obj.review.comments.count()
             
             return review_data
         return None
@@ -150,4 +149,99 @@ class ActivitySerializer(serializers.ModelSerializer):
                 'content': obj.comment.content,
                 'created_at': obj.comment.created_at,
             }
-        return None 
+        return None
+
+
+class ListItemSerializer(serializers.ModelSerializer):
+    album = serializers.SerializerMethodField()
+    album_id = serializers.UUIDField(write_only=True)
+    
+    class Meta:
+        model = ListItem
+        fields = ['id', 'album', 'album_id', 'order', 'added_at']
+        read_only_fields = ['id', 'added_at']
+    
+    def get_album(self, obj):
+        album_data = AlbumSerializer(obj.album).data
+        
+        # Add user review information if available
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            user_review = Review.objects.filter(
+                album=obj.album, 
+                user=request.user
+            ).first()
+            if user_review:
+                album_data['user_review_id'] = user_review.id
+                album_data['user_rating'] = user_review.rating
+        
+        return album_data
+
+
+class ListSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    items = ListItemSerializer(many=True, read_only=True)
+    album_count = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    is_liked_by_user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = List
+        fields = ['id', 'name', 'description', 'is_public', 'created_at', 'updated_at',
+                  'user', 'items', 'album_count', 'likes_count', 'is_liked_by_user']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_user(self, obj):
+        return {
+            'username': obj.user.username,
+            'avatar': obj.user.avatar.url if obj.user.avatar else None,
+            'is_staff': obj.user.is_staff
+        }
+    
+    def get_album_count(self, obj):
+        return obj.items.count()
+    
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+    
+    def get_is_liked_by_user(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+
+
+class ListSummarySerializer(serializers.ModelSerializer):
+    """Simplified serializer for list previews"""
+    user = serializers.SerializerMethodField()
+    album_count = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    first_albums = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = List
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at',
+                  'user', 'album_count', 'likes_count', 'first_albums']
+    
+    def get_user(self, obj):
+        return {
+            'username': obj.user.username,
+            'avatar': obj.user.avatar.url if obj.user.avatar else None,
+            'is_staff': obj.user.is_staff
+        }
+    
+    def get_album_count(self, obj):
+        return obj.items.count()
+    
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+    
+    def get_first_albums(self, obj):
+        # Return first 4 album covers for preview
+        first_items = obj.items.select_related('album')[:4]
+        return [{
+            'id': item.album.id,
+            'title': item.album.title,
+            'artist': item.album.artist,
+            'cover_url': item.album.cover_url
+        } for item in first_items] 

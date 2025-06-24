@@ -2,6 +2,12 @@ from django.http import HttpResponsePermanentRedirect
 from django.urls import resolve, reverse
 from django.conf import settings
 import re
+from django.contrib.auth import get_user_model
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.deprecation import MiddlewareMixin
+
+User = get_user_model()
 
 class UsernameRedirectMiddleware:
     """
@@ -42,3 +48,23 @@ class UsernameRedirectMiddleware:
         
         response = self.get_response(request)
         return response 
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        # Check if this is a potential username URL
+        if request.path.startswith('/api/') or request.path.startswith('/admin/') or request.path.startswith('/static/'):
+            return None
+        
+        # Handle username-based URLs
+        if 'username' in view_kwargs:
+            username = view_kwargs['username']
+            try:
+                user = User.objects.get(username=username)
+                # User exists, allow the request to proceed
+                return None
+            except User.DoesNotExist:
+                # User doesn't exist, redirect to 404 or home
+                return redirect('/')
+        
+        return None
+
+ 
