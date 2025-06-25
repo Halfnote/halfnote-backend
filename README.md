@@ -1,5 +1,7 @@
 # 🎵 Halfnote API - Letterboxd for Music
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Halfnote/halfnote-backend)
+
 A comprehensive Django-based API for music reviews and social features, inspired by Letterboxd. Users can discover music, write detailed reviews, follow others, and interact with a vibrant community of music lovers.
 
 ## 🚀 Features
