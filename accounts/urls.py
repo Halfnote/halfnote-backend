@@ -6,8 +6,7 @@ urlpatterns = [
     path('login/', views.login, name='login'),
     path('profile/', views.profile, name='profile'),  # This handles both GET and PUT
     path('update-profile/', views.update_profile, name='update-profile'),
-    path('follow/<str:username>/', views.follow_user, name='follow-user'),
-    path('unfollow/<str:username>/', views.unfollow_user, name='unfollow-user'),
+    path('favorite-albums/', views.favorite_albums, name='favorite-albums'),
     path('followers/<str:username>/', views.get_followers, name='get-followers'),
     path('following/<str:username>/', views.get_following, name='get-following'),
     path('users/<str:username>/', views.get_profile, name='get-profile'),
@@ -23,6 +22,5 @@ urlpatterns = [
     path('debug-cloudinary/', views.debug_cloudinary, name='debug-cloudinary'),
     path('debug-storage/', views.debug_storage, name='debug-storage'),
     path('remove-avatar/', views.remove_avatar, name='remove-avatar'),
-    path('genre-stats/<str:username>/', views.user_genre_stats, name='user-genre-stats'),
     path('debug/<str:username>/', views.debug_profile, name='debug-profile'),
 ]

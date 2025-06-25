@@ -421,10 +421,13 @@ def user_activity_feed(request, username):
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
     
     # Get user's activities (their reviews, likes, follows, comments)
+    # Exclude internal activities like pinned reviews for cleaner profile feed
     from music.models import Activity
     from music.serializers import ActivitySerializer
     
-    activities = Activity.objects.filter(user=user).select_related(
+    activities = Activity.objects.filter(user=user).exclude(
+        activity_type='review_pinned'  # Exclude pinned activities from profile feed
+    ).select_related(
         'user',
         'target_user',
         'comment'
@@ -436,3 +439,100 @@ def user_activity_feed(request, username):
     
     serializer = ActivitySerializer(activities, many=True, context={'request': request, 'feed_type': 'profile'})
     return Response(serializer.data)
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def favorite_albums(request):
+    """Manage user's favorite albums (max 5)"""
+    user = request.user
+    
+    if request.method == 'GET':
+        # Get user's favorite albums
+        from .serializers import UserProfileSerializer
+        serializer = UserProfileSerializer(user, context={'request': request})
+        return Response({'favorite_albums': serializer.data['favorite_albums']})
+    
+    elif request.method == 'POST':
+        # Add album to favorites
+        album_id = request.data.get('album_id')
+        discogs_id = request.data.get('discogs_id')
+        
+        if not album_id and not discogs_id:
+            return Response({"error": "album_id or discogs_id is required"}, status=400)
+        
+        try:
+            from music.models import Album
+            if album_id:
+                # Check if album_id looks like a UUID or a discogs_id
+                try:
+                    # Try to parse as UUID first
+                    import uuid
+                    uuid.UUID(album_id)
+                    album = Album.objects.get(id=album_id)
+                except (ValueError, TypeError):
+                    # If not a valid UUID, treat as discogs_id
+                    album = Album.objects.get(discogs_id=album_id)
+            else:
+                # Import album from Discogs if needed
+                from music.views import import_album_from_discogs
+                album = import_album_from_discogs(discogs_id)
+                if not album:
+                    return Response({"error": "Album not found on Discogs"}, status=404)
+            
+            # Check if already in favorites
+            if user.favorite_albums.filter(id=album.id).exists():
+                return Response({"error": "Album already in favorites"}, status=400)
+            
+            # Check limit
+            if user.favorite_albums.count() >= 5:
+                return Response({"error": "You can only have up to 5 favorite albums"}, status=400)
+            
+            # Add to favorites
+            user.favorite_albums.add(album)
+            
+            # Invalidate profile cache
+            from music.cache_utils import invalidate_profile_cache
+            invalidate_profile_cache(user.id, user.username)
+            
+            return Response({"message": "Album added to favorites"}, status=201)
+            
+        except Album.DoesNotExist:
+            return Response({"error": "Album not found"}, status=404)
+    
+    elif request.method == 'DELETE':
+        # Remove album from favorites
+        album_id = request.data.get('album_id')
+        discogs_id = request.data.get('discogs_id')
+        
+        if not album_id and not discogs_id:
+            return Response({"error": "album_id or discogs_id is required"}, status=400)
+        
+        try:
+            from music.models import Album
+            if album_id:
+                # Check if album_id looks like a UUID or a discogs_id
+                try:
+                    # Try to parse as UUID first
+                    import uuid
+                    uuid.UUID(album_id)
+                    album = Album.objects.get(id=album_id)
+                except (ValueError, TypeError):
+                    # If not a valid UUID, treat as discogs_id
+                    album = Album.objects.get(discogs_id=album_id)
+            else:
+                album = Album.objects.get(discogs_id=discogs_id)
+            
+            # Remove from favorites
+            if user.favorite_albums.filter(id=album.id).exists():
+                user.favorite_albums.remove(album)
+                
+                # Invalidate profile cache
+                from music.cache_utils import invalidate_profile_cache
+                invalidate_profile_cache(user.id, user.username)
+                
+                return Response({"message": "Album removed from favorites"}, status=200)
+            else:
+                return Response({"error": "Album not in favorites"}, status=404)
+                
+        except Album.DoesNotExist:
+            return Response({"error": "Album not found"}, status=404)

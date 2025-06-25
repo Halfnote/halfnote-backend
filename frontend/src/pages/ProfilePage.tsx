@@ -263,6 +263,107 @@ const GenreTag = styled.span`
   font-weight: 500;
 `;
 
+const FavoriteAlbumsSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
+const FavoriteAlbumsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FavoriteAlbumItem = styled.div`
+  position: relative;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const FavoriteAlbumCover = styled.img`
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-bottom: 12px;
+`;
+
+const FavoriteAlbumInfo = styled.div`
+  text-align: center;
+`;
+
+const FavoriteAlbumTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.3;
+`;
+
+const FavoriteAlbumArtist = styled.div`
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 6px;
+`;
+
+const FavoriteAlbumRating = styled.div`
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+`;
+
+const RemoveFavoriteButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  ${FavoriteAlbumItem}:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: #dc2626;
+  }
+`;
+
 const TabsContainer = styled.div`
   background: white;
   border-radius: 16px;
@@ -922,6 +1023,17 @@ interface User {
   following_count: number;
   review_count: number;
   favorite_genres: Array<{ id: number; name: string }>;
+  favorite_albums?: Array<{
+    id: string;
+    title: string;
+    artist: string;
+    year?: number;
+    cover_url?: string;
+    discogs_id: string;
+    user_review_id?: number;
+    user_rating?: number;
+    user_review_content?: string;
+  }>;
   most_reviewed_genres?: Array<{ id: number; name: string; count: number }>;
   is_following?: boolean;
   is_staff?: boolean;
@@ -1344,11 +1456,14 @@ const ProfilePage: React.FC = () => {
     try {
       await musicAPI.pinReview(reviewId);
       
-      // Reload reviews to get updated pin status
+      // Reload both reviews and profile to get updated pin status and pinned reviews section
       loadReviews();
+      loadProfile(); // This updates the pinned_reviews in profileUser
     } catch (error: any) {
       console.error('Error toggling pin:', error);
-      alert('Error updating pin status');
+      // Display the actual error message from the backend
+      const errorMessage = error.response?.data?.error || error.message || 'Error updating pin status';
+      alert(errorMessage);
     }
   };
 
@@ -1419,6 +1534,24 @@ const ProfilePage: React.FC = () => {
 
   const handleShowLikes = async (reviewId: number) => {
     navigate(`/review/${reviewId}/likes`);
+  };
+
+  const handleRemoveFavoriteAlbum = async (albumId: string) => {
+    if (!user || !isOwnProfile) return;
+    
+    try {
+      await userAPI.removeFavoriteAlbum(albumId);
+      
+      // Reload profile to update favorite albums
+      await loadProfile();
+      
+      setSuccess('Album removed from favorites!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Error removing favorite album:', error);
+      setProfileError('Failed to remove album from favorites');
+      setTimeout(() => setProfileError(''), 5000);
+    }
   };
 
   const formatActivityTime = (dateString: string) => {
@@ -1813,8 +1946,6 @@ const ProfilePage: React.FC = () => {
         <TabContent>
           {activeTab === 'reviews' && (
             <>
-
-
               {/* Most Reviewed Genres Section */}
               {profileUser.most_reviewed_genres && profileUser.most_reviewed_genres.length > 0 && (
                 <GenreSection>
@@ -1828,6 +1959,51 @@ const ProfilePage: React.FC = () => {
                     ))}
                   </GenreStatsGrid>
                 </GenreSection>
+              )}
+
+              {/* Favorite Albums Section */}
+              {profileUser.favorite_albums && profileUser.favorite_albums.length > 0 && (
+                <FavoriteAlbumsSection>
+                  <SectionTitle>Favorite Albums</SectionTitle>
+                  <FavoriteAlbumsGrid>
+                    {profileUser.favorite_albums.map(album => (
+                      <FavoriteAlbumItem key={album.id}>
+                        <FavoriteAlbumCover 
+                          src={album.cover_url || '/static/music/default-album.svg'} 
+                          alt={album.title}
+                          onClick={() => {
+                            if (album.user_review_id) {
+                              navigate(`/review/${album.user_review_id}/`);
+                            } else {
+                              navigate(`/albums/${album.discogs_id}/`);
+                            }
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
+                          }}
+                        />
+                        <FavoriteAlbumInfo>
+                          <FavoriteAlbumTitle>{album.title}</FavoriteAlbumTitle>
+                          <FavoriteAlbumArtist>{album.artist}</FavoriteAlbumArtist>
+                          {album.user_rating && (
+                            <FavoriteAlbumRating>★ {album.user_rating}/10</FavoriteAlbumRating>
+                          )}
+                        </FavoriteAlbumInfo>
+                        {isOwnProfile && (
+                          <RemoveFavoriteButton 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFavoriteAlbum(album.id);
+                            }}
+                            title="Remove from favorites"
+                          >
+                            ×
+                          </RemoveFavoriteButton>
+                        )}
+                      </FavoriteAlbumItem>
+                    ))}
+                  </FavoriteAlbumsGrid>
+                </FavoriteAlbumsSection>
               )}
 
               {/* Pinned Reviews Section */}
@@ -2070,7 +2246,7 @@ const ProfilePage: React.FC = () => {
             />
           </FormGroup>
           
-                               <FormGroup>
+          <FormGroup>
             <Label>Favorite Genres</Label>
             <GenreGrid>
               {availableGenres.map(genre => (

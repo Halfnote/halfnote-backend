@@ -306,8 +306,9 @@ def edit_review(request, review_id):
             album.genres.set(all_review_genres)
             
             # Comprehensive cache invalidation for review updates
-            from .cache_utils import invalidate_on_user_interaction
+            from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
             invalidate_on_user_interaction(acting_user_id=request.user.id)
+            invalidate_profile_cache(request.user.id, request.user.username)
             
             # Return response with warnings if needed
             response_data = ReviewSerializer(review).data
@@ -319,8 +320,9 @@ def edit_review(request, review_id):
             return Response(response_data)
         
         # Comprehensive cache invalidation for review updates
-        from .cache_utils import invalidate_on_user_interaction
+        from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
         invalidate_on_user_interaction(acting_user_id=request.user.id)
+        invalidate_profile_cache(request.user.id, request.user.username)
         
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
@@ -335,8 +337,9 @@ def edit_review(request, review_id):
         album.genres.set(all_review_genres)
         
         # Comprehensive cache invalidation for review deletion
-        from .cache_utils import invalidate_on_user_interaction
+        from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
         invalidate_on_user_interaction(acting_user_id=request.user.id)
+        invalidate_profile_cache(request.user.id, request.user.username)
         
         return Response({"message": "Review deleted successfully"}, status=200)
 
@@ -358,8 +361,8 @@ def pin_review(request, review_id):
     # Check if trying to pin and already at limit
     if not review.is_pinned:
         pinned_count = Review.objects.filter(user=request.user, is_pinned=True).count()
-        if pinned_count >= 4:
-            return Response({"error": "You can only pin up to 4 reviews"}, status=400)
+        if pinned_count >= 2:
+            return Response({"error": "You can only pin up to 2 reviews"}, status=400)
     
     # Toggle pin status
     review.is_pinned = not review.is_pinned
@@ -372,8 +375,9 @@ def pin_review(request, review_id):
         create_activity('review_pinned', request.user, review=review)
     
     # Comprehensive cache invalidation for review pinning
-    from .cache_utils import invalidate_on_user_interaction
+    from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
     invalidate_on_user_interaction(acting_user_id=request.user.id)
+    invalidate_profile_cache(request.user.id, request.user.username)
     
     return Response({
         "message": f"Review {action} successfully",

@@ -385,6 +385,8 @@ const SearchResultsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [followLoading, setFollowLoading] = useState<string>(''); // username currently being followed/unfollowed
+  const [favoriteLoading, setFavoriteLoading] = useState<string>(''); // discogs_id currently being favorited/unfavorited
+  const [userFavorites, setUserFavorites] = useState<string[]>([]); // user's favorite album discogs_ids
   
   // Review modal state
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -403,6 +405,21 @@ const SearchResultsPage: React.FC = () => {
       setAvailableGenres(COMMON_GENRES.map((name, index) => ({ id: index + 1, name })));
     }
   }, [query]);
+
+  // Load user's favorite albums
+  useEffect(() => {
+    const loadUserFavorites = async () => {
+      if (user) {
+        try {
+          const favorites = await userAPI.getFavoriteAlbums();
+          setUserFavorites(favorites.favorite_albums?.map((album: any) => album.discogs_id) || []);
+        } catch (error) {
+          console.warn('Failed to load user favorites:', error);
+        }
+      }
+    };
+    loadUserFavorites();
+  }, [user]);
 
   const performSearch = async () => {
     setLoading(true);
@@ -540,6 +557,30 @@ const SearchResultsPage: React.FC = () => {
     }));
   };
 
+  const toggleFavorite = async (album: SearchResult) => {
+    if (!user || !album.discogs_id || favoriteLoading === album.discogs_id) return;
+
+    setFavoriteLoading(album.discogs_id);
+    try {
+      const isFavorite = userFavorites.includes(album.discogs_id);
+      
+      if (isFavorite) {
+        // Remove from favorites
+        await userAPI.removeFavoriteAlbum(undefined, album.discogs_id);
+        setUserFavorites(prev => prev.filter(id => id !== album.discogs_id));
+      } else {
+        // Add to favorites
+        await userAPI.addFavoriteAlbum(undefined, album.discogs_id);
+        setUserFavorites(prev => [...prev, album.discogs_id!]);
+      }
+    } catch (error: any) {
+      console.error('Error toggling favorite:', error);
+      setError(error.message || 'Failed to update favorite status');
+    } finally {
+      setFavoriteLoading('');
+    }
+  };
+
   // Remove star rendering function - now using slider
 
   const totalResults = albums.length + users.length;
@@ -637,6 +678,19 @@ const SearchResultsPage: React.FC = () => {
                 <BtnPrimary onClick={() => openReviewModal(album)}>
                   {user ? 'Review' : 'Login to Review'}
                 </BtnPrimary>
+                {user && album.discogs_id && (
+                  <BtnSecondary 
+                    onClick={() => toggleFavorite(album)}
+                    disabled={favoriteLoading === album.discogs_id}
+                  >
+                    {favoriteLoading === album.discogs_id 
+                      ? 'Updating...' 
+                      : userFavorites.includes(album.discogs_id) 
+                        ? '⭐ Favorited' 
+                        : '☆ Add to Favorites'
+                    }
+                  </BtnSecondary>
+                )}
               </ResultActions>
             </ResultItem>
           ))}

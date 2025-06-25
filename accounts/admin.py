@@ -11,7 +11,7 @@ class UserAdmin(BaseUserAdmin):
         (None, {'fields': ('username', 'password')}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Profile', {
-            'fields': ('bio', 'avatar', 'avatar_preview', 'favorite_genres'),
+            'fields': ('bio', 'avatar', 'avatar_preview', 'favorite_genres', 'favorite_albums'),
             'description': 'User profile information and preferences'
         }),
         ('Social', {
@@ -50,7 +50,7 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ('username', 'email', 'first_name', 'last_name', 'bio')
     
     # Better interface for many-to-many fields
-    filter_horizontal = ('following', 'groups', 'user_permissions')
+    filter_horizontal = ('following', 'favorite_albums', 'groups', 'user_permissions')
     
     # Read-only fields for calculated values
     readonly_fields = (

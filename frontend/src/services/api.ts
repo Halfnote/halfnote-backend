@@ -440,6 +440,41 @@ export const userAPI = {
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Failed to get review likes');
     }
+  },
+
+  getFavoriteAlbums: async () => {
+    try {
+      const response = await api.get('/api/accounts/favorite-albums/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get favorite albums');
+    }
+  },
+
+  addFavoriteAlbum: async (albumId?: string, discogsId?: string) => {
+    try {
+      const data: any = {};
+      if (albumId) data.album_id = albumId;
+      if (discogsId) data.discogs_id = discogsId;
+      
+      const response = await api.post('/api/accounts/favorite-albums/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to add favorite album');
+    }
+  },
+
+  removeFavoriteAlbum: async (albumId?: string, discogsId?: string) => {
+    try {
+      const data: any = {};
+      if (albumId) data.album_id = albumId;
+      if (discogsId) data.discogs_id = discogsId;
+      
+      const response = await api.delete('/api/accounts/favorite-albums/', { data });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to remove favorite album');
+    }
   }
 };
 

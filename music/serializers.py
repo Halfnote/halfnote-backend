@@ -30,6 +30,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     album_artist = serializers.CharField(source='album.artist', read_only=True)
     album_cover = serializers.CharField(source='album.cover_url', read_only=True)
     album_year = serializers.IntegerField(source='album.year', read_only=True)
+    album_discogs_id = serializers.CharField(source='album.discogs_id', read_only=True)
     likes_count = serializers.SerializerMethodField()
     is_liked_by_user = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
@@ -37,7 +38,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'content', 'user_genres', 'created_at', 
-                  'album_title', 'album_artist', 'album_cover', 'album_year', 'is_pinned',
+                  'album_title', 'album_artist', 'album_cover', 'album_year', 'album_discogs_id', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
     

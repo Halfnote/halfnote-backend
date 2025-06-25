@@ -10,6 +10,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     pinned_reviews = serializers.SerializerMethodField()
+    favorite_albums = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
     most_reviewed_genres = serializers.SerializerMethodField()
@@ -20,7 +21,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'name', 'display_name',
             'bio', 'location', 'avatar', 'favorite_genres', 'most_reviewed_genres',
             'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
-            'is_following', 'is_staff'
+            'favorite_albums', 'is_following', 'is_staff'
         ]
         read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
@@ -84,8 +85,39 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_pinned_reviews(self, obj):
         try:
             from music.serializers import ReviewSerializer
-            pinned_reviews = Review.objects.filter(user=obj, is_pinned=True).order_by('-created_at')[:4]
+            pinned_reviews = Review.objects.filter(user=obj, is_pinned=True).order_by('-created_at')[:2]
             return ReviewSerializer(pinned_reviews, many=True, context=self.context).data
+        except Exception as e:
+            # Return empty list if there's any issue to prevent profile page from breaking
+            return []
+    
+    def get_favorite_albums(self, obj):
+        """Get user's favorite albums with album details and user review info"""
+        try:
+            from music.models import Review
+            favorite_albums = obj.favorite_albums.all()[:5]  # Limit to 5
+            
+            albums_data = []
+            for album in favorite_albums:
+                album_data = {
+                    'id': str(album.id),
+                    'title': album.title,
+                    'artist': album.artist,
+                    'year': album.year,
+                    'cover_url': album.cover_url,
+                    'discogs_id': album.discogs_id
+                }
+                
+                # Add user's review info if they reviewed this album
+                user_review = Review.objects.filter(album=album, user=obj).first()
+                if user_review:
+                    album_data['user_review_id'] = user_review.id
+                    album_data['user_rating'] = user_review.rating
+                    album_data['user_review_content'] = user_review.content[:100] + '...' if len(user_review.content) > 100 else user_review.content
+                
+                albums_data.append(album_data)
+            
+            return albums_data
         except Exception as e:
             # Return empty list if there's any issue to prevent profile page from breaking
             return []

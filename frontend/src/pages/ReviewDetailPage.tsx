@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
-import { musicAPI } from '../services/api';
+import { musicAPI, userAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
 import FormattedTextEditor from '../components/FormattedTextEditor';
 import { renderFormattedText } from '../utils/textFormatting';
@@ -201,6 +201,34 @@ const LikeButton = styled.button<{ $liked?: boolean }>`
   background: ${props => props.$liked ? '#fee2e2' : 'transparent'};
   border: 1px solid ${props => props.$liked ? '#dc2626' : '#d1d5db'};
   color: ${props => props.$liked ? '#dc2626' : '#666'};
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+
+  &:hover:not(:disabled) {
+    opacity: 0.8;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const FavoriteButton = styled.button<{ $favorited?: boolean }>`
+  background: ${props => props.$favorited ? '#fef3c7' : 'transparent'};
+  border: 1px solid ${props => props.$favorited ? '#f59e0b' : '#d1d5db'};
+  color: ${props => props.$favorited ? '#92400e' : '#666'};
   font-size: 16px;
   cursor: pointer;
   padding: 4px 6px;
@@ -504,6 +532,7 @@ interface Review {
   album_artist: string;
   album_cover?: string;
   album_year?: number;
+  album_discogs_id?: string;
   rating: number;
   content: string;
   created_at: string;
@@ -535,6 +564,8 @@ const ReviewDetailPage: React.FC = () => {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
   const [likingReview, setLikingReview] = useState(false); // Add loading state for likes
+  const [userFavorites, setUserFavorites] = useState<string[]>([]);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   
   // Edit review modal state
   const [showEditReviewModal, setShowEditReviewModal] = useState(false);
@@ -563,17 +594,30 @@ const ReviewDetailPage: React.FC = () => {
     }
   }, [reviewId]);
 
+  const loadUserFavorites = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await userAPI.getFavoriteAlbums();
+      const favorites = response.favorite_albums || [];
+      setUserFavorites(favorites.map((album: any) => album.discogs_id).filter(Boolean));
+    } catch (error: any) {
+      console.error('Error loading user favorites:', error);
+    }
+  }, [user]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     
     await Promise.all([
       loadReview(),
-      loadComments()
+      loadComments(),
+      loadUserFavorites()
     ]);
     
     setLoading(false);
-  }, [loadReview, loadComments]);
+  }, [loadReview, loadComments, loadUserFavorites]);
 
   const toggleLike = async () => {
     if (!review || !user || likingReview) return; // Prevent double-clicks
@@ -604,6 +648,29 @@ const ReviewDetailPage: React.FC = () => {
       } : null);
     } catch (error: any) {
       console.error('Error toggling pin:', error);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!review || !user || !review.album_discogs_id || favoriteLoading) return;
+
+    setFavoriteLoading(true);
+    try {
+      const isFavorite = userFavorites.includes(review.album_discogs_id);
+      
+      if (isFavorite) {
+        // Remove from favorites
+        await userAPI.removeFavoriteAlbum(undefined, review.album_discogs_id);
+        setUserFavorites(prev => prev.filter(id => id !== review.album_discogs_id));
+      } else {
+        // Add to favorites
+        await userAPI.addFavoriteAlbum(undefined, review.album_discogs_id);
+        setUserFavorites(prev => [...prev, review.album_discogs_id!]);
+      }
+    } catch (error: any) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -778,6 +845,16 @@ const ReviewDetailPage: React.FC = () => {
                 >
                   {likingReview ? '⏳' : (review!.is_liked_by_user ? '❤️' : '🤍')}
                 </LikeButton>
+              )}
+              {user && review!.album_discogs_id && (
+                <FavoriteButton 
+                  $favorited={userFavorites.includes(review!.album_discogs_id)}
+                  onClick={toggleFavorite}
+                  disabled={favoriteLoading}
+                  title={userFavorites.includes(review!.album_discogs_id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                >
+                  {favoriteLoading ? '⏳' : (userFavorites.includes(review!.album_discogs_id) ? '⭐' : '☆')}
+                </FavoriteButton>
               )}
               {user && review!.username === user.username && (
                 <ActionButtons>

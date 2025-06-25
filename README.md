@@ -6,7 +6,8 @@ A comprehensive Django-based API for music reviews and social features, inspired
 
 - **🔐 User Authentication & Profiles**: JWT-based auth with customizable user profiles, avatars, and bios
 - **🎼 Music Discovery**: Search albums via Discogs API integration with rich metadata
-- **⭐ Review System**: Rate albums (1-10 scale), write detailed reviews, pin favorites, edit/delete reviews with slider UI
+- **⭐ Review System**: Rate albums (1-10 scale), write detailed reviews, pin favorites (max 2), edit/delete reviews with slider UI
+- **❤️ Favorite Albums**: Curate up to 5 favorite albums displayed prominently on your profile, similar to Letterboxd's favorite movies
 - **📝 Lists & Collections**: Create and manage custom album lists, like/unlike lists, browse public lists
 - **👥 Social Features**: Follow users, activity feeds, like reviews, comment threads
 - **🏷️ Genre Tagging**: User-assigned genres for personalized organization and discovery
@@ -100,7 +101,11 @@ const userProfile = await fetch('/api/accounts/profile/', {
 .then(res => res.json());
 
 // Response includes:
-// { id, username, email, bio, avatar, favorite_genres, followers_count, following_count, review_count, is_staff }
+// { 
+//   id, username, email, bio, avatar, favorite_genres, 
+//   favorite_albums: [{ id, title, artist, year, cover_url, discogs_id, user_review_id, user_rating }],
+//   followers_count, following_count, review_count, pinned_reviews: [...], is_staff 
+// }
 ```
 
 ### Get Another User's Profile
@@ -128,6 +133,63 @@ await fetch('/api/accounts/profile/', {
     favorite_genres: ['Jazz', 'Blues', 'Soul']
 })
 });
+```
+
+### Manage Favorite Albums
+**GET/POST/DELETE** `/api/accounts/favorite-albums/`
+
+```javascript
+// Get current user's favorite albums
+const favoriteAlbums = await fetch('/api/accounts/favorite-albums/', {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+})
+.then(res => res.json());
+
+// Response includes:
+// {
+//   "favorite_albums": [
+//     {
+//       "id": "1234567",
+//       "title": "OK Computer",
+//       "artist": "Radiohead",
+//       "year": 1997,
+//       "cover_url": "https://...",
+//       "discogs_id": "1234567",
+//       "user_review_id": 123,
+//       "user_rating": 9,
+//       "user_review_content": "A masterpiece..."
+//     }
+//   ]
+// }
+
+// Add album to favorites (max 5 albums)
+await fetch('/api/accounts/favorite-albums/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    discogs_id: '1234567'  // or album_id: 'uuid'
+  })
+});
+
+// Remove album from favorites
+await fetch('/api/accounts/favorite-albums/', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    album_id: 'album-uuid'
+  })
+});
+
+// Error responses:
+// { "error": "You can only have up to 5 favorite albums" }
+// { "error": "Album not found" }
+// { "error": "Album is already in your favorites" }
 ```
 
 ### Follow/Unfollow Users
@@ -266,11 +328,14 @@ await fetch('/api/music/reviews/123/', {
 **POST** `/api/music/reviews/{review_id}/pin/`
 
 ```javascript
-// Toggles pin status
+// Toggles pin status (max 2 pinned reviews per user)
 await fetch('/api/music/reviews/123/pin/', {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${authToken}` }
 });
+
+// Error response when trying to pin more than 2 reviews:
+// { "error": "You can only pin up to 2 reviews" }
 ```
 
 ### Like/Unlike a Review
@@ -1048,8 +1113,9 @@ The API serves a complete web application with responsive design and modern UX:
 
 ### 👤 User Profiles (`/users/{username}/`)
 - **Profile Header**: Avatar, bio, follower/following counts, review statistics
+- **Favorite Albums**: Beautiful grid showcasing up to 5 favorite albums with hover effects and user ratings
+- **Pinned Reviews**: Up to 2 highlighted favorite reviews at the top (reduced from 4)
 - **Review Grid**: Compact album covers (120px) in Letterboxd-style layout
-- **Pinned Reviews**: Highlighted favorite reviews at the top
 - **Review Management**: Edit/delete/pin your own reviews with modal interface
 - **Social Actions**: Follow/unfollow other users, view their reviews
 - **Genre Selection**: Multi-select genre tagging with visual grid interface
@@ -1172,6 +1238,9 @@ For optimal performance in production, configure Redis Cloud:
 | GET | `/api/accounts/users/search/?q={query}` | Search users by username | Yes |
 | POST | `/api/accounts/users/{username}/follow/` | Follow user | Yes |
 | POST | `/api/accounts/users/{username}/unfollow/` | Unfollow user | Yes |
+| GET | `/api/accounts/favorite-albums/` | Get current user's favorite albums | Yes |
+| POST | `/api/accounts/favorite-albums/` | Add album to favorites (max 5) | Yes |
+| DELETE | `/api/accounts/favorite-albums/` | Remove album from favorites | Yes |
 
 ### Music & Album Endpoints
 | Method | Endpoint | Description | Auth Required |
@@ -1212,6 +1281,35 @@ For optimal performance in production, configure Redis Cloud:
 | GET | `/static/{path}` | Serve static files (CSS, JS, images) | No |
 | GET | `/static/accounts/default-avatar.svg` | Default user avatar | No |
 | GET | `/static/default-album.svg` | Default album cover | No |
+
+## 🆕 Recent Updates & New Features
+
+### 📌 Pinned Reviews Limit (Updated)
+- **Previous**: Users could pin up to 4 reviews
+- **Current**: Users can now pin up to 2 reviews maximum
+- **Reasoning**: Cleaner profile layout, more selective curation
+- **Error Handling**: Attempting to pin a 3rd review returns: `{"error": "You can only pin up to 2 reviews"}`
+- **Cache Optimization**: Pinning/unpinning now triggers immediate cache invalidation for instant UI updates
+
+### ❤️ Favorite Albums (New Feature)
+- **Concept**: Similar to Letterboxd's 4 favorite movies, but for albums (max 5)
+- **Display**: Beautiful grid layout on user profiles with album covers and user ratings
+- **User Experience**: Hover effects, remove buttons, clickable albums linking to reviews
+- **API Integration**: Full CRUD operations via `/api/accounts/favorite-albums/`
+- **Data Richness**: Shows user's rating and review excerpt if they've reviewed the album
+- **Responsive Design**: Adapts to different screen sizes with auto-fill grid layout
+
+### 🚀 Performance Improvements
+- **Profile Cache Invalidation**: Pinning/unpinning reviews now properly invalidates profile cache
+- **Immediate UI Updates**: Both pinned reviews and favorite albums update instantly without page refresh
+- **Error Messages**: More specific error messages for better user experience
+- **Database Optimization**: Efficient queries for favorite albums with user review data
+
+### 🎨 UI/UX Enhancements
+- **Profile Layout**: Favorite Albums section appears between "Most Reviewed Genres" and "Pinned Reviews"
+- **Visual Hierarchy**: Cleaner profile organization with focused content sections
+- **Interactive Elements**: Smooth hover animations and intuitive remove functionality
+- **Mobile Optimization**: Touch-friendly interactions for favorite albums management
 
 ## ⚠️ Error Handling & Status Codes
 

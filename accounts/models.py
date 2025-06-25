@@ -40,6 +40,12 @@ class User(AbstractUser):
         blank=True,
         validators=[validate_favorite_genres]
     )
+    favorite_albums = models.ManyToManyField(
+        'music.Album',
+        related_name='favorited_by',
+        blank=True,
+        help_text='Favorite albums (max 5)'
+    )
     following = models.ManyToManyField(
         'self',
         related_name='followers',
