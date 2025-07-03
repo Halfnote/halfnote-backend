@@ -9,6 +9,7 @@ urlpatterns = [
     path('favorite-albums/', views.favorite_albums, name='favorite-albums'),
     path('followers/<str:username>/', views.get_followers, name='get-followers'),
     path('following/<str:username>/', views.get_following, name='get-following'),
+    path('users/search/', views.search_users, name='users-search'),
     path('users/<str:username>/', views.get_profile, name='get-profile'),
     path('users/<str:username>/reviews/', views.user_reviews, name='user-reviews'),
     path('users/<str:username>/activity/', views.user_activity_feed, name='user-activity-feed'),

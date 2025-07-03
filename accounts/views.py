@@ -248,7 +248,7 @@ def user_feed(request):
     return Response(serializer.data)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def search_users(request):
     """Search for users by username"""
     query = request.GET.get('q', '').strip()
@@ -257,14 +257,18 @@ def search_users(request):
         return Response({'error': 'Query parameter required'}, status=400)
     
     # Search for users whose username contains the query (case-insensitive)
-    users = User.objects.filter(
-        username__icontains=query
-    ).exclude(
-        id=request.user.id  # Exclude the current user from results
-    )[:10]  # Limit to 10 results
+    users_query = User.objects.filter(username__icontains=query)
     
-    # Get users that the current user is already following
-    following_usernames = set(request.user.following.values_list('username', flat=True))
+    # Only exclude current user if authenticated
+    if request.user.is_authenticated:
+        users_query = users_query.exclude(id=request.user.id)
+    
+    users = users_query[:10]  # Limit to 10 results
+    
+    # Get users that the current user is already following (only if authenticated)
+    following_usernames = set()
+    if request.user.is_authenticated:
+        following_usernames = set(request.user.following.values_list('username', flat=True))
     
     results = []
     for user in users:

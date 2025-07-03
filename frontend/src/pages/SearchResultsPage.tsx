@@ -440,15 +440,13 @@ const SearchResultsPage: React.FC = () => {
       const albumResults = await musicAPI.search(query);
       setAlbums(albumResults.results || []);
 
-      // Search for users if authenticated
-      if (user) {
-        try {
-          const userResults = await userAPI.searchUsers(query);
-          setUsers(userResults.users || userResults || []);
-        } catch (error) {
-          console.warn('User search failed:', error);
-          setUsers([]);
-        }
+      // Search for users
+      try {
+        const userResults = await userAPI.searchUsers(query);
+        setUsers(userResults.users || userResults || []);
+      } catch (error) {
+        console.warn('User search failed:', error);
+        setUsers([]);
       }
     } catch (error: any) {
       console.error('Error searching:', error);
