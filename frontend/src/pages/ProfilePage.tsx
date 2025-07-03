@@ -1037,6 +1037,7 @@ interface User {
   most_reviewed_genres?: Array<{ id: number; name: string; count: number }>;
   is_following?: boolean;
   is_staff?: boolean;
+  is_verified?: boolean;
 }
 
 interface Review {
@@ -1860,15 +1861,15 @@ const ProfilePage: React.FC = () => {
           <ProfileDetails>
             <ProfileName>
               {profileUser.display_name}
-              {profileUser.is_staff && (
+              {profileUser.is_verified && (
                 <span 
                   style={{ 
                     marginLeft: '8px', 
                     fontSize: '24px',
-                    color: '#3b82f6',
+                    color: '#1d4ed8',
                     fontWeight: 'bold'
                   }}
-                  title="Verified Staff"
+                  title="Verified User"
                 >
                   ✓
                 </span>

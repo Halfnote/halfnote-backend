@@ -274,6 +274,7 @@ def search_users(request):
             'bio': user.bio or '',
             'avatar': user.avatar.url if user.avatar else None,
             'is_following': user.username in following_usernames,
+            'is_verified': user.is_verified,
         }
         results.append(user_data)
     

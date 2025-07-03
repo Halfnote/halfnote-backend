@@ -172,7 +172,8 @@ def search_results(request):
                 'username': user.username,
                 'bio': user.bio or '',
                 'avatar_url': avatar_url,
-                'is_following': False  # We'll need authentication context for this
+                'is_following': False,  # We'll need authentication context for this
+                'is_verified': user.is_verified,
             })
     except Exception as e:
         print(f"User search error: {e}")

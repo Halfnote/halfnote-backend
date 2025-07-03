@@ -124,6 +124,16 @@ const ResultTitle = styled.h3`
   font-size: 18px;
   margin-bottom: 4px;
   color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const VerifiedBadge = styled.span`
+  color: #1d4ed8;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
 `;
 
 const ResultSubtitle = styled.p`
@@ -372,6 +382,7 @@ interface UserResult {
   bio?: string;
   avatar?: string;
   is_following?: boolean;
+  is_verified?: boolean;
 }
 
 const SearchResultsPage: React.FC = () => {
@@ -626,7 +637,10 @@ const SearchResultsPage: React.FC = () => {
                 }}
               />
               <ResultInfo>
-                <ResultTitle>{userResult.username}</ResultTitle>
+                <ResultTitle>
+                  {userResult.username}
+                  {userResult.is_verified && <VerifiedBadge>✓</VerifiedBadge>}
+                </ResultTitle>
                 {userResult.bio && <ResultSubtitle>{userResult.bio}</ResultSubtitle>}
                 <ResultMeta>User</ResultMeta>
               </ResultInfo>

@@ -83,6 +83,16 @@ const Username = styled.h3`
   font-weight: 600;
   color: #111827;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const VerifiedBadge = styled.span`
+  color: #1d4ed8;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
 `;
 
 const UserStats = styled.div`
@@ -225,7 +235,10 @@ const FollowingPage: React.FC = () => {
                 }}
               />
               <UserInfo>
-                <Username>{user.username}</Username>
+                <Username>
+                  {user.username}
+                  {user.is_verified && <VerifiedBadge>✓</VerifiedBadge>}
+                </Username>
                 <UserStats>
                   {user.review_count || 0} reviews • {user.follower_count || 0} followers • {user.following_count || 0} following
                 </UserStats>

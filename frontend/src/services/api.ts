@@ -51,6 +51,7 @@ export interface User {
   review_count?: number;
   pinned_reviews?: Review[];
   is_following?: boolean;
+  is_verified?: boolean;
   favorite_genres?: Array<{ id: number; name: string }>;
 }
 

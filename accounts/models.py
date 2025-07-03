@@ -52,6 +52,10 @@ class User(AbstractUser):
         symmetrical=False,
         blank=True
     )
+    is_verified = models.BooleanField(
+        default=False,
+        help_text='Verified checkmark for trusted users'
+    )
 
     class Meta(AbstractUser.Meta):
         swappable = 'AUTH_USER_MODEL' 
