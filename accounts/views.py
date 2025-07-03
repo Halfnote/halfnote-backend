@@ -28,7 +28,7 @@ def register(request):
     """
     try:
         user = User.objects.create_user(
-            username=request.data['username'],
+            username=request.data['username'].lower(),
             password=request.data['password'],
             bio=request.data.get('bio', '')
         )
@@ -51,7 +51,7 @@ def register(request):
 def login(request):
     data = request.data
     user = authenticate(
-        username=data.get('username'),
+        username=data.get('username').lower(),
         password=data.get('password')
     )
     if user:

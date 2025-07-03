@@ -24,6 +24,10 @@ def validate_username(value):
         raise ValidationError(
             _('Username must contain only letters and numbers.')
         )
+    if value != value.lower():
+        raise ValidationError(
+            _('Username must be lowercase only.')
+        )
     if value.lower() in blocked_usernames:
         raise ValidationError(
             _('This username is not available. Please choose a different one.')
