@@ -547,6 +547,7 @@ interface Comment {
   id: number;
   username: string;
   user_avatar?: string;
+  user_is_staff?: boolean;
   content: string;
   created_at: string;
 }
@@ -826,6 +827,9 @@ const ReviewDetailPage: React.FC = () => {
           <AlbumCover 
             src={review!.album_cover || '/static/music/default-album.svg'} 
             alt={review!.album_title}
+            onClick={() => review!.album_discogs_id && navigate(`/albums/${review!.album_discogs_id}/`)}
+            style={{ cursor: review!.album_discogs_id ? 'pointer' : 'default' }}
+            title={review!.album_discogs_id ? 'View album details' : ''}
             onError={(e) => {
               (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
             }}
@@ -834,7 +838,16 @@ const ReviewDetailPage: React.FC = () => {
         
         <ReviewInfo>
           <TitleRatingRow>
-            <AlbumTitle>{review!.album_title}</AlbumTitle>
+            <AlbumTitle 
+              onClick={() => review!.album_discogs_id && navigate(`/albums/${review!.album_discogs_id}/`)}
+              style={{ 
+                cursor: review!.album_discogs_id ? 'pointer' : 'default',
+                color: review!.album_discogs_id ? '#667eea' : 'inherit'
+              }}
+              title={review!.album_discogs_id ? 'View album details' : ''}
+            >
+              {review!.album_title}
+            </AlbumTitle>
             <RatingContainer>
               {user && (
                 <LikeButton 
@@ -979,6 +992,19 @@ const ReviewDetailPage: React.FC = () => {
                 <CommentHeader>
                   <CommentUsername onClick={() => navigate(`/users/${comment.username}`)}>
                     {comment.username}
+                    {comment.user_is_staff && (
+                      <span 
+                        style={{ 
+                          marginLeft: '4px', 
+                          fontSize: '14px',
+                          color: '#3b82f6',
+                          fontWeight: 'bold'
+                        }}
+                        title="Verified Staff"
+                      >
+                        ✓
+                      </span>
+                    )}
                   </CommentUsername>
                   <CommentTime>{getTimeAgo(comment.created_at)}</CommentTime>
                 </CommentHeader>

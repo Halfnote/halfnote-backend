@@ -19,11 +19,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'name', 'display_name',
-            'bio', 'location', 'avatar', 'favorite_genres', 'most_reviewed_genres',
+            'bio', 'location', 'avatar', 'banner', 'favorite_genres', 'most_reviewed_genres',
             'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
-            'favorite_albums', 'is_following', 'is_staff', 'is_verified'
+            'favorite_albums', 'is_following', 'is_staff'
         ]
-        read_only_fields = ['id', 'email', 'display_name', 'is_staff', 'is_verified']
+        read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
@@ -135,7 +135,7 @@ class UserFollowSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_verified']
+        fields = ['id', 'username', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_staff']
     
     def get_follower_count(self, obj):
         return obj.followers.count()
@@ -154,8 +154,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_verified']
-        read_only_fields = ['id', 'email', 'is_verified']
+        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        read_only_fields = ['id', 'email', 'is_staff']
     
     def get_follower_count(self, obj):
         return obj.followers.count()

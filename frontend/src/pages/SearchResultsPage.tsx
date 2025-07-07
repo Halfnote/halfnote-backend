@@ -382,7 +382,7 @@ interface UserResult {
   bio?: string;
   avatar?: string;
   is_following?: boolean;
-  is_verified?: boolean;
+  is_staff?: boolean;
 }
 
 const SearchResultsPage: React.FC = () => {
@@ -637,7 +637,7 @@ const SearchResultsPage: React.FC = () => {
               <ResultInfo>
                 <ResultTitle>
                   {userResult.username}
-                  {userResult.is_verified && <VerifiedBadge>✓</VerifiedBadge>}
+                  {userResult.is_staff && <VerifiedBadge>✓</VerifiedBadge>}
                 </ResultTitle>
                 {userResult.bio && <ResultSubtitle>{userResult.bio}</ResultSubtitle>}
                 <ResultMeta>User</ResultMeta>
@@ -675,12 +675,19 @@ const SearchResultsPage: React.FC = () => {
               <ResultImage 
                 src={album.cover_image || album.thumb || 'https://via.placeholder.com/100x100'}
                 alt={album.title}
+                onClick={() => navigate(`/albums/${album.discogs_id || album.id}/`)}
+                style={{ cursor: 'pointer' }}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100x100?text=No+Cover';
                 }}
               />
               <ResultInfo>
-                <ResultTitle>{album.title}</ResultTitle>
+                <ResultTitle 
+                  onClick={() => navigate(`/albums/${album.discogs_id || album.id}/`)}
+                  style={{ cursor: 'pointer', color: '#667eea' }}
+                >
+                  {album.title}
+                </ResultTitle>
                 <ResultSubtitle>{album.artist}</ResultSubtitle>
                 <ResultMeta>
                   Album{album.year && ` • ${album.year}`}

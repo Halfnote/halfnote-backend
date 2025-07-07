@@ -237,7 +237,7 @@ const FollowingPage: React.FC = () => {
               <UserInfo>
                 <Username>
                   {user.username}
-                  {user.is_verified && <VerifiedBadge>✓</VerifiedBadge>}
+                  {user.is_staff && <VerifiedBadge>✓</VerifiedBadge>}
                 </Username>
                 <UserStats>
                   {user.review_count || 0} reviews • {user.follower_count || 0} followers • {user.following_count || 0} following

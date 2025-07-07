@@ -106,15 +106,45 @@ def profile(request):
     if 'avatar' in request.FILES:
         data['avatar'] = request.FILES['avatar']
     
+    # Handle banner file upload
+    if 'banner' in request.FILES:
+        data['banner'] = request.FILES['banner']
+    
     serializer = UserProfileSerializer(request.user, data=data, partial=True)
     if serializer.is_valid():
-        serializer.save()
-        
-        # Comprehensive cache invalidation for profile updates
-        from music.cache_utils import invalidate_comprehensive_profile_cache
-        invalidate_comprehensive_profile_cache(request.user.id, request.user.username)
-        
-        return Response(serializer.data)
+        try:
+            serializer.save()
+            
+            # Comprehensive cache invalidation for profile updates
+            from music.cache_utils import invalidate_comprehensive_profile_cache
+            invalidate_comprehensive_profile_cache(request.user.id, request.user.username)
+            
+            return Response(serializer.data)
+        except Exception as e:
+            # Show the actual error for debugging and print to console
+            import traceback
+            
+            error_details = {
+                'error': f'Profile update failed: {str(e)}',
+                'error_type': type(e).__name__,
+                'traceback': traceback.format_exc(),
+                'debug_info': {
+                    'exception_str': str(e),
+                    'exception_type': str(type(e)),
+                    'cloudinary_related': 'cloudinary' in str(e).lower()
+                }
+            }
+            
+            # Print to server console for debugging
+            print("="*50)
+            print("PROFILE UPDATE ERROR:")
+            print(f"Error: {str(e)}")
+            print(f"Type: {type(e).__name__}")
+            print("Traceback:")
+            print(traceback.format_exc())
+            print("="*50)
+            
+            return Response(error_details, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -278,7 +308,7 @@ def search_users(request):
             'bio': user.bio or '',
             'avatar': user.avatar.url if user.avatar else None,
             'is_following': user.username in following_usernames,
-            'is_verified': user.is_verified,
+            'is_staff': user.is_staff,
         }
         results.append(user_data)
     

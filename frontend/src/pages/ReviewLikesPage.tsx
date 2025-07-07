@@ -12,6 +12,7 @@ interface User {
   follower_count?: number;
   following_count?: number;
   review_count?: number;
+  is_staff?: boolean;
 }
 
 interface Review {
@@ -316,7 +317,22 @@ const ReviewLikesPage: React.FC = () => {
                 (e.target as HTMLImageElement).src = '/static/accounts/default-avatar.svg';
               }}
             />
-            <UserName>{user.name || user.username}</UserName>
+            <UserName>
+              {user.name || user.username}
+              {user.is_staff && (
+                <span 
+                  style={{ 
+                    marginLeft: '4px', 
+                    fontSize: '12px',
+                    color: '#3b82f6',
+                    fontWeight: 'bold'
+                  }}
+                  title="Verified Staff"
+                >
+                  ✓
+                </span>
+              )}
+            </UserName>
             <Username>@{user.username}</Username>
             <UserStats>
               {user.review_count || 0} reviews • {user.follower_count || 0} followers • {user.following_count || 0} following

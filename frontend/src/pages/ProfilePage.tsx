@@ -768,9 +768,9 @@ const ModalContent = styled.div`
   background: white;
   border-radius: 12px;
   padding: 24px;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
   overflow-y: auto;
 `;
 
@@ -863,6 +863,121 @@ const SaveButton = styled.button`
   &:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+  }
+`;
+
+const FileUploadSection = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+`;
+
+const FileUploadContainer = styled.div`
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  
+  &:hover {
+    border-color: #667eea;
+    background: #f9fafb;
+  }
+`;
+
+const FileUploadLabel = styled.label`
+  display: block;
+  cursor: pointer;
+  color: #374151;
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 16px;
+`;
+
+const FileUploadHint = styled.p`
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 16px;
+`;
+
+const FileUploadButton = styled.button`
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #5a6fd8;
+  }
+`;
+
+const HiddenFileInput = styled.input`
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+`;
+
+const ImagePreview = styled.div`
+  margin-top: 16px;
+  position: relative;
+`;
+
+const AvatarPreviewContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+`;
+
+const AvatarPreviewImage = styled.img`
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #e5e7eb;
+`;
+
+const BannerPreviewContainer = styled.div`
+  margin-top: 16px;
+`;
+
+const BannerPreviewImage = styled.img`
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+`;
+
+const PreviewLabel = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-weight: 500;
+`;
+
+const RemoveButton = styled.button`
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-top: 8px;
+  
+  &:hover {
+    background: #dc2626;
   }
 `;
 
@@ -1001,15 +1116,56 @@ const GenreOption = styled.label`
   }
 `;
 
-const AvatarPreview = styled.img`
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin: 20px auto 0;
-  border: 3px solid #e5e7eb;
-  display: block;
+
+
+const ProfileBanner = styled.div<{ $backgroundImage?: string }>`
+  width: 100%;
+  height: 200px;
+  background: ${props => props.$backgroundImage 
+    ? `linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url(${props.$backgroundImage})`
+    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  };
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 12px;
+  position: relative;
+  margin-bottom: 20px;
+  cursor: ${props => props.onClick ? 'pointer' : 'default'};
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: ${props => props.onClick ? '0.9' : '1'};
+  }
 `;
+
+const BannerOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  
+  ${ProfileBanner}:hover & {
+    opacity: 1;
+  }
+`;
+
+const BannerEditText = styled.div`
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+`;
+
+
 
 interface User {
   id: number;
@@ -1019,6 +1175,7 @@ interface User {
   bio?: string;
   location?: string;
   avatar?: string;
+  banner?: string;
   follower_count: number;
   following_count: number;
   review_count: number;
@@ -1048,6 +1205,7 @@ interface Review {
   album_artist: string;
   album_cover?: string;
   album_year?: number;
+  album_discogs_id?: string;
   rating: number;
   content: string;
   created_at: string;
@@ -1117,6 +1275,8 @@ const ProfilePage: React.FC = () => {
   const [editFavoriteGenres, setEditFavoriteGenres] = useState<string[]>([]);
   const [editAvatar, setEditAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [editBanner, setEditBanner] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string>('');
   const [availableGenres, setAvailableGenres] = useState<Array<{ id: number; name: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string>('');
@@ -1167,6 +1327,7 @@ const ProfilePage: React.FC = () => {
           ) || []
         );
         setAvatarPreview(userData.avatar || '');
+        setBannerPreview(userData.banner || '');
       }
     } catch (err: any) {
       console.error('Failed to load profile:', err);
@@ -1381,6 +1542,38 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditBanner(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setBannerPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setEditAvatar(null);
+    setAvatarPreview(profileUser?.avatar || '');
+  };
+
+  const handleRemoveBanner = () => {
+    setEditBanner(null);
+    setBannerPreview(profileUser?.banner || '');
+  };
+
+  const handleAvatarButtonClick = () => {
+    const fileInput = document.getElementById('avatar-input') as HTMLInputElement;
+    fileInput?.click();
+  };
+
+  const handleBannerButtonClick = () => {
+    const fileInput = document.getElementById('banner-input') as HTMLInputElement;
+    fileInput?.click();
+  };
+
   const handleGenreToggle = (genreName: string) => {
     setEditFavoriteGenres(prev => 
       prev.includes(genreName)
@@ -1403,6 +1596,10 @@ const ProfilePage: React.FC = () => {
       if (editAvatar) {
         formData.append('avatar', editAvatar);
       }
+      
+      if (editBanner) {
+        formData.append('banner', editBanner);
+      }
 
       const updatedUser = await userAPI.updateProfile(formData);
       
@@ -1414,8 +1611,14 @@ const ProfilePage: React.FC = () => {
         setAvatarPreview(updatedUser.avatar);
       }
       
-      // Clear the edit avatar file since it's now saved
+      // Update banner preview if a new banner was uploaded
+      if (editBanner && updatedUser.banner) {
+        setBannerPreview(updatedUser.banner);
+      }
+      
+      // Clear the edit files since they're now saved
       setEditAvatar(null);
+      setEditBanner(null);
       
       setShowEditModal(false);
       
@@ -1427,8 +1630,27 @@ const ProfilePage: React.FC = () => {
       setTimeout(() => setSuccess(''), 3000); // Auto-hide after 3 seconds
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      setProfileError('Failed to update profile: ' + (error.response?.data?.error || error.message || 'Unknown error'));
-      setTimeout(() => setProfileError(''), 5000); // Auto-hide error after 5 seconds
+      console.error('Full error response:', error.response?.data);
+      
+      // Show detailed error for debugging
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        let errorMessage = errorData.error || 'Unknown error';
+        
+        // Add debug information if available
+        if (errorData.debug_info) {
+          errorMessage += `\n\nDebug Info:\n- Type: ${errorData.error_type}\n- Exception: ${errorData.debug_info.exception_str}`;
+        }
+        
+        if (errorData.traceback) {
+          console.error('Server traceback:', errorData.traceback);
+        }
+        
+        setProfileError(errorMessage);
+      } else {
+        setProfileError('Failed to update profile: ' + (error.message || 'Unknown error'));
+      }
+      setTimeout(() => setProfileError(''), 15000); // Longer timeout for debugging
     } finally {
       setSaving(false);
     }
@@ -1572,10 +1794,10 @@ const ProfilePage: React.FC = () => {
   };
 
   const renderActivityText = (activity: Activity) => {
-    const isCurrentUser = activity.user.username === user?.username;
-    const isTargetCurrentUser = activity.target_user?.username === user?.username;
-    
     try {
+      const isCurrentUser = activity.user.username === user?.username;
+      const isTargetCurrentUser = activity.target_user?.username === user?.username;
+
       switch (activity.activity_type) {
         case 'review_created':
           return (
@@ -1583,9 +1805,24 @@ const ProfilePage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                    {activity.user.username}
+                  </ActivityUser>
+                  {activity.user.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
               {' reviewed '}
               <ActivityAlbum onClick={() => navigate(`/review/${activity.review_details?.id}/`)}>
@@ -1599,17 +1836,47 @@ const ProfilePage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                    {activity.user.username}
+                  </ActivityUser>
+                  {activity.user.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
               {' followed '}
               {isTargetCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>you</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.target_user?.username}`)}>
-                  {activity.target_user?.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.target_user?.username}`)}>
+                    {activity.target_user?.username}
+                  </ActivityUser>
+                  {activity.target_user?.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
             </>
           );
@@ -1619,9 +1886,24 @@ const ProfilePage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                    {activity.user.username}
+                  </ActivityUser>
+                  {activity.user.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
               {' liked '}
               {activity.review_details?.user?.username === user?.username ? (
@@ -1631,6 +1913,19 @@ const ProfilePage: React.FC = () => {
                   <ActivityUser onClick={() => navigate(`/users/${activity.review_details?.user?.username}`)}>
                     {activity.review_details?.user?.username}
                   </ActivityUser>
+                  {activity.review_details?.user?.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
                   <span>'s</span>
                 </>
               )}
@@ -1646,9 +1941,24 @@ const ProfilePage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                    {activity.user.username}
+                  </ActivityUser>
+                  {activity.user.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
               {' commented on '}
               {activity.review_details?.user?.username === user?.username ? (
@@ -1658,6 +1968,19 @@ const ProfilePage: React.FC = () => {
                   <ActivityUser onClick={() => navigate(`/users/${activity.review_details?.user?.username}`)}>
                     {activity.review_details?.user?.username}
                   </ActivityUser>
+                  {activity.review_details?.user?.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
                   <span>'s</span>
                 </>
               )}
@@ -1673,9 +1996,24 @@ const ProfilePage: React.FC = () => {
               {isCurrentUser ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>You</span>
               ) : (
-                <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
-                  {activity.user.username}
-                </ActivityUser>
+                <>
+                  <ActivityUser onClick={() => navigate(`/users/${activity.user.username}`)}>
+                    {activity.user.username}
+                  </ActivityUser>
+                  {activity.user.is_staff && (
+                    <span 
+                      style={{ 
+                        marginLeft: '4px', 
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        fontWeight: 'bold'
+                      }}
+                      title="Verified Staff"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </>
               )}
               {' performed an action'}
             </>
@@ -1691,7 +2029,8 @@ const ProfilePage: React.FC = () => {
       <ReviewAlbumCover 
         src={review.album_cover || '/static/music/default-album.svg'} 
         alt={review.album_title}
-        onClick={() => navigate(`/review/${review.id}/`)}
+        onClick={() => review.album_discogs_id ? navigate(`/albums/${review.album_discogs_id}/`) : navigate(`/review/${review.id}/`)}
+        title={review.album_discogs_id ? 'View album details' : 'View review'}
         onError={(e) => {
           (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
         }}
@@ -1847,6 +2186,18 @@ const ProfilePage: React.FC = () => {
         ← Back to Home
       </BackLink>
       
+      {/* Profile Banner */}
+      <ProfileBanner 
+        $backgroundImage={profileUser.banner}
+        onClick={isOwnProfile ? handleEditProfile : undefined}
+      >
+        {isOwnProfile && (
+          <BannerOverlay>
+            <BannerEditText>Click to edit banner</BannerEditText>
+          </BannerOverlay>
+        )}
+      </ProfileBanner>
+      
       <ProfileHeader>
         <ProfileInfo>
           <ProfileAvatar 
@@ -1861,15 +2212,15 @@ const ProfilePage: React.FC = () => {
           <ProfileDetails>
             <ProfileName>
               {profileUser.display_name}
-              {profileUser.is_verified && (
+              {profileUser.is_staff && (
                 <span 
                   style={{ 
                     marginLeft: '8px', 
                     fontSize: '24px',
-                    color: '#1d4ed8',
+                    color: '#3b82f6',
                     fontWeight: 'bold'
                   }}
-                  title="Verified User"
+                  title="Verified Staff"
                 >
                   ✓
                 </span>
@@ -2263,14 +2614,67 @@ const ProfilePage: React.FC = () => {
             </GenreGrid>
           </FormGroup>
           
-          <FormGroup>
-            <Label>Avatar</Label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarChange}
-            />
-          </FormGroup>
+          <FileUploadSection>
+            <div>
+              <FileUploadContainer>
+                <FileUploadLabel>Profile Picture</FileUploadLabel>
+                <FileUploadHint>Upload a square image (recommended: 400x400px)</FileUploadHint>
+                <FileUploadButton type="button" onClick={handleAvatarButtonClick}>
+                  📷 Choose Avatar
+                </FileUploadButton>
+                <HiddenFileInput
+                  id="avatar-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                />
+              </FileUploadContainer>
+              
+              {avatarPreview && (
+                <AvatarPreviewContainer>
+                  <AvatarPreviewImage
+                    src={avatarPreview}
+                    alt="Avatar Preview"
+                  />
+                  <div>
+                    <PreviewLabel>Avatar Preview</PreviewLabel>
+                    <RemoveButton onClick={handleRemoveAvatar}>
+                      Remove
+                    </RemoveButton>
+                  </div>
+                </AvatarPreviewContainer>
+              )}
+            </div>
+
+            <div>
+              <FileUploadContainer>
+                <FileUploadLabel>Banner Image</FileUploadLabel>
+                <FileUploadHint>Upload a wide image (recommended: 1200x400px)</FileUploadHint>
+                <FileUploadButton type="button" onClick={handleBannerButtonClick}>
+                  🖼️ Choose Banner
+                </FileUploadButton>
+                <HiddenFileInput
+                  id="banner-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBannerChange}
+                />
+              </FileUploadContainer>
+              
+              {bannerPreview && (
+                <BannerPreviewContainer>
+                  <PreviewLabel>Banner Preview</PreviewLabel>
+                  <BannerPreviewImage
+                    src={bannerPreview}
+                    alt="Banner Preview"
+                  />
+                  <RemoveButton onClick={handleRemoveBanner}>
+                    Remove
+                  </RemoveButton>
+                </BannerPreviewContainer>
+              )}
+            </div>
+          </FileUploadSection>
          
           <SaveButton 
             onClick={handleSaveProfile}
@@ -2278,13 +2682,6 @@ const ProfilePage: React.FC = () => {
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </SaveButton>
-          
-          {avatarPreview && (
-            <AvatarPreview
-              src={avatarPreview}
-              alt="Avatar Preview"
-            />
-          )}
         </ModalContent>
       </EditProfileModal>
 
@@ -2366,7 +2763,9 @@ const ProfilePage: React.FC = () => {
                     (e.target as HTMLImageElement).src = '/static/accounts/default-avatar.svg';
                   }}
                 />
-                <LikeUserName>{user.username}</LikeUserName>
+                <LikeUserName>
+                  {user.username}
+                </LikeUserName>
               </LikeUserItem>
             ))
           ) : (

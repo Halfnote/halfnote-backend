@@ -46,12 +46,14 @@ export interface User {
   bio?: string;
   location?: string;
   avatar?: string;
+  banner?: string;
   follower_count: number;
   following_count: number;
   review_count?: number;
   pinned_reviews?: Review[];
   is_following?: boolean;
-  is_verified?: boolean;
+  is_staff?: boolean;
+  user_is_staff?: boolean;
   favorite_genres?: Array<{ id: number; name: string }>;
 }
 
@@ -69,6 +71,7 @@ export interface Album {
 export interface Review {
   id: number;
   username: string;
+  user_is_staff?: boolean;
   rating: number;
   content: string;
   created_at: string;
@@ -86,6 +89,8 @@ export interface Review {
 export interface Comment {
   id: number;
   user: User;
+  username?: string;
+  user_is_staff?: boolean;
   content: string;
   created_at: string;
 }
@@ -335,7 +340,7 @@ export const userAPI = {
     }
   },
   
-  updateProfile: async (data: FormData | { bio?: string; name?: string; location?: string; favorite_genres?: string[]; avatar?: File }) => {
+  updateProfile: async (data: FormData | { bio?: string; name?: string; location?: string; favorite_genres?: string[]; avatar?: File; banner?: File }) => {
     try {
       let formData: FormData;
       
@@ -357,6 +362,9 @@ export const userAPI = {
         }
         if (data.avatar) {
           formData.append('avatar', data.avatar);
+        }
+        if (data.banner) {
+          formData.append('banner', data.banner);
         }
       }
       

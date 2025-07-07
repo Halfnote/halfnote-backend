@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from cloudinary_storage.storage import MediaCloudinaryStorage
+from .storage import SimpleCloudinaryStorage
 from .validators import (
     validate_username, validate_bio,
     validate_favorite_genres
@@ -35,6 +36,13 @@ class User(AbstractUser):
         help_text='Profile picture',
         storage=MediaCloudinaryStorage()
     )
+    banner = models.ImageField(
+        upload_to='banners/',
+        blank=True,
+        null=True,
+        help_text='Profile banner image',
+        storage=SimpleCloudinaryStorage()
+    )
     favorite_genres = models.JSONField(
         default=list,
         blank=True,
@@ -51,10 +59,6 @@ class User(AbstractUser):
         related_name='followers',
         symmetrical=False,
         blank=True
-    )
-    is_verified = models.BooleanField(
-        default=False,
-        help_text='Verified checkmark for trusted users'
     )
 
     class Meta(AbstractUser.Meta):

@@ -277,6 +277,7 @@ interface Activity {
       artist: string;
       year?: number;
       cover_url?: string;
+      discogs_id?: string;
     };
     rating: number;
     content: string;
@@ -666,7 +667,15 @@ const ActivityPage: React.FC = () => {
                 <AlbumCover 
                   src={activity.review_details.album.cover_url}
                   alt={activity.review_details.album.title}
-                  onClick={() => navigate(`/review/${activity.review_details?.id}/`)}
+                  onClick={() => {
+                    // Navigate to album detail page if available, otherwise to review
+                    if (activity.review_details?.album?.discogs_id) {
+                      navigate(`/albums/${activity.review_details.album.discogs_id}/`);
+                    } else {
+                      navigate(`/review/${activity.review_details?.id}/`);
+                    }
+                  }}
+                  title={activity.review_details?.album?.discogs_id ? 'View album details' : 'View review'}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
