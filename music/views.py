@@ -31,7 +31,7 @@ def search_discogs(query):
         params={
             "q": query,
             "type": "master",
-            "per_page": 10,
+            "per_page": 25,
             "key": settings.DISCOGS_CONSUMER_KEY,
             "secret": settings.DISCOGS_CONSUMER_SECRET
         },

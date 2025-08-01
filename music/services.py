@@ -146,20 +146,46 @@ class ExternalMusicService:
             if 'tracklist' in data:
                 for track in data['tracklist']:
                     if track.get('type_') != 'heading':  # Skip headings
+                        # Clean artist names in tracklist
+                        artists = track.get('artists', [])
+                        cleaned_artists = []
+                        for artist in artists:
+                            if isinstance(artist, dict) and 'name' in artist:
+                                cleaned_name = self._clean_artist_name(artist['name'])
+                                cleaned_artist = artist.copy()
+                                cleaned_artist['name'] = cleaned_name
+                                cleaned_artists.append(cleaned_artist)
+                            elif isinstance(artist, str):
+                                cleaned_artists.append(self._clean_artist_name(artist))
+                            else:
+                                cleaned_artists.append(artist)
+                        
+                        # Clean extraartists names as well
+                        extraartists = track.get('extraartists', [])
+                        cleaned_extraartists = []
+                        for artist in extraartists:
+                            if isinstance(artist, dict) and 'name' in artist:
+                                cleaned_name = self._clean_artist_name(artist['name'])
+                                cleaned_artist = artist.copy()
+                                cleaned_artist['name'] = cleaned_name
+                                cleaned_extraartists.append(cleaned_artist)
+                            else:
+                                cleaned_extraartists.append(artist)
+                        
                         tracklist.append({
                             'position': track.get('position', ''),
                             'title': track.get('title', ''),
                             'duration': track.get('duration', ''),
-                            'artists': track.get('artists', []),
-                            'extraartists': track.get('extraartists', [])
+                            'artists': cleaned_artists,
+                            'extraartists': cleaned_extraartists
                         })
             
-            # Get credits
+            # Get credits with cleaned artist names
             credits = []
             if 'extraartists' in data:
                 for artist in data['extraartists']:
                     credits.append({
-                        'name': artist.get('name', ''),
+                        'name': self._clean_artist_name(artist.get('name', '')),
                         'role': artist.get('role', ''),
                         'id': artist.get('id', '')
                     })

@@ -478,7 +478,7 @@ def user_activity_feed(request, username):
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def favorite_albums(request):
-    """Manage user's favorite albums (max 5)"""
+    """Manage user's favorite albums (max 7)"""
     user = request.user
     
     if request.method == 'GET':
@@ -519,8 +519,8 @@ def favorite_albums(request):
                 return Response({"error": "Album already in favorites"}, status=400)
             
             # Check limit
-            if user.favorite_albums.count() >= 5:
-                return Response({"error": "You can only have up to 5 favorite albums"}, status=400)
+            if user.favorite_albums.count() >= 7:
+                return Response({"error": "You can only have up to 7 favorite albums"}, status=400)
             
             # Add to favorites
             user.favorite_albums.add(album)

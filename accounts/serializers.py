@@ -95,7 +95,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Get user's favorite albums with album details and user review info"""
         try:
             from music.models import Review
-            favorite_albums = obj.favorite_albums.all()[:5]  # Limit to 5
+            favorite_albums = obj.favorite_albums.all()[:7]  # Limit to 7
             
             albums_data = []
             for album in favorite_albums:

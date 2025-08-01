@@ -52,7 +52,7 @@ class User(AbstractUser):
         'music.Album',
         related_name='favorited_by',
         blank=True,
-        help_text='Favorite albums (max 5)'
+        help_text='Favorite albums (max 7)'
     )
     following = models.ManyToManyField(
         'self',

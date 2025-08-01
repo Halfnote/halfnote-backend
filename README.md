@@ -9,7 +9,7 @@ A comprehensive Django-based API for music reviews and social features, inspired
 - **🔐 User Authentication & Profiles**: JWT-based auth with customizable user profiles, avatars, and bios
 - **🎼 Music Discovery**: Search albums via Discogs API integration with rich metadata
 - **⭐ Review System**: Rate albums (1-10 scale), write detailed reviews, pin favorites (max 2), edit/delete reviews with slider UI
-- **❤️ Favorite Albums**: Curate up to 5 favorite albums displayed prominently on your profile, similar to Letterboxd's favorite movies
+- **❤️ Favorite Albums**: Curate up to 7 favorite albums displayed prominently on your profile, similar to Letterboxd's favorite movies
 - **📝 Lists & Collections**: Create and manage custom album lists, like/unlike lists, browse public lists
 - **👥 Social Features**: Follow users, activity feeds, like reviews, comment threads
 - **🏷️ Genre Tagging**: User-assigned genres for personalized organization and discovery
@@ -164,7 +164,7 @@ const favoriteAlbums = await fetch('/api/accounts/favorite-albums/', {
 //   ]
 // }
 
-// Add album to favorites (max 5 albums)
+// Add album to favorites (max 7 albums)
 await fetch('/api/accounts/favorite-albums/', {
   method: 'POST',
   headers: {
@@ -189,7 +189,7 @@ await fetch('/api/accounts/favorite-albums/', {
 });
 
 // Error responses:
-// { "error": "You can only have up to 5 favorite albums" }
+// { "error": "You can only have up to 7 favorite albums" }
 // { "error": "Album not found" }
 // { "error": "Album is already in your favorites" }
 ```
@@ -1115,7 +1115,7 @@ The API serves a complete web application with responsive design and modern UX:
 
 ### 👤 User Profiles (`/users/{username}/`)
 - **Profile Header**: Avatar, bio, follower/following counts, review statistics
-- **Favorite Albums**: Beautiful grid showcasing up to 5 favorite albums with hover effects and user ratings
+- **Favorite Albums**: Beautiful grid showcasing up to 7 favorite albums with hover effects and user ratings
 - **Pinned Reviews**: Up to 2 highlighted favorite reviews at the top (reduced from 4)
 - **Review Grid**: Compact album covers (120px) in Letterboxd-style layout
 - **Review Management**: Edit/delete/pin your own reviews with modal interface
@@ -1241,7 +1241,7 @@ For optimal performance in production, configure Redis Cloud:
 | POST | `/api/accounts/users/{username}/follow/` | Follow user | Yes |
 | POST | `/api/accounts/users/{username}/unfollow/` | Unfollow user | Yes |
 | GET | `/api/accounts/favorite-albums/` | Get current user's favorite albums | Yes |
-| POST | `/api/accounts/favorite-albums/` | Add album to favorites (max 5) | Yes |
+| POST | `/api/accounts/favorite-albums/` | Add album to favorites (max 7) | Yes |
 | DELETE | `/api/accounts/favorite-albums/` | Remove album from favorites | Yes |
 
 ### Music & Album Endpoints
@@ -1294,7 +1294,7 @@ For optimal performance in production, configure Redis Cloud:
 - **Cache Optimization**: Pinning/unpinning now triggers immediate cache invalidation for instant UI updates
 
 ### ❤️ Favorite Albums (New Feature)
-- **Concept**: Similar to Letterboxd's 4 favorite movies, but for albums (max 5)
+- **Concept**: Similar to Letterboxd's 4 favorite movies, but for albums (max 7)
 - **Display**: Beautiful grid layout on user profiles with album covers and user ratings
 - **User Experience**: Hover effects, remove buttons, clickable albums linking to reviews
 - **API Integration**: Full CRUD operations via `/api/accounts/favorite-albums/`
