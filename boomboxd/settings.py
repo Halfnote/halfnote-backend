@@ -40,6 +40,7 @@ AUTH_USER_MODEL = 'accounts.User'
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'accounts.middleware.UsernameRedirectMiddleware',  # Username redirect middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -129,14 +130,7 @@ if REDIS_URL:
         }
     }
     
-    # Ensure Redis connection is available at startup
-    try:
-        from django.core.cache import cache
-        cache.get('test_connection')
-        print("Redis connection successful")
-    except Exception as e:
-        print(f"Redis connection failed: {e}")
-        print("Falling back to database cache")
+    # Avoid performing network connectivity checks at import time to reduce cold-start latency
     
     CACHES = {
         'default': {

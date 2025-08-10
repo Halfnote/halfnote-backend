@@ -50,7 +50,7 @@ class ExternalMusicService:
         logger.info(f"Making Discogs API request to: {url}")
 
         try:
-            response = requests.get(url, params=params, headers=headers)
+            response = requests.get(url, params=params, headers=headers, timeout=(2, 10))
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:

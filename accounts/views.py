@@ -271,9 +271,12 @@ def get_following(request, username):
 @permission_classes([IsAuthenticated])
 def user_feed(request):
     following_users = request.user.following.all()
-    reviews = Review.objects.filter(
-        user__in=following_users
-    ).order_by('-created_at')
+    reviews = (
+        Review.objects.filter(user__in=following_users)
+        .select_related('album', 'user')
+        .prefetch_related('user_genres', 'likes', 'comments')
+        .order_by('-created_at')
+    )
     serializer = ReviewSerializer(reviews, many=True)
     return Response(serializer.data)
 

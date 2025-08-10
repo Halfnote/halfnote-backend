@@ -35,7 +35,8 @@ def search_discogs(query):
             "key": settings.DISCOGS_CONSUMER_KEY,
             "secret": settings.DISCOGS_CONSUMER_SECRET
         },
-        headers=headers
+        headers=headers,
+        timeout=(2, 10)
     )
 
     if not response.ok:
