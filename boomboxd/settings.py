@@ -123,7 +123,11 @@ if REDIS_URL:
     redis_options = {
         'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+        'IGNORE_EXCEPTIONS': True,  # Do not raise on cache errors (prevents 500s)
+        'SOCKET_CONNECT_TIMEOUT': 2,
+        'SOCKET_TIMEOUT': 2,
         'CONNECTION_POOL_KWARGS': {
+            'max_connections': 20,
             'retry_on_timeout': True,
             'retry_on_error': [redis.ConnectionError, redis.TimeoutError],
             'health_check_interval': 30,

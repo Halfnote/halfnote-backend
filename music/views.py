@@ -310,6 +310,11 @@ def edit_review(request, review_id):
             from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
             invalidate_on_user_interaction(acting_user_id=request.user.id)
             invalidate_profile_cache(request.user.id, request.user.username)
+            # Ensure album detail cache reflects updated review immediately
+            try:
+                invalidate_album_cache(review.album.discogs_id)
+            except Exception:
+                pass
             
             # Return response with warnings if needed
             response_data = ReviewSerializer(review).data
@@ -324,6 +329,10 @@ def edit_review(request, review_id):
         from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
         invalidate_on_user_interaction(acting_user_id=request.user.id)
         invalidate_profile_cache(request.user.id, request.user.username)
+        try:
+            invalidate_album_cache(review.album.discogs_id)
+        except Exception:
+            pass
         
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
@@ -341,6 +350,10 @@ def edit_review(request, review_id):
         from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
         invalidate_on_user_interaction(acting_user_id=request.user.id)
         invalidate_profile_cache(request.user.id, request.user.username)
+        try:
+            invalidate_album_cache(album.discogs_id)
+        except Exception:
+            pass
         
         return Response({"message": "Review deleted successfully"}, status=200)
 
@@ -379,6 +392,10 @@ def pin_review(request, review_id):
     from .cache_utils import invalidate_on_user_interaction, invalidate_profile_cache
     invalidate_on_user_interaction(acting_user_id=request.user.id)
     invalidate_profile_cache(request.user.id, request.user.username)
+    try:
+        invalidate_album_cache(review.album.discogs_id)
+    except Exception:
+        pass
     
     return Response({
         "message": f"Review {action} successfully",
