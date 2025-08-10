@@ -11,7 +11,7 @@ User = get_user_model()
 
 class UsernameRedirectMiddleware:
     """
-    Middleware to handle username redirects (e.g., /users/vivek -> /users/viv360)
+    Middleware to handle username redirects (e.g., /users/old -> /users/new)
     """
     
     def __init__(self, get_response):
@@ -19,7 +19,7 @@ class UsernameRedirectMiddleware:
         
         # Define username redirects
         self.username_redirects = {
-            'vivek': 'viv360',
+            'viv360': 'vivek',
             # Add more redirects here as needed
         }
     
