@@ -236,3 +236,79 @@ def user_following(request, username):
         'has_more': user.following.count() > offset + limit,
         'next_offset': offset + limit if user.following.count() > offset + limit else None
     })
+
+
+# ============================================================================
+# MISSING VIEWS THAT FRONTEND EXPECTS
+# ============================================================================
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def unfollow_user(request, username):
+    """Unfollow a user (same as DELETE on follow_user)"""
+    return follow_user(request, username)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_users(request):
+    """Search for users"""
+    query = request.GET.get('q', '')
+    if not query:
+        return Response({'users': []})
+    
+    users = User.objects.filter(username__icontains=query)[:20]
+    serializer = UserSerializer(users, many=True, context={'request': request})
+    
+    return Response({'users': serializer.data})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_genre_stats(request, username):
+    """Get genre statistics for a user"""
+    user = get_object_or_404(User, username=username)
+    
+    # This would typically aggregate genre data from user's reviews
+    # For now, return a simple response
+    return Response({
+        'user': username,
+        'genres': [],
+        'message': 'Genre stats not implemented yet'
+    })
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def favorite_albums(request):
+    """Manage user's favorite albums"""
+    if request.method == 'GET':
+        # Get user's favorite albums
+        favorite_albums = request.user.favorite_albums.all()
+        from music.serializers import AlbumSerializer
+        serializer = AlbumSerializer(favorite_albums, many=True)
+        return Response({'albums': serializer.data})
+    
+    elif request.method == 'POST':
+        # Add album to favorites
+        discogs_id = request.data.get('discogs_id')
+        if not discogs_id:
+            return Response({'error': 'discogs_id required'}, status=400)
+        
+        from music.models import Album
+        album = get_object_or_404(Album, discogs_id=discogs_id)
+        request.user.favorite_albums.add(album)
+        
+        return Response({'message': 'Album added to favorites'})
+    
+    elif request.method == 'DELETE':
+        # Remove album from favorites
+        discogs_id = request.data.get('discogs_id')
+        if not discogs_id:
+            return Response({'error': 'discogs_id required'}, status=400)
+        
+        from music.models import Album
+        album = get_object_or_404(Album, discogs_id=discogs_id)
+        request.user.favorite_albums.remove(album)
+        
+        return Response({'message': 'Album removed from favorites'})

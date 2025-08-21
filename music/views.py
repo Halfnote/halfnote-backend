@@ -21,6 +21,7 @@ from .serializers import (
     ActivitySerializer, CommentSerializer, GenreSerializer, 
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
+from accounts.serializers import UserSerializer
 from .services import ExternalMusicService
 
 logger = logging.getLogger(__name__)
@@ -433,3 +434,72 @@ def genres(request):
     genres = Genre.objects.all().order_by('name')
     serializer = GenreSerializer(genres, many=True)
     return Response({'genres': serializer.data})
+
+
+# ============================================================================
+# MISSING VIEWS THAT FRONTEND EXPECTS
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def review_likes(request, review_id):
+    """Get users who liked a review"""
+    review = get_object_or_404(Review, id=review_id)
+    
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 20))
+    include_review = request.GET.get('include_review') == 'true'
+    
+    likes = ReviewLike.objects.filter(review=review).select_related('user')[offset:offset + limit]
+    
+    response_data = {
+        'likes': [{'user': UserSerializer(like.user).data} for like in likes],
+        'total_count': review.likes.count(),
+        'has_more': review.likes.count() > offset + limit
+    }
+    
+    if include_review:
+        response_data['review'] = ReviewSerializer(review, context={'request': request}).data
+    
+    return Response(response_data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def pin_review(request, review_id):
+    """Pin or unpin a review"""
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    
+    # Toggle pin status
+    review.is_pinned = not review.is_pinned
+    review.save()
+    
+    return Response({
+        'pinned': review.is_pinned,
+        'message': 'Review pinned' if review.is_pinned else 'Review unpinned'
+    })
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def comment_detail(request, comment_id):
+    """Update or delete a comment"""
+    comment = get_object_or_404(Comment, id=comment_id, user=request.user)
+    
+    if request.method == 'PUT':
+        comment.content = request.data.get('content', comment.content)
+        comment.save()
+        return Response(CommentSerializer(comment, context={'request': request}).data)
+    
+    elif request.method == 'DELETE':
+        comment.delete()
+        return Response({'message': 'Comment deleted'}, status=204)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_activity(request, activity_id):
+    """Delete an activity (if user owns it)"""
+    activity = get_object_or_404(Activity, id=activity_id, user=request.user)
+    activity.delete()
+    return Response({'message': 'Activity deleted'}, status=204)
