@@ -298,12 +298,20 @@ def toggle_review_like(request, review_id):
         )
     
     # Clear relevant caches when likes change
-    cache.delete_many([
+    cache_keys = [
         f'user_reviews_{review.user.username}',
         f'activity_feed_{request.user.id}_friends',
         f'activity_feed_{request.user.id}_you',
         f'user_activity_{review.user.username}',
-    ])
+    ]
+    
+    # Clear review likes cache for different pagination combinations
+    for offset in [0, 20, 40]:
+        for limit in [20, 50]:
+            for include_review in ['true', 'false']:
+                cache_keys.append(f'review_likes_{review.id}_{offset}_{limit}_{include_review}')
+    
+    cache.delete_many(cache_keys)
     
     return Response({
         'action': action,
@@ -374,8 +382,19 @@ def review_comments(request, review_id):
     review = get_object_or_404(Review, id=review_id)
     
     if request.method == 'GET':
+        # Cache GET requests for comments
+        cache_key = f'review_comments_{review_id}'
+        cached_comments = cache.get(cache_key)
+        
+        if cached_comments:
+            return Response({'comments': cached_comments})
+        
         comments = Comment.objects.filter(review=review).select_related('user').order_by('created_at')
         serializer = CommentSerializer(comments, many=True, context={'request': request})
+        
+        # Cache for 2 minutes (comments change frequently)
+        cache.set(cache_key, serializer.data, 120)
+        
         return Response({'comments': serializer.data})
     
     elif request.method == 'POST':
@@ -395,6 +414,14 @@ def review_comments(request, review_id):
             review=review,
             comment=comment
         )
+        
+        # Clear relevant caches
+        cache.delete_many([
+            f'review_comments_{review_id}',
+            f'activity_feed_{request.user.id}_friends',
+            f'activity_feed_{request.user.id}_you',
+            f'user_activity_{review.user.username}',
+        ])
         
         return Response(CommentSerializer(comment, context={'request': request}).data, status=201)
 
@@ -466,7 +493,18 @@ def list_detail(request, list_id):
         return Response({'error': 'List not found'}, status=404)
     
     if request.method == 'GET':
+        # Cache for GET requests only
+        cache_key = f'list_detail_{list_id}_{request.user.id if request.user.is_authenticated else "anon"}'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data:
+            return Response(cached_data)
+        
         serializer = ListSerializer(list_obj, context={'request': request})
+        
+        # Cache for 5 minutes (lists change moderately)
+        cache.set(cache_key, serializer.data, 300)
+        
         return Response(serializer.data)
     
     elif request.method == 'PUT':
@@ -478,6 +516,20 @@ def list_detail(request, list_id):
         list_obj.description = request.data.get('description', list_obj.description)
         list_obj.is_public = request.data.get('is_public', list_obj.is_public)
         list_obj.save()
+        
+        # Clear relevant caches
+        cache_keys = [
+            f'list_detail_{list_id}_anon',
+            f'list_detail_{list_id}_{request.user.id}',
+            f'user_lists_{list_obj.user.username}',
+        ]
+        
+        # Clear list likes cache for different pagination combinations
+        for offset in [0, 20, 40]:
+            for limit in [20, 50]:
+                cache_keys.append(f'list_likes_{list_id}_{offset}_{limit}')
+        
+        cache.delete_many(cache_keys)
         
         serializer = ListSerializer(list_obj, context={'request': request})
         return Response(serializer.data)
@@ -494,7 +546,7 @@ def list_detail(request, list_id):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def list_likes(request, list_id):
-    """Get users who liked a list"""
+    """Get users who liked a list with caching"""
     list_obj = get_object_or_404(List, id=list_id)
     
     # Check permissions for non-public lists
@@ -502,8 +554,15 @@ def list_likes(request, list_id):
         return Response({'error': 'List not found'}, status=404)
     
     offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    limit = min(int(request.GET.get('limit', 20)), 50)
+
+    # Cache key includes pagination
+    cache_key = f'list_likes_{list_id}_{offset}_{limit}'
+    cached_data = cache.get(cache_key)
     
+    if cached_data:
+        return Response(cached_data)
+
     likes = ListLike.objects.filter(list=list_obj).select_related('user')[offset:offset + limit]
     
     users_data = []
@@ -516,13 +575,18 @@ def list_likes(request, list_id):
         })
     
     total_count = ListLike.objects.filter(list=list_obj).count()
-    
-    return Response({
+
+    response_data = {
         'users': users_data,
         'total_count': total_count,
         'has_more': total_count > offset + limit,
         'next_offset': offset + limit if total_count > offset + limit else None
-    })
+    }
+    
+    # Cache for 3 minutes (likes change frequently)
+    cache.set(cache_key, response_data, 180)
+
+    return Response(response_data)
 
 
 # ============================================================================
@@ -532,32 +596,64 @@ def list_likes(request, list_id):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def genres(request):
-    """Get all available genres"""
+    """Get all available genres with caching"""
+    cache_key = 'all_genres'
+    cached_genres = cache.get(cache_key)
+    
+    if cached_genres:
+        return Response({'genres': cached_genres})
+    
     genres = Genre.objects.all().order_by('name')
     serializer = GenreSerializer(genres, many=True)
+    
+    # Cache for 1 hour (genres don't change often)
+    cache.set(cache_key, serializer.data, 3600)
+    
     return Response({'genres': serializer.data})
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def review_likes(request, review_id):
-    """Get users who liked a review"""
+    """Get users who liked a review with caching"""
     review = get_object_or_404(Review, id=review_id)
     
     offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    limit = min(int(request.GET.get('limit', 20)), 50)
     include_review = request.GET.get('include_review') == 'true'
     
+    # Cache key includes pagination
+    cache_key = f'review_likes_{review_id}_{offset}_{limit}_{include_review}'
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        return Response(cached_data)
+    
     likes = ReviewLike.objects.filter(review=review).select_related('user')[offset:offset + limit]
+    total_count = review.likes.count()
+
+    # Format users array as expected by frontend
+    users_data = []
+    for like in likes:
+        users_data.append({
+            'id': like.user.id,
+            'username': like.user.username,
+            'avatar': like.user.avatar.url if like.user.avatar else None,
+            'is_staff': like.user.is_staff
+        })
 
     response_data = {
-        'likes': [{'user': UserSerializer(like.user).data} for like in likes],
-        'total_count': review.likes.count(),
-        'has_more': review.likes.count() > offset + limit
+        'users': users_data,
+        'total_count': total_count,
+        'has_more': total_count > offset + limit,
+        'next_offset': offset + limit if total_count > offset + limit else None
     }
     
     if include_review:
         response_data['review'] = ReviewSerializer(review, context={'request': request}).data
     
+    # Cache for 3 minutes (likes change frequently)
+    cache.set(cache_key, response_data, 180)
+
     return Response(response_data)
 
 
