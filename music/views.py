@@ -426,7 +426,7 @@ def lists_view(request):
         
         list_obj = List.objects.create(
             user=request.user,
-            title=request.data.get('title', ''),
+            name=request.data.get('name', ''),
             description=request.data.get('description', ''),
             is_public=request.data.get('is_public', True)
         )
@@ -455,6 +455,76 @@ def user_lists(request, username):
     return Response(serializer.data)
 
 
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([AllowAny])
+def list_detail(request, list_id):
+    """Get, update, or delete a specific list"""
+    list_obj = get_object_or_404(List, id=list_id)
+    
+    # Check permissions for non-public lists
+    if not list_obj.is_public and (not request.user.is_authenticated or request.user != list_obj.user):
+        return Response({'error': 'List not found'}, status=404)
+    
+    if request.method == 'GET':
+        serializer = ListSerializer(list_obj, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        # Only owner can update
+        if not request.user.is_authenticated or request.user != list_obj.user:
+            return Response({'error': 'Permission denied'}, status=403)
+        
+        list_obj.name = request.data.get('name', list_obj.name)
+        list_obj.description = request.data.get('description', list_obj.description)
+        list_obj.is_public = request.data.get('is_public', list_obj.is_public)
+        list_obj.save()
+        
+        serializer = ListSerializer(list_obj, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'DELETE':
+        # Only owner can delete
+        if not request.user.is_authenticated or request.user != list_obj.user:
+            return Response({'error': 'Permission denied'}, status=403)
+        
+        list_obj.delete()
+        return Response({'message': 'List deleted'}, status=204)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_likes(request, list_id):
+    """Get users who liked a list"""
+    list_obj = get_object_or_404(List, id=list_id)
+    
+    # Check permissions for non-public lists
+    if not list_obj.is_public and (not request.user.is_authenticated or request.user != list_obj.user):
+        return Response({'error': 'List not found'}, status=404)
+    
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 20))
+    
+    likes = ListLike.objects.filter(list=list_obj).select_related('user')[offset:offset + limit]
+    
+    users_data = []
+    for like in likes:
+        users_data.append({
+            'id': like.user.id,
+            'username': like.user.username,
+            'avatar': like.user.avatar.url if like.user.avatar else None,
+            'is_staff': like.user.is_staff
+        })
+    
+    total_count = ListLike.objects.filter(list=list_obj).count()
+    
+    return Response({
+        'users': users_data,
+        'total_count': total_count,
+        'has_more': total_count > offset + limit,
+        'next_offset': offset + limit if total_count > offset + limit else None
+    })
+
+
 # ============================================================================
 # UTILITY VIEWS
 # ============================================================================
@@ -466,11 +536,6 @@ def genres(request):
     genres = Genre.objects.all().order_by('name')
     serializer = GenreSerializer(genres, many=True)
     return Response({'genres': serializer.data})
-
-
-# ============================================================================
-# MISSING VIEWS THAT FRONTEND EXPECTS
-# ============================================================================
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

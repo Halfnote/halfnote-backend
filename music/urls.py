@@ -31,5 +31,7 @@ urlpatterns = [
     
     # Lists
     path('lists/', views.lists_view, name='lists'),
+    path('lists/<int:list_id>/', views.list_detail, name='list-detail'),
+    path('lists/<int:list_id>/likes/', views.list_likes, name='list-likes'),
     path('users/<str:username>/lists/', views.user_lists, name='user-lists'),
 ]
