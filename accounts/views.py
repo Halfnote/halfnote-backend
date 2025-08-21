@@ -175,12 +175,23 @@ def follow_user(request, username):
         request.user.following.remove(target_user)
         action = 'unfollowed'
     
-    # Clear relevant caches
+    # Clear relevant caches including followers/following lists
     cache_keys = [
         f'user_profile_{username}',
         f'user_profile_{request.user.username}',
         f'activity_feed_{request.user.id}',
+        f'user_followers_{username}',
+        f'user_following_{request.user.username}',
     ]
+    
+    # Clear all paginated versions of followers/following
+    for offset in [0, 20, 40]:
+        for limit in [20, 50]:
+            cache_keys.extend([
+                f'user_followers_{username}_{offset}_{limit}',
+                f'user_following_{request.user.username}_{offset}_{limit}',
+            ])
+    
     cache.delete_many(cache_keys)
     
     return Response({
@@ -194,41 +205,61 @@ def follow_user(request, username):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_followers(request, username):
-    """Get user's followers"""
+    """Get user's followers with optimized queries"""
     user = get_object_or_404(User, username=username)
     
     offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    followers = user.followers.all()[offset:offset + limit]
+    # Cache for followers list
+    cache_key = f'user_followers_{username}_{offset}_{limit}'
+    cached_followers = cache.get(cache_key)
+    
+    if cached_followers:
+        return Response(cached_followers)
+    
+    # Optimized query with prefetching
+    followers = user.followers.select_related('avatar').prefetch_related(
+        'followers', 'following'
+    )[offset:offset + limit]
+    
     serializer = UserFollowSerializer(followers, many=True, context={'request': request})
     
-    return Response({
-        'followers': serializer.data,
-        'total_count': user.followers.count(),
-        'has_more': user.followers.count() > offset + limit,
-        'next_offset': offset + limit if user.followers.count() > offset + limit else None
-    })
+    # Cache for 5 minutes
+    cache.set(cache_key, serializer.data, 300)
+    
+    # Return array directly as expected by frontend
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_following(request, username):
-    """Get users that this user follows"""
+    """Get users that this user follows with optimized queries"""
     user = get_object_or_404(User, username=username)
     
     offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    following = user.following.all()[offset:offset + limit]
+    # Cache for following list
+    cache_key = f'user_following_{username}_{offset}_{limit}'
+    cached_following = cache.get(cache_key)
+    
+    if cached_following:
+        return Response(cached_following)
+    
+    # Optimized query with prefetching
+    following = user.following.select_related('avatar').prefetch_related(
+        'followers', 'following'
+    )[offset:offset + limit]
+    
     serializer = UserFollowSerializer(following, many=True, context={'request': request})
     
-    return Response({
-        'following': serializer.data,
-        'total_count': user.following.count(),
-        'has_more': user.following.count() > offset + limit,
-        'next_offset': offset + limit if user.following.count() > offset + limit else None
-    })
+    # Cache for 5 minutes
+    cache.set(cache_key, serializer.data, 300)
+    
+    # Return array directly as expected by frontend
+    return Response(serializer.data)
 
 
 # ============================================================================

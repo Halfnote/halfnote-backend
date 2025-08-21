@@ -132,20 +132,44 @@ class UserFollowSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        fields = ['id', 'username', 'display_name', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_following', 'is_staff']
+    
+    def get_display_name(self, obj):
+        """Return the name if available, otherwise username"""
+        return obj.name if obj.name else obj.username
     
     def get_follower_count(self, obj):
+        # Use prefetched data if available, otherwise count
+        if hasattr(obj, 'prefetched_follower_count'):
+            return obj.prefetched_follower_count
         return obj.followers.count()
     
     def get_following_count(self, obj):
+        # Use prefetched data if available, otherwise count
+        if hasattr(obj, 'prefetched_following_count'):
+            return obj.prefetched_following_count
         return obj.following.count()
     
     def get_review_count(self, obj):
+        # Use prefetched data if available, otherwise count
+        if hasattr(obj, 'prefetched_review_count'):
+            return obj.prefetched_review_count
         from music.models import Review
         return Review.objects.filter(user=obj).count()
+    
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user != obj:
+            # Use prefetched data if available
+            if hasattr(obj, 'prefetched_is_following'):
+                return obj.prefetched_is_following
+            return request.user.following.filter(id=obj.id).exists()
+        return False
 
 class UserSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
