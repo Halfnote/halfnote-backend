@@ -1,21 +1,24 @@
-from pathlib import Path
+"""
+Halfnote Django Settings
+Music review platform inspired by Letterboxd
+"""
+
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
-import redis
-from urllib.parse import urlparse
 
 load_dotenv()
 
+# Core Settings
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-
-# Allow all hosts for simplicity
 ALLOWED_HOSTS = ['*']
 
+# Apps
 INSTALLED_APPS = [
+    # Django core
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -23,25 +26,27 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Third party apps
+    # Third party
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'cloudinary_storage',
     'cloudinary',
     
-    # Local apps
+    # Halfnote apps
     'accounts',
     'music',
 ]
 
+# Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
+# Middleware
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
-    'accounts.middleware.UsernameRedirectMiddleware',  # Username redirect middleware
+    'accounts.middleware.UsernameRedirectMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -50,8 +55,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'boomboxd.urls'
+# URL Configuration
+ROOT_URLCONF = 'halfnote.urls'
+WSGI_APPLICATION = 'halfnote.wsgi.application'
 
+# Templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -68,38 +76,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'boomboxd.wsgi.application'
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'
-
-# Static files configuration
-if DEBUG:
-    # Development: Django serves static files directly from these directories
-    STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, 'staticfiles'),  # Our React build files
-    ]
-    # Don't set STATIC_ROOT in development
-else:
-    # Production: collectstatic copies files to STATIC_ROOT  
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-    STATICFILES_DIRS = []
-
-# Cloudinary configuration for django-cloudinary-storage
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-}
-
-# Use Cloudinary for media files
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-
-# Media files (User uploads) - fallback for development
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
 # Database
 DATABASES = {
     'default': {
@@ -112,63 +88,48 @@ DATABASES = {
     }
 }
 
-# Cache Configuration
-# Use Redis if available (production), fall back to dummy cache (development/Vercel)
+# Cache Configuration (Redis with Database fallback)
 REDIS_URL = os.getenv('REDIS_URL')
 if REDIS_URL:
-    # Parse Redis URL for connection details
-    redis_url = urlparse(REDIS_URL)
-    
-    # Redis Cloud configuration
-    redis_options = {
-        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
-        'IGNORE_EXCEPTIONS': True,  # Do not raise on cache errors (prevents 500s)
-        'SOCKET_CONNECT_TIMEOUT': 2,
-        'SOCKET_TIMEOUT': 2,
-        'CONNECTION_POOL_KWARGS': {
-            'max_connections': 20,
-            'retry_on_timeout': True,
-            'retry_on_error': [redis.ConnectionError, redis.TimeoutError],
-            'health_check_interval': 30,
-        }
-    }
-    
-    # Avoid performing network connectivity checks at import time to reduce cold-start latency
-    
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
-            'OPTIONS': redis_options,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'IGNORE_EXCEPTIONS': True,
+            },
             'KEY_PREFIX': 'halfnote',
-            'TIMEOUT': 300,  # 5 minutes default
+            'TIMEOUT': 300,
         }
     }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 else:
-    # Fallback to database cache for development or when Redis isn't available
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
             'LOCATION': 'cache_table',
             'TIMEOUT': 300,
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000,
-            }
         }
     }
 
-# Session engine (use cache if available)
-if REDIS_URL:
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'default'
+# Static Files
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# JWT settings
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
+if DEBUG:
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'staticfiles')]
+    STATIC_ROOT = None
+
+# Media Files (Cloudinary)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -186,10 +147,16 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
         'rest_framework.parsers.FormParser',
     ],
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
 
-# CORS - Allow all origins for development simplicity
+# JWT Configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+}
+
+# CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
@@ -198,15 +165,13 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# Development-friendly settings (no SSL required)
+# Development Settings (no SSL required)
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
 
-# Discogs API
+# External APIs
 DISCOGS_API_URL = "https://api.discogs.com"
 DISCOGS_CONSUMER_KEY = os.getenv('DISCOGS_CONSUMER_KEY')
 DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET')
 DISCOGS_TOKEN = os.getenv('DISCOGS_TOKEN', DISCOGS_CONSUMER_KEY)
-
- 

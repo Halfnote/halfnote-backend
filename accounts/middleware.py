@@ -1,70 +1,40 @@
-from django.http import HttpResponsePermanentRedirect
-from django.urls import resolve, reverse
-from django.conf import settings
-import re
-from django.contrib.auth import get_user_model
-from django.shortcuts import redirect
-from django.urls import reverse
-from django.utils.deprecation import MiddlewareMixin
+"""
+Halfnote Middleware
+Simple username redirect middleware for maintaining user profile URLs
+"""
 
-User = get_user_model()
+from django.http import HttpResponsePermanentRedirect
+import re
+
 
 class UsernameRedirectMiddleware:
-    """
-    Middleware to handle username redirects (e.g., /users/old -> /users/new)
-    """
+    """Simple middleware for username redirects"""
     
     def __init__(self, get_response):
         self.get_response = get_response
-        
-        # Define username redirects
+        # Add any username redirects here if needed
         self.username_redirects = {
-            'viv360': 'vivek',
-            # Add more redirects here as needed
+            # 'old_username': 'new_username',
         }
     
     def __call__(self, request):
-        # Check if this is a user profile URL that needs redirecting
-        path = request.path
-        
-        # Match patterns like /users/username/ or /api/accounts/users/username/
-        user_pattern = re.match(r'^(/api/accounts)?/users/([^/]+)(/.*)?$', path)
-        
-        if user_pattern:
-            api_prefix = user_pattern.group(1) or ''  # '/api/accounts' or ''
-            username = user_pattern.group(2)
-            suffix = user_pattern.group(3) or ''  # '/reviews/', '/followers/', etc.
+        # Check for username redirects in API URLs
+        if self.username_redirects:
+            path = request.path
+            user_pattern = re.match(r'^(/api/accounts)?/users/([^/]+)(/.*)?$', path)
             
-            # Check if this username should be redirected
-            if username.lower() in self.username_redirects:
-                target_username = self.username_redirects[username.lower()]
-                new_path = f"{api_prefix}/users/{target_username}{suffix}"
+            if user_pattern:
+                api_prefix = user_pattern.group(1) or ''
+                username = user_pattern.group(2)
+                suffix = user_pattern.group(3) or ''
                 
-                # Preserve query parameters
-                if request.GET:
-                    new_path += '?' + request.GET.urlencode()
-                
-                return HttpResponsePermanentRedirect(new_path)
+                if username.lower() in self.username_redirects:
+                    target_username = self.username_redirects[username.lower()]
+                    new_path = f"{api_prefix}/users/{target_username}{suffix}"
+                    
+                    if request.GET:
+                        new_path += '?' + request.GET.urlencode()
+                    
+                    return HttpResponsePermanentRedirect(new_path)
         
-        response = self.get_response(request)
-        return response 
-
-    def process_view(self, request, view_func, view_args, view_kwargs):
-        # Check if this is a potential username URL
-        if request.path.startswith('/api/') or request.path.startswith('/admin/') or request.path.startswith('/static/'):
-            return None
-        
-        # Handle username-based URLs
-        if 'username' in view_kwargs:
-            username = view_kwargs['username']
-            try:
-                user = User.objects.get(username=username)
-                # User exists, allow the request to proceed
-                return None
-            except User.DoesNotExist:
-                # User doesn't exist, redirect to 404 or home
-                return redirect('/')
-        
-        return None
-
- 
+        return self.get_response(request)

@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Set Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'boomboxd.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'halfnote.settings')
 
 # Import Django and configure it
 import django
