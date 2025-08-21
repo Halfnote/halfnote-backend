@@ -21,6 +21,22 @@
       "dest": "/api/index.py"
     },
     {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/logo192.png",
+      "dest": "/logo192.png"
+    },
+    {
+      "src": "/robots.txt",
+      "dest": "/robots.txt"
+    },
+    {
       "src": "/static/js/(.*)",
       "dest": "/js/$1"
     },
@@ -29,16 +45,8 @@
       "dest": "/css/$1"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/$1"
-    },
-    {
       "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json))",
       "dest": "/$1"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
     },
     {
       "src": "/(.*)",
