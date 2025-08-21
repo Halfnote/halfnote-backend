@@ -218,8 +218,8 @@ def user_followers(request, username):
     if cached_followers:
         return Response(cached_followers)
     
-    # Optimized query with prefetching
-    followers = user.followers.select_related('avatar').prefetch_related(
+    # Optimized query with prefetching (avatar is an ImageField, not relational)
+    followers = user.followers.prefetch_related(
         'followers', 'following'
     )[offset:offset + limit]
     
@@ -248,8 +248,8 @@ def user_following(request, username):
     if cached_following:
         return Response(cached_following)
     
-    # Optimized query with prefetching
-    following = user.following.select_related('avatar').prefetch_related(
+    # Optimized query with prefetching (avatar is an ImageField, not relational)
+    following = user.following.prefetch_related(
         'followers', 'following'
     )[offset:offset + limit]
     

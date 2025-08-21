@@ -1889,6 +1889,8 @@ const ProfilePage: React.FC = () => {
               {' liked '}
               {activity.review_details?.user?.username === user?.username ? (
                 <span style={{ fontWeight: 600, color: '#111827' }}>your</span>
+              ) : activity.user.username === activity.review_details?.user?.username ? (
+                <span style={{ fontWeight: 600, color: '#111827' }}>their</span>
               ) : (
                 <>
                   <ActivityUser onClick={() => navigate(`/users/${activity.review_details?.user?.username}`)}>
