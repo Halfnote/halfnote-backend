@@ -18,6 +18,7 @@ urlpatterns = [
     # User profiles and social features
     path('users/<str:username>/', views.user_profile, name='user-profile'),
     path('users/<str:username>/reviews/', views.user_reviews, name='user-reviews'),
+    path('users/<str:username>/activity/', views.user_activity, name='user-activity'),
     path('users/<str:username>/follow/', views.follow_user, name='follow-user'),
     path('users/<str:username>/unfollow/', views.unfollow_user, name='unfollow-user'),
     path('users/<str:username>/followers/', views.user_followers, name='user-followers'),

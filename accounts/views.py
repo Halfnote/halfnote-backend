@@ -130,18 +130,11 @@ def user_reviews(request, username):
     paginated_reviews = reviews[offset:offset + limit]
     serializer = ReviewSerializer(paginated_reviews, many=True, context={'request': request})
     
-    response_data = {
-        'reviews': serializer.data,
-        'total_count': reviews.count(),
-        'has_more': reviews.count() > offset + limit,
-        'next_offset': offset + limit if reviews.count() > offset + limit else None,
-        'cached': False
-    }
-    
     # Cache for 5 minutes
     cache.set(cache_key, serializer.data, 300)
     
-    return Response(response_data)
+    # Return just the reviews array like the frontend expects
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
@@ -157,7 +150,7 @@ def user_profile(request, username):
     if cached_profile:
         return Response({**cached_profile, 'cached': True})
     
-    serializer = UserSerializer(user, context={'request': request})
+    serializer = UserProfileSerializer(user, context={'request': request})
     profile_data = serializer.data
     
     # Cache for 10 minutes
@@ -312,3 +305,20 @@ def favorite_albums(request):
         request.user.favorite_albums.remove(album)
         
         return Response({'message': 'Album removed from favorites'})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_activity(request, username):
+    """Get activity feed for a specific user"""
+    user = get_object_or_404(User, username=username)
+    
+    from music.models import Activity
+    from music.serializers import ActivitySerializer
+    
+    activities = Activity.objects.filter(user=user).select_related(
+        'user', 'review__album'
+    ).order_by('-created_at')[:20]
+    
+    serializer = ActivitySerializer(activities, many=True, context={'request': request})
+    return Response(serializer.data)

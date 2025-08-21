@@ -311,11 +311,26 @@ def toggle_review_like(request, review_id):
 @permission_classes([IsAuthenticated])
 def activity_feed(request):
     """Get personalized activity feed"""
-    # Get activities from followed users
-    following_users = request.user.following.all()
-    activities = Activity.objects.filter(
-        user__in=following_users
-    ).select_related('user', 'review__album').order_by('-created_at')
+    activity_type = request.GET.get('type', 'friends')
+    
+    if activity_type == 'friends':
+        # Get activities from followed users
+        following_users = request.user.following.all()
+        activities = Activity.objects.filter(
+            user__in=following_users
+        ).select_related('user', 'review__album').order_by('-created_at')
+    elif activity_type == 'you':
+        # Get user's own activities
+        activities = Activity.objects.filter(
+            user=request.user
+        ).select_related('user', 'review__album').order_by('-created_at')
+    elif activity_type == 'incoming':
+        # Get activities where user is mentioned/involved
+        activities = Activity.objects.filter(
+            review__user=request.user
+        ).exclude(user=request.user).select_related('user', 'review__album').order_by('-created_at')
+    else:
+        activities = Activity.objects.none()
     
     # Pagination
     offset = int(request.GET.get('offset', 0))
@@ -324,11 +339,8 @@ def activity_feed(request):
     paginated_activities = activities[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
     
-    return Response({
-        'activities': serializer.data,
-        'has_more': activities.count() > offset + limit,
-        'next_offset': offset + limit if activities.count() > offset + limit else None
-    })
+    # Return just the activities array like the frontend expects
+    return Response(serializer.data)
 
 
 # ============================================================================
@@ -420,7 +432,7 @@ def user_lists(request, username):
     lists = lists.select_related('user').order_by('-updated_at')
     serializer = ListSummarySerializer(lists, many=True, context={'request': request})
     
-    return Response({'lists': serializer.data})
+    return Response(serializer.data)
 
 
 # ============================================================================
