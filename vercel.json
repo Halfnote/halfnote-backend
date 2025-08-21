@@ -13,6 +13,14 @@
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
       "src": "/static/js/(.*)",
       "dest": "/js/$1"
     },
@@ -29,8 +37,12 @@
       "dest": "/$1"
     },
     {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/index.html"
     }
   ]
-} 
+}
