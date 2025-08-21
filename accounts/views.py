@@ -1,6 +1,6 @@
 """
 Halfnote Accounts Views
-Simplified user authentication and profile management
+Optimized user authentication and profile management with performance improvements
 """
 
 from django.contrib.auth import authenticate, get_user_model
@@ -108,32 +108,32 @@ def profile(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_reviews(request, username):
-    """Get reviews by a specific user"""
+    """Get reviews by a specific user with optimized queries"""
     user = get_object_or_404(User, username=username)
     
-    # Check cache first
-    cache_key = f'user_reviews_{username}'
+    # Pagination parameters
+    offset = int(request.GET.get('offset', 0))
+    limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
+    
+    # Cache key includes pagination for more efficient caching
+    cache_key = f'user_reviews_{username}_{offset}_{limit}'
     cached_reviews = cache.get(cache_key)
     
     if cached_reviews:
-        return Response({'reviews': cached_reviews, 'cached': True})
+        return Response(cached_reviews)
     
-    # Get reviews with related data
-    reviews = Review.objects.filter(user=user).select_related('album', 'user').prefetch_related(
-        'user_genres', 'likes', 'comments'
-    ).order_by('-created_at')
+    # Optimized query with all necessary prefetching
+    reviews = Review.objects.filter(user=user).select_related(
+        'album', 'user'
+    ).prefetch_related(
+        'user_genres', 'likes__user', 'comments__user'
+    ).order_by('-created_at')[offset:offset + limit]
     
-    # Pagination
-    offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    serializer = ReviewSerializer(reviews, many=True, context={'request': request})
     
-    paginated_reviews = reviews[offset:offset + limit]
-    serializer = ReviewSerializer(paginated_reviews, many=True, context={'request': request})
+    # Cache for 3 minutes (balanced freshness vs performance)
+    cache.set(cache_key, serializer.data, 180)
     
-    # Cache for 5 minutes
-    cache.set(cache_key, serializer.data, 300)
-    
-    # Return just the reviews array like the frontend expects
     return Response(serializer.data)
 
 
@@ -310,15 +310,29 @@ def favorite_albums(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def user_activity(request, username):
-    """Get activity feed for a specific user"""
+    """Get activity feed for a specific user with optimized queries"""
     user = get_object_or_404(User, username=username)
+    
+    # Cache for this user's activity
+    cache_key = f'user_activity_{username}'
+    cached_activity = cache.get(cache_key)
+    
+    if cached_activity:
+        return Response(cached_activity)
     
     from music.models import Activity
     from music.serializers import ActivitySerializer
     
+    # Optimized query with comprehensive prefetching
     activities = Activity.objects.filter(user=user).select_related(
-        'user', 'review__album'
+        'user', 'target_user', 'review__user', 'review__album', 'comment__user'
+    ).prefetch_related(
+        'review__user_genres', 'review__likes', 'review__comments'
     ).order_by('-created_at')[:20]
     
     serializer = ActivitySerializer(activities, many=True, context={'request': request})
+    
+    # Cache for 2 minutes
+    cache.set(cache_key, serializer.data, 120)
+    
     return Response(serializer.data)

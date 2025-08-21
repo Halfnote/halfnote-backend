@@ -48,16 +48,19 @@ class ReviewSerializer(serializers.ModelSerializer):
         return None
     
     def get_likes_count(self, obj):
-        return obj.likes.count()
+        # Use prefetched data to avoid N+1 queries
+        return len(obj.likes.all())
     
     def get_is_liked_by_user(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.likes.filter(user=request.user).exists()
+            # Use prefetched data instead of filtering
+            return any(like.user_id == request.user.id for like in obj.likes.all())
         return False
     
     def get_comments_count(self, obj):
-        return obj.comments.count()
+        # Use prefetched data to avoid N+1 queries
+        return len(obj.comments.all())
 
 class AlbumSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
@@ -112,10 +115,10 @@ class ActivitySerializer(serializers.ModelSerializer):
     def get_review_details(self, obj):
         if obj.review:
             request = self.context.get('request')
-            feed_type = self.context.get('feed_type', 'friends')
             is_liked_by_user = False
             if request and request.user.is_authenticated:
-                is_liked_by_user = obj.review.likes.filter(user=request.user).exists()
+                # Use prefetched data to avoid extra query
+                is_liked_by_user = any(like.user_id == request.user.id for like in obj.review.likes.all())
             
             review_data = {
                 'id': obj.review.id,
@@ -137,9 +140,9 @@ class ActivitySerializer(serializers.ModelSerializer):
                 }
             }
             
-            # Always include counts for all feed types (needed for proper UI rendering)
-            review_data['likes_count'] = obj.review.likes.count()
-            review_data['comments_count'] = obj.review.comments.count()
+            # Use prefetched data for counts - much faster than .count() queries
+            review_data['likes_count'] = len(obj.review.likes.all())
+            review_data['comments_count'] = len(obj.review.comments.all())
             
             return review_data
         return None

@@ -1,6 +1,6 @@
 """
 Halfnote Music Views
-Simplified views for music search, reviews, and social features
+Optimized views for music search, reviews, and social features with performance improvements
 """
 
 import re
@@ -45,11 +45,11 @@ def search_discogs(query):
         headers={'User-Agent': 'HalfnoteApp/1.0'},
         timeout=(2, 10)
     )
-    
+
     if not response.ok:
         logger.error(f"Discogs API error: {response.status_code}")
         return []
-    
+
     return response.json().get('results', [])
 
 
@@ -100,7 +100,7 @@ def search(request):
         cache.set(cache_key, processed_results, 900)
         
         return Response({'results': processed_results, 'cached': False})
-    
+        
     except Exception as e:
         logger.error(f"Search failed: {e}")
         return Response({'error': 'Search failed'}, status=500)
@@ -151,7 +151,7 @@ def album_detail(request, discogs_id):
             'exists_in_db': False,
             'cached': False
         }
-    
+        
     # Cache for 5 minutes
     cache.set(cache_key, response_data, 300)
     return Response(response_data)
@@ -276,8 +276,8 @@ def review_detail(request, review_id):
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def toggle_review_like(request, review_id):
-    """Like or unlike a review"""
-    review = get_object_or_404(Review, id=review_id)
+    """Like or unlike a review with cache invalidation"""
+    review = get_object_or_404(Review.objects.select_related('user'), id=review_id)
     
     like, created = ReviewLike.objects.get_or_create(
         user=request.user,
@@ -297,9 +297,17 @@ def toggle_review_like(request, review_id):
             review=review
         )
     
+    # Clear relevant caches when likes change
+    cache.delete_many([
+        f'user_reviews_{review.user.username}',
+        f'activity_feed_{request.user.id}_friends',
+        f'activity_feed_{request.user.id}_you',
+        f'user_activity_{review.user.username}',
+    ])
+    
     return Response({
         'action': action,
-        'like_count': review.likes.count()
+        'like_count': ReviewLike.objects.filter(review=review).count()
     })
 
 
@@ -310,36 +318,48 @@ def toggle_review_like(request, review_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def activity_feed(request):
-    """Get personalized activity feed"""
+    """Get personalized activity feed with optimized queries"""
     activity_type = request.GET.get('type', 'friends')
+    
+    # Cache key for this specific feed type and user
+    cache_key = f'activity_feed_{request.user.id}_{activity_type}'
+    cached_activities = cache.get(cache_key)
+    
+    if cached_activities:
+        return Response(cached_activities)
+    
+    # Base query with optimal prefetching to avoid N+1 queries
+    base_query = Activity.objects.select_related(
+        'user', 'target_user', 'review__user', 'review__album', 'comment__user'
+    ).prefetch_related(
+        'review__user_genres', 'review__likes', 'review__comments'
+    )
     
     if activity_type == 'friends':
         # Get activities from followed users
-        following_users = request.user.following.all()
-        activities = Activity.objects.filter(
-            user__in=following_users
-        ).select_related('user', 'review__album').order_by('-created_at')
+        following_users = request.user.following.values_list('id', flat=True)
+        activities = base_query.filter(user__id__in=following_users)
     elif activity_type == 'you':
         # Get user's own activities
-        activities = Activity.objects.filter(
-            user=request.user
-        ).select_related('user', 'review__album').order_by('-created_at')
+        activities = base_query.filter(user=request.user)
     elif activity_type == 'incoming':
         # Get activities where user is mentioned/involved
-        activities = Activity.objects.filter(
+        activities = base_query.filter(
             review__user=request.user
-        ).exclude(user=request.user).select_related('user', 'review__album').order_by('-created_at')
+        ).exclude(user=request.user)
     else:
         activities = Activity.objects.none()
     
-    # Pagination
+    # Pagination with efficient ordering
     offset = int(request.GET.get('offset', 0))
-    limit = int(request.GET.get('limit', 20))
+    limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    paginated_activities = activities[offset:offset + limit]
+    paginated_activities = activities.order_by('-created_at')[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
     
-    # Return just the activities array like the frontend expects
+    # Cache for 2 minutes (shorter for activity feed freshness)
+    cache.set(cache_key, serializer.data, 120)
+    
     return Response(serializer.data)
 
 
@@ -463,7 +483,7 @@ def review_likes(request, review_id):
     include_review = request.GET.get('include_review') == 'true'
     
     likes = ReviewLike.objects.filter(review=review).select_related('user')[offset:offset + limit]
-    
+
     response_data = {
         'likes': [{'user': UserSerializer(like.user).data} for like in likes],
         'total_count': review.likes.count(),
