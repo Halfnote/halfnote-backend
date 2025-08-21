@@ -90,18 +90,29 @@ const SearchButton = styled.button`
 `;
 
 const LikeButton = styled.button<{ $isLiked: boolean }>`
-  background: ${props => props.$isLiked ? '#ef4444' : '#f3f4f6'};
-  color: ${props => props.$isLiked ? 'white' : '#374151'};
-  border: none;
-  border-radius: 8px;
-  padding: 12px 24px;
+  background: ${props => props.$isLiked ? '#fee2e2' : 'transparent'};
+  border: 1px solid ${props => props.$isLiked ? '#dc2626' : '#d1d5db'};
+  color: ${props => props.$isLiked ? '#dc2626' : '#666'};
   font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
   transition: all 0.2s ease;
-  
-  &:hover {
-    background: ${props => props.$isLiked ? '#dc2626' : '#e5e7eb'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+
+  &:hover:not(:disabled) {
+    opacity: 0.8;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -615,8 +626,9 @@ const ListDetailPage: React.FC = () => {
             $isLiked={list.is_liked_by_user}
             onClick={handleLikeList}
             disabled={liking}
+            title={list.is_liked_by_user ? 'Unlike list' : 'Like list'}
           >
-            {list.is_liked_by_user ? '❤️ Liked' : '🤍 Like'}
+            {liking ? '⏳' : (list.is_liked_by_user ? '❤️' : '🤍')}
           </LikeButton>
           {isOwner && (
             <>
