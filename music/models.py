@@ -29,6 +29,7 @@ class Album(models.Model):
     artist = models.CharField(max_length=255)
     year = models.IntegerField(null=True, blank=True)
     cover_url = models.URLField(max_length=500, null=True, blank=True)
+    artist_photo_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to artist photo from external API")
     discogs_id = models.CharField(max_length=50, unique=True)
     
     # User-assigned genres (from predefined list)

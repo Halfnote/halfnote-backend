@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI, musicAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
+import ArtistPhoto from '../components/ArtistPhoto';
 import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
@@ -606,6 +607,13 @@ const ReviewTitleLink = styled.button`
 const ReviewAlbumArtist = styled.p`
   font-size: 14px;
   color: #6b7280;
+  margin: 0;
+`;
+
+const ReviewArtistSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
 `;
 
@@ -1204,6 +1212,7 @@ interface Review {
   album_title: string;
   album_artist: string;
   album_cover?: string;
+  album_artist_photo?: string;
   album_year?: number;
   album_discogs_id?: string;
   rating: number;
@@ -2027,10 +2036,17 @@ const ProfilePage: React.FC = () => {
                 {review.is_pinned && ' 📌'}
               </ReviewTitleLink>
             </ReviewAlbumTitle>
-            <ReviewAlbumArtist>
-              {review.album_artist}
-              {review.album_year && ` • ${review.album_year}`}
-            </ReviewAlbumArtist>
+            <ReviewArtistSection>
+              <ArtistPhoto 
+                src={review.album_artist_photo}
+                alt={`${review.album_artist} photo`}
+                size="small"
+              />
+              <ReviewAlbumArtist>
+                {review.album_artist}
+                {review.album_year && ` • ${review.album_year}`}
+              </ReviewAlbumArtist>
+            </ReviewArtistSection>
           </div>
           <ReviewHeaderRight>
             <ReviewRatingSection>

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { musicAPI, userAPI } from '../services/api';
 import EditReviewModal from '../components/EditReviewModal';
 import FormattedTextEditor from '../components/FormattedTextEditor';
+import ArtistPhoto from '../components/ArtistPhoto';
 import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
@@ -265,10 +266,21 @@ const Rating = styled.div`
 const ArtistName = styled.p`
   font-size: 20px;
   color: #666;
-  margin: 0 0 16px 0;
+  margin: 0;
 
   @media (max-width: 768px) {
     font-size: 16px;
+  }
+`;
+
+const ArtistSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  
+  @media (max-width: 768px) {
+    justify-content: center;
   }
 `;
 
@@ -531,6 +543,7 @@ interface Review {
   album_title: string;
   album_artist: string;
   album_cover?: string;
+  album_artist_photo?: string;
   album_year?: number;
   album_discogs_id?: string;
   rating: number;
@@ -898,10 +911,17 @@ const ReviewDetailPage: React.FC = () => {
             </RatingContainer>
           </TitleRatingRow>
           
-          <ArtistName>
-            {review!.album_artist}
-            {review!.album_year && ` • ${review!.album_year}`}
-          </ArtistName>
+          <ArtistSection>
+            <ArtistPhoto 
+              src={review!.album_artist_photo}
+              alt={`${review!.album_artist} photo`}
+              size="medium"
+            />
+            <ArtistName>
+              {review!.album_artist}
+              {review!.album_year && ` • ${review!.album_year}`}
+            </ArtistName>
+          </ArtistSection>
           
           {review!.user_genres && review!.user_genres.length > 0 && (
             <Genres>
