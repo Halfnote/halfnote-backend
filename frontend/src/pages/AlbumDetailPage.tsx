@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { musicAPI } from '../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import EditReviewModal from '../components/EditReviewModal';
+import ArtistPhoto from '../components/ArtistPhoto';
 import { renderFormattedText } from '../utils/textFormatting';
 
 const Container = styled.div`
@@ -41,18 +42,40 @@ const AlbumHeader = styled.div`
   }
 `;
 
+const AlbumCoverContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+`;
+
 const AlbumCover = styled.img`
   width: 300px;
   height: 300px;
   border-radius: 8px;
   object-fit: cover;
-  flex-shrink: 0;
   
   @media (max-width: 768px) {
     width: 250px;
     height: 250px;
-    margin: 0 auto;
   }
+`;
+
+const ArtistPhotoWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  
+  @media (max-width: 768px) {
+    justify-content: center;
+  }
+`;
+
+const ArtistLabel = styled.span`
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
 `;
 
 const AlbumInfo = styled.div`
@@ -454,6 +477,7 @@ interface AlbumData {
   year?: number;
   cover_url?: string;
   cover_image?: string;
+  artist_photo_url?: string;
   discogs_id: string;
   genres?: string[];
   discogs_genres?: string[];
@@ -831,13 +855,24 @@ const AlbumDetailPage: React.FC = () => {
       </BackLink>
       
       <AlbumHeader>
-        <AlbumCover 
-          src={album.cover_url || album.cover_image || '/static/music/default-album.svg'} 
-          alt={album.title}
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
-          }}
-        />
+        <AlbumCoverContainer>
+          <AlbumCover 
+            src={album.cover_url || album.cover_image || '/static/music/default-album.svg'} 
+            alt={album.title}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/static/music/default-album.svg';
+            }}
+          />
+          
+          <ArtistPhotoWrapper>
+            <ArtistLabel>Artist:</ArtistLabel>
+            <ArtistPhoto 
+              src={album.artist_photo_url}
+              alt={`${album.artist} photo`}
+              size="large"
+            />
+          </ArtistPhotoWrapper>
+        </AlbumCoverContainer>
         
         <AlbumInfo>
           <AlbumTitle>{album.title}</AlbumTitle>

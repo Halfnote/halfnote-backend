@@ -53,6 +53,59 @@ def search_discogs(query):
     return response.json().get('results', [])
 
 
+def get_discogs_artist_photo(artist_name):
+    """Fetch artist photo from Discogs API"""
+    try:
+        # Search for the artist
+        response = requests.get(
+            f"{settings.DISCOGS_API_URL}/database/search",
+            params={
+                "q": artist_name,
+                "type": "artist",
+                "per_page": 1,
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 5)
+        )
+        
+        if not response.ok:
+            return None
+            
+        results = response.json().get('results', [])
+        if not results:
+            return None
+            
+        # Get the first artist result and fetch their details
+        artist_id = results[0].get('id')
+        if not artist_id:
+            return None
+            
+        # Fetch artist details to get images
+        detail_response = requests.get(
+            f"{settings.DISCOGS_API_URL}/artists/{artist_id}",
+            params={
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 5)
+        )
+        
+        if detail_response.ok:
+            artist_data = detail_response.json()
+            images = artist_data.get('images', [])
+            if images:
+                # Return the first available image
+                return images[0].get('uri')
+                
+    except Exception as e:
+        logger.error(f"Error fetching artist photo for {artist_name}: {e}")
+        
+    return None
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -71,7 +124,7 @@ def search(request):
         results = search_discogs(query)
         processed_results = []
         
-        for result in results:
+        for i, result in enumerate(results):
             title = result.get('title', '')
             artist = 'Various Artists'
             album_title = title
@@ -85,6 +138,11 @@ def search(request):
                     artist = clean_artist or parts[0].strip()
                     album_title = parts[1].strip()
             
+            # Fetch artist photo for first 10 results only (to avoid too many API calls)
+            artist_photo_url = None
+            if i < 10 and artist != 'Various Artists':
+                artist_photo_url = get_discogs_artist_photo(artist)
+            
             processed_results.append({
                 'id': result.get('id'),
                 'title': album_title,
@@ -93,6 +151,7 @@ def search(request):
                 'genre': result.get('genre', []),
                 'style': result.get('style', []),
                 'cover_image': result.get('cover_image', ''),
+                'artist_photo_url': artist_photo_url,
                 'thumb': result.get('thumb', ''),
             })
         
@@ -124,6 +183,13 @@ def album_detail(request, discogs_id):
     album = Album.objects.filter(discogs_id=discogs_id).first()
     
     if album:
+        # Check if album has artist photo, if not fetch it
+        if not album.artist_photo_url and album.artist != 'Various Artists':
+            artist_photo_url = get_discogs_artist_photo(album.artist)
+            if artist_photo_url:
+                album.artist_photo_url = artist_photo_url
+                album.save()
+        
         # Get reviews for existing album
         reviews = Review.objects.filter(album=album).select_related('user').order_by('-created_at')
         
@@ -142,6 +208,12 @@ def album_detail(request, discogs_id):
         
         if not album_data:
             return Response({'error': 'Album not found'}, status=404)
+        
+        # Fetch artist photo for new albums too
+        if album_data.get('artist') and album_data.get('artist') != 'Various Artists':
+            artist_photo_url = get_discogs_artist_photo(album_data['artist'])
+            if artist_photo_url:
+                album_data['artist_photo_url'] = artist_photo_url
         
         response_data = {
             'album': album_data,
@@ -166,12 +238,16 @@ def import_album_from_discogs(discogs_id):
     album_data = service.get_album_details(discogs_id)
     
     if album_data:
+        # Fetch artist photo
+        artist_photo_url = get_discogs_artist_photo(album_data['artist'])
+        
         album = Album.objects.create(
             discogs_id=discogs_id,
             title=album_data['title'],
             artist=album_data['artist'],
             year=album_data.get('year'),
             cover_url=album_data.get('cover_image', ''),
+            artist_photo_url=artist_photo_url,
         )
         return album
     
