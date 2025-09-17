@@ -17,7 +17,7 @@ const sizeMap = {
 const StyledArtistPhoto = styled.div<{ size: string }>`
   width: ${props => props.size};
   height: ${props => props.size};
-  border-radius: 50%;
+  border-radius: 0;
   overflow: hidden;
   flex-shrink: 0;
   position: relative;

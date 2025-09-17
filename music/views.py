@@ -53,10 +53,9 @@ def search_discogs(query):
     return response.json().get('results', [])
 
 
-def get_discogs_artist_photo(artist_name):
+def get_artist_photo(artist_name):
     """Fetch artist photo from Discogs API"""
     try:
-        # Search for the artist
         response = requests.get(
             f"{settings.DISCOGS_API_URL}/database/search",
             params={
@@ -69,20 +68,18 @@ def get_discogs_artist_photo(artist_name):
             headers={'User-Agent': 'HalfnoteApp/1.0'},
             timeout=(2, 5)
         )
-        
         if not response.ok:
             return None
-            
+
         results = response.json().get('results', [])
         if not results:
             return None
             
-        # Get the first artist result and fetch their details
+        # Details of first artist result
         artist_id = results[0].get('id')
         if not artist_id:
             return None
-            
-        # Fetch artist details to get images
+
         detail_response = requests.get(
             f"{settings.DISCOGS_API_URL}/artists/{artist_id}",
             params={
@@ -97,7 +94,6 @@ def get_discogs_artist_photo(artist_name):
             artist_data = detail_response.json()
             images = artist_data.get('images', [])
             if images:
-                # Return the first available image
                 return images[0].get('uri')
                 
     except Exception as e:
@@ -141,7 +137,7 @@ def search(request):
             # Fetch artist photo for first 10 results only (to avoid too many API calls)
             artist_photo_url = None
             if i < 10 and artist != 'Various Artists':
-                artist_photo_url = get_discogs_artist_photo(artist)
+                artist_photo_url = get_artist_photo(artist)
             
             processed_results.append({
                 'id': result.get('id'),
@@ -185,7 +181,7 @@ def album_detail(request, discogs_id):
     if album:
         # Check if album has artist photo, if not fetch it
         if not album.artist_photo_url and album.artist != 'Various Artists':
-            artist_photo_url = get_discogs_artist_photo(album.artist)
+            artist_photo_url = get_artist_photo(album.artist)
             if artist_photo_url:
                 album.artist_photo_url = artist_photo_url
                 album.save()
@@ -211,7 +207,7 @@ def album_detail(request, discogs_id):
         
         # Fetch artist photo for new albums too
         if album_data.get('artist') and album_data.get('artist') != 'Various Artists':
-            artist_photo_url = get_discogs_artist_photo(album_data['artist'])
+            artist_photo_url = get_artist_photo(album_data['artist'])
             if artist_photo_url:
                 album_data['artist_photo_url'] = artist_photo_url
         
@@ -239,7 +235,7 @@ def import_album_from_discogs(discogs_id):
     
     if album_data:
         # Fetch artist photo
-        artist_photo_url = get_discogs_artist_photo(album_data['artist'])
+        artist_photo_url = get_artist_photo(album_data['artist'])
         
         album = Album.objects.create(
             discogs_id=discogs_id,
