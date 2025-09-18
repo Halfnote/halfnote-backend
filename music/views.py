@@ -5,8 +5,10 @@ Optimized views for music search, reviews, and social features with performance 
 
 import re
 import logging
+import math
 import requests
 from django.conf import settings
+from django.utils import timezone
 from django.db.models import Avg
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
@@ -38,7 +40,9 @@ def search_discogs(query):
         params={
             "q": query,
             "type": "master",
-            "per_page": 25,
+            "per_page": 50,  # Balanced for performance and coverage
+            "sort": "have",  # Sort by community ownership
+            "sort_order": "desc",  # Most owned first
             "key": settings.DISCOGS_CONSUMER_KEY,
             "secret": settings.DISCOGS_CONSUMER_SECRET
         },
@@ -51,6 +55,7 @@ def search_discogs(query):
         return []
 
     return response.json().get('results', [])
+
 
 
 def get_artist_photo(artist_name):
@@ -102,6 +107,85 @@ def get_artist_photo(artist_name):
     return None
 
 
+def calculate_relevance_score(result, query, artist, album_title):
+    """Calculate relevance score based on popularity with strong penalties for compilations/live albums"""
+    query_lower = query.lower()
+    artist_lower = artist.lower()
+    album_lower = album_title.lower()
+    title_lower = result.get('title', '').lower()
+    
+    # Base score: Only artist match matters for relevance
+    base_score = 0
+    if query_lower == artist_lower:
+        base_score = 100
+    elif query_lower in artist_lower:
+        base_score = 50
+    else:
+        # If no artist match, very low score
+        base_score = 1
+    
+    # Primary scoring: Discogs community popularity
+    community_have = result.get('community', {}).get('have', 0) if isinstance(result.get('community'), dict) else 0
+    community_want = result.get('community', {}).get('want', 0) if isinstance(result.get('community'), dict) else 0
+    
+    # Pure popularity score - the more people have it, the higher it ranks
+    popularity_score = 0
+    if community_have > 0:
+        popularity_score = community_have
+    
+    # Want score adds a small bonus for desirable albums
+    want_bonus = 0
+    if community_want > 0:
+        want_bonus = community_want * 0.1  # Much smaller weight than "have"
+    
+    # STRONG PENALTIES for compilations, best-ofs, and live albums
+    penalty_multiplier = 1.0
+    
+    # Compilation indicators
+    compilation_terms = [
+        'best of', 'greatest hits', 'collection', 'anthology', 'compilation',
+        'the very best', 'essential', 'complete', 'hits', 'singles',
+        'rarities', 'b-sides', 'unreleased', 'outtakes', 'demos',
+        'remastered', 'deluxe', 'expanded', 'special edition',
+        'vol.', 'volume', 'part', 'disc', 'box set'
+    ]
+    
+    # Live album indicators  
+    live_terms = [
+        'live', 'concert', 'live at', 'in concert', 'unplugged',
+        'acoustic', 'sessions', 'mtv unplugged', 'live from',
+        'bootleg', 'unofficial'
+    ]
+    
+    # Check for compilation indicators
+    for term in compilation_terms:
+        if term in title_lower or term in album_lower:
+            penalty_multiplier *= 0.1  # 90% penalty
+            break
+    
+    # Check for live album indicators
+    for term in live_terms:
+        if term in title_lower or term in album_lower:
+            penalty_multiplier *= 0.15  # 85% penalty
+            break
+    
+    # Check Discogs format field for additional penalties
+    format_list = result.get('format', [])
+    if isinstance(format_list, list):
+        format_str = ' '.join(format_list).lower()
+        if 'compilation' in format_str:
+            penalty_multiplier *= 0.05  # 95% penalty
+        elif 'box set' in format_str:
+            penalty_multiplier *= 0.1   # 90% penalty
+        elif 'live' in format_str:
+            penalty_multiplier *= 0.2   # 80% penalty
+    
+    # Final score is base relevance * popularity * penalties
+    final_score = base_score * (1 + (popularity_score + want_bonus) / 1000) * penalty_multiplier
+    
+    return final_score
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -120,7 +204,10 @@ def search(request):
         results = search_discogs(query)
         processed_results = []
         
-        for i, result in enumerate(results):
+        # First pass: process and score all results
+        scored_results = []
+        
+        for result in results:
             title = result.get('title', '')
             artist = 'Various Artists'
             album_title = title
@@ -133,6 +220,25 @@ def search(request):
                     clean_artist = re.sub(r'\s*\(\d+\)$', '', parts[0].strip())
                     artist = clean_artist or parts[0].strip()
                     album_title = parts[1].strip()
+            
+            # Calculate relevance score
+            relevance_score = calculate_relevance_score(result, query, artist, album_title)
+            
+            scored_results.append({
+                'result': result,
+                'artist': artist,
+                'album_title': album_title,
+                'relevance_score': relevance_score
+            })
+        
+        # Sort by relevance score (highest first)
+        scored_results.sort(key=lambda x: x['relevance_score'], reverse=True)
+        
+        # Second pass: take top 25 results and add artist photos
+        for i, scored_item in enumerate(scored_results[:25]):
+            result = scored_item['result']
+            artist = scored_item['artist']
+            album_title = scored_item['album_title']
             
             # Fetch artist photo for first 10 results only (to avoid too many API calls)
             artist_photo_url = None
