@@ -29,6 +29,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     album_title = serializers.CharField(source='album.title', read_only=True)
     album_artist = serializers.CharField(source='album.artist', read_only=True)
     album_cover = serializers.CharField(source='album.cover_url', read_only=True)
+    album_artist_photo = serializers.CharField(source='album.artist_photo_url', read_only=True)
     album_year = serializers.IntegerField(source='album.year', read_only=True)
     album_discogs_id = serializers.CharField(source='album.discogs_id', read_only=True)
     likes_count = serializers.SerializerMethodField()
@@ -38,7 +39,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'content', 'user_genres', 'created_at', 
-                  'album_title', 'album_artist', 'album_cover', 'album_year', 'album_discogs_id', 'is_pinned',
+                  'album_title', 'album_artist', 'album_cover', 'album_artist_photo', 'album_year', 'album_discogs_id', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
     
@@ -68,7 +69,7 @@ class AlbumSerializer(serializers.ModelSerializer):
     class Meta:
         model = Album
         fields = [
-            'id', 'title', 'artist', 'year', 'cover_url',
+            'id', 'title', 'artist', 'year', 'cover_url', 'artist_photo_url',
             'discogs_id', 'genres', 'discogs_genres', 'discogs_styles', 
             'tracklist', 'credits', 'created_at', 'updated_at'
         ]
@@ -78,6 +79,7 @@ class AlbumSearchResultSerializer(serializers.Serializer):
     artist = serializers.CharField(required=False)
     year = serializers.IntegerField(required=False)
     cover_image = serializers.URLField(required=False)
+    artist_photo_url = serializers.URLField(required=False)
     discogs_id = serializers.CharField(source='id')
     genres = serializers.ListField(child=serializers.CharField(), required=False, source='genre')
     styles = serializers.ListField(child=serializers.CharField(), required=False, source='style')

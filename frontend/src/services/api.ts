@@ -64,6 +64,7 @@ export interface Album {
   year?: number;
   cover_url?: string;
   cover_image?: string;
+  artist_photo_url?: string;
   genres?: string[];
   discogs_id: number;
 }
@@ -78,6 +79,7 @@ export interface Review {
   album_title: string;
   album_artist: string;
   album_cover: string;
+  album_artist_photo?: string;
   album_year?: number;
   is_pinned: boolean;
   likes_count: number;
@@ -105,6 +107,7 @@ export interface SearchResult {
   thumb?: string;
   genre?: string[];
   style?: string[];
+  artist_photo_url?: string;
 }
 
 // Auth API

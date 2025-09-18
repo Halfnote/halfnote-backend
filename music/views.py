@@ -5,8 +5,10 @@ Optimized views for music search, reviews, and social features with performance 
 
 import re
 import logging
+import math
 import requests
 from django.conf import settings
+from django.utils import timezone
 from django.db.models import Avg
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
@@ -38,7 +40,9 @@ def search_discogs(query):
         params={
             "q": query,
             "type": "master",
-            "per_page": 25,
+            "per_page": 50,  # Balanced for performance and coverage
+            "sort": "have",  # Sort by community ownership
+            "sort_order": "desc",  # Most owned first
             "key": settings.DISCOGS_CONSUMER_KEY,
             "secret": settings.DISCOGS_CONSUMER_SECRET
         },
@@ -51,6 +55,135 @@ def search_discogs(query):
         return []
 
     return response.json().get('results', [])
+
+
+
+def get_artist_photo(artist_name):
+    """Fetch artist photo from Discogs API"""
+    try:
+        response = requests.get(
+            f"{settings.DISCOGS_API_URL}/database/search",
+            params={
+                "q": artist_name,
+                "type": "artist",
+                "per_page": 1,
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 5)
+        )
+        if not response.ok:
+            return None
+
+        results = response.json().get('results', [])
+        if not results:
+            return None
+            
+        # Details of first artist result
+        artist_id = results[0].get('id')
+        if not artist_id:
+            return None
+
+        detail_response = requests.get(
+            f"{settings.DISCOGS_API_URL}/artists/{artist_id}",
+            params={
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 5)
+        )
+        
+        if detail_response.ok:
+            artist_data = detail_response.json()
+            images = artist_data.get('images', [])
+            if images:
+                return images[0].get('uri')
+                
+    except Exception as e:
+        logger.error(f"Error fetching artist photo for {artist_name}: {e}")
+        
+    return None
+
+
+def calculate_relevance_score(result, query, artist, album_title):
+    """Calculate relevance score based on popularity with strong penalties for compilations/live albums"""
+    query_lower = query.lower()
+    artist_lower = artist.lower()
+    album_lower = album_title.lower()
+    title_lower = result.get('title', '').lower()
+    
+    # Base score: Only artist match matters for relevance
+    base_score = 0
+    if query_lower == artist_lower:
+        base_score = 100
+    elif query_lower in artist_lower:
+        base_score = 50
+    else:
+        # If no artist match, very low score
+        base_score = 1
+    
+    # Primary scoring: Discogs community popularity
+    community_have = result.get('community', {}).get('have', 0) if isinstance(result.get('community'), dict) else 0
+    community_want = result.get('community', {}).get('want', 0) if isinstance(result.get('community'), dict) else 0
+    
+    # Pure popularity score - the more people have it, the higher it ranks
+    popularity_score = 0
+    if community_have > 0:
+        popularity_score = community_have
+    
+    # Want score adds a small bonus for desirable albums
+    want_bonus = 0
+    if community_want > 0:
+        want_bonus = community_want * 0.1  # Much smaller weight than "have"
+    
+    # STRONG PENALTIES for compilations, best-ofs, and live albums
+    penalty_multiplier = 1.0
+    
+    # Compilation indicators
+    compilation_terms = [
+        'best of', 'greatest hits', 'collection', 'anthology', 'compilation',
+        'the very best', 'essential', 'complete', 'hits', 'singles',
+        'rarities', 'b-sides', 'unreleased', 'outtakes', 'demos',
+        'remastered', 'deluxe', 'expanded', 'special edition',
+        'vol.', 'volume', 'part', 'disc', 'box set'
+    ]
+    
+    # Live album indicators  
+    live_terms = [
+        'live', 'concert', 'live at', 'in concert', 'unplugged',
+        'acoustic', 'sessions', 'mtv unplugged', 'live from',
+        'bootleg', 'unofficial'
+    ]
+    
+    # Check for compilation indicators
+    for term in compilation_terms:
+        if term in title_lower or term in album_lower:
+            penalty_multiplier *= 0.1  # 90% penalty
+            break
+    
+    # Check for live album indicators
+    for term in live_terms:
+        if term in title_lower or term in album_lower:
+            penalty_multiplier *= 0.15  # 85% penalty
+            break
+    
+    # Check Discogs format field for additional penalties
+    format_list = result.get('format', [])
+    if isinstance(format_list, list):
+        format_str = ' '.join(format_list).lower()
+        if 'compilation' in format_str:
+            penalty_multiplier *= 0.05  # 95% penalty
+        elif 'box set' in format_str:
+            penalty_multiplier *= 0.1   # 90% penalty
+        elif 'live' in format_str:
+            penalty_multiplier *= 0.2   # 80% penalty
+    
+    # Final score is base relevance * popularity * penalties
+    final_score = base_score * (1 + (popularity_score + want_bonus) / 1000) * penalty_multiplier
+    
+    return final_score
 
 
 @api_view(['GET'])
@@ -71,6 +204,9 @@ def search(request):
         results = search_discogs(query)
         processed_results = []
         
+        # First pass: process and score all results
+        scored_results = []
+        
         for result in results:
             title = result.get('title', '')
             artist = 'Various Artists'
@@ -85,6 +221,30 @@ def search(request):
                     artist = clean_artist or parts[0].strip()
                     album_title = parts[1].strip()
             
+            # Calculate relevance score
+            relevance_score = calculate_relevance_score(result, query, artist, album_title)
+            
+            scored_results.append({
+                'result': result,
+                'artist': artist,
+                'album_title': album_title,
+                'relevance_score': relevance_score
+            })
+        
+        # Sort by relevance score (highest first)
+        scored_results.sort(key=lambda x: x['relevance_score'], reverse=True)
+        
+        # Second pass: take top 25 results and add artist photos
+        for i, scored_item in enumerate(scored_results[:25]):
+            result = scored_item['result']
+            artist = scored_item['artist']
+            album_title = scored_item['album_title']
+            
+            # Fetch artist photo for first 10 results only (to avoid too many API calls)
+            artist_photo_url = None
+            if i < 10 and artist != 'Various Artists':
+                artist_photo_url = get_artist_photo(artist)
+            
             processed_results.append({
                 'id': result.get('id'),
                 'title': album_title,
@@ -93,6 +253,7 @@ def search(request):
                 'genre': result.get('genre', []),
                 'style': result.get('style', []),
                 'cover_image': result.get('cover_image', ''),
+                'artist_photo_url': artist_photo_url,
                 'thumb': result.get('thumb', ''),
             })
         
@@ -124,6 +285,13 @@ def album_detail(request, discogs_id):
     album = Album.objects.filter(discogs_id=discogs_id).first()
     
     if album:
+        # Check if album has artist photo, if not fetch it
+        if not album.artist_photo_url and album.artist != 'Various Artists':
+            artist_photo_url = get_artist_photo(album.artist)
+            if artist_photo_url:
+                album.artist_photo_url = artist_photo_url
+                album.save()
+        
         # Get reviews for existing album
         reviews = Review.objects.filter(album=album).select_related('user').order_by('-created_at')
         
@@ -142,6 +310,12 @@ def album_detail(request, discogs_id):
         
         if not album_data:
             return Response({'error': 'Album not found'}, status=404)
+        
+        # Fetch artist photo for new albums too
+        if album_data.get('artist') and album_data.get('artist') != 'Various Artists':
+            artist_photo_url = get_artist_photo(album_data['artist'])
+            if artist_photo_url:
+                album_data['artist_photo_url'] = artist_photo_url
         
         response_data = {
             'album': album_data,
@@ -166,12 +340,16 @@ def import_album_from_discogs(discogs_id):
     album_data = service.get_album_details(discogs_id)
     
     if album_data:
+        # Fetch artist photo
+        artist_photo_url = get_artist_photo(album_data['artist'])
+        
         album = Album.objects.create(
             discogs_id=discogs_id,
             title=album_data['title'],
             artist=album_data['artist'],
             year=album_data.get('year'),
             cover_url=album_data.get('cover_image', ''),
+            artist_photo_url=artist_photo_url,
         )
         return album
     
