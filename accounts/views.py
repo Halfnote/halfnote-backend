@@ -29,11 +29,11 @@ def register(request):
             password=request.data['password'],
             bio=request.data.get('bio', '')
         )
-        
+
         if 'avatar' in request.FILES:
             user.avatar = request.FILES['avatar']
             user.save()
-            
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'username': user.username,
