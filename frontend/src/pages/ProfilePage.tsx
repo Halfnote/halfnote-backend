@@ -1499,8 +1499,8 @@ const ProfilePage: React.FC = () => {
   const handleEditProfile = async () => {
     try {
       const response = await fetch('/api/music/genres/');
-      const genres = await response.json();
-      setAvailableGenres(genres);
+      const data = await response.json();
+      setAvailableGenres(data.genres || []);
     } catch (error) {
       console.error('Error loading genres:', error);
       // Fallback to empty array if API fails
