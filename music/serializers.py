@@ -9,16 +9,19 @@ class GenreSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_avatar = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Comment
         fields = ['id', 'username', 'user_avatar', 'content', 'created_at']
         read_only_fields = ['id', 'username', 'user_avatar', 'created_at']
-    
+
     def get_user_avatar(self, obj):
-        if obj.user.avatar:
-            return obj.user.avatar.url
-        return None
+        try:
+            if obj.user.avatar:
+                return obj.user.avatar.url
+            return None
+        except Exception:
+            return None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -44,24 +47,36 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
     
     def get_user_avatar(self, obj):
-        if obj.user.avatar:
-            return obj.user.avatar.url
-        return None
-    
+        try:
+            if obj.user.avatar:
+                return obj.user.avatar.url
+            return None
+        except Exception:
+            return None
+
     def get_likes_count(self, obj):
-        # Use prefetched data to avoid N+1 queries
-        return len(obj.likes.all())
-    
+        try:
+            # Use prefetched data to avoid N+1 queries
+            return len(obj.likes.all())
+        except Exception:
+            return 0
+
     def get_is_liked_by_user(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            # Use prefetched data instead of filtering
-            return any(like.user_id == request.user.id for like in obj.likes.all())
-        return False
-    
+        try:
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                # Use prefetched data instead of filtering
+                return any(like.user_id == request.user.id for like in obj.likes.all())
+            return False
+        except Exception:
+            return False
+
     def get_comments_count(self, obj):
-        # Use prefetched data to avoid N+1 queries
-        return len(obj.comments.all())
+        try:
+            # Use prefetched data to avoid N+1 queries
+            return len(obj.comments.all())
+        except Exception:
+            return 0
 
 class AlbumSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
@@ -99,64 +114,80 @@ class ActivitySerializer(serializers.ModelSerializer):
                   'review_details', 'comment_details', 'created_at']
     
     def get_user(self, obj):
-        return {
-            'username': obj.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None,
-            'is_staff': obj.user.is_staff
-        }
-    
-    def get_target_user(self, obj):
-        if obj.target_user:
+        try:
             return {
-                'username': obj.target_user.username,
-                'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None,
-                'is_staff': obj.target_user.is_staff
+                'username': obj.user.username,
+                'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'is_staff': obj.user.is_staff
             }
-        return None
+        except Exception:
+            return {
+                'username': 'Unknown',
+                'avatar': None,
+                'is_staff': False
+            }
+
+    def get_target_user(self, obj):
+        try:
+            if obj.target_user:
+                return {
+                    'username': obj.target_user.username,
+                    'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None,
+                    'is_staff': obj.target_user.is_staff
+                }
+            return None
+        except Exception:
+            return None
     
     def get_review_details(self, obj):
-        if obj.review:
-            request = self.context.get('request')
-            is_liked_by_user = False
-            if request and request.user.is_authenticated:
-                # Use prefetched data to avoid extra query
-                is_liked_by_user = any(like.user_id == request.user.id for like in obj.review.likes.all())
-            
-            review_data = {
-                'id': obj.review.id,
-                'rating': obj.review.rating,
-                'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
-                'is_liked_by_user': is_liked_by_user,
-                'user_genres': [{'id': g.id, 'name': g.name} for g in obj.review.user_genres.all()],
-                'album': {
-                    'title': obj.review.album.title,
-                    'artist': obj.review.album.artist,
-                    'year': obj.review.album.year,
-                    'cover_url': obj.review.album.cover_url,
-                    'discogs_id': obj.review.album.discogs_id,
-                },
-                'user': {
-                    'username': obj.review.user.username,
-                    'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None,
-                    'is_staff': obj.review.user.is_staff
+        try:
+            if obj.review:
+                request = self.context.get('request')
+                is_liked_by_user = False
+                if request and request.user.is_authenticated:
+                    # Use prefetched data to avoid extra query
+                    is_liked_by_user = any(like.user_id == request.user.id for like in obj.review.likes.all())
+
+                review_data = {
+                    'id': obj.review.id,
+                    'rating': obj.review.rating,
+                    'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
+                    'is_liked_by_user': is_liked_by_user,
+                    'user_genres': [{'id': g.id, 'name': g.name} for g in obj.review.user_genres.all()],
+                    'album': {
+                        'title': obj.review.album.title,
+                        'artist': obj.review.album.artist,
+                        'year': obj.review.album.year,
+                        'cover_url': obj.review.album.cover_url,
+                        'discogs_id': obj.review.album.discogs_id,
+                    },
+                    'user': {
+                        'username': obj.review.user.username,
+                        'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None,
+                        'is_staff': obj.review.user.is_staff
+                    }
                 }
-            }
-            
-            # Use prefetched data for counts - much faster than .count() queries
-            review_data['likes_count'] = len(obj.review.likes.all())
-            review_data['comments_count'] = len(obj.review.comments.all())
-            
-            return review_data
-        return None
+
+                # Use prefetched data for counts - much faster than .count() queries
+                review_data['likes_count'] = len(obj.review.likes.all())
+                review_data['comments_count'] = len(obj.review.comments.all())
+
+                return review_data
+            return None
+        except Exception:
+            return None
     
     def get_comment_details(self, obj):
-        if obj.comment:
-            return {
-                'id': obj.comment.id,
-                'content': obj.comment.content,
-                'created_at': obj.comment.created_at,
-            }
-        return None
+        try:
+            if obj.comment:
+                return {
+                    'id': obj.comment.id,
+                    'content': obj.comment.content,
+                    'created_at': obj.comment.created_at,
+                }
+            return None
+        except Exception:
+            return None
 
 
 class ListItemSerializer(serializers.ModelSerializer):
@@ -169,20 +200,28 @@ class ListItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'added_at']
     
     def get_album(self, obj):
-        album_data = AlbumSerializer(obj.album).data
-        
-        # Add user review information if available
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            user_review = Review.objects.filter(
-                album=obj.album, 
-                user=request.user
-            ).first()
-            if user_review:
-                album_data['user_review_id'] = user_review.id
-                album_data['user_rating'] = user_review.rating
-        
-        return album_data
+        try:
+            album_data = AlbumSerializer(obj.album).data
+
+            # Add user review information if available
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                user_review = Review.objects.filter(
+                    album=obj.album,
+                    user=request.user
+                ).first()
+                if user_review:
+                    album_data['user_review_id'] = user_review.id
+                    album_data['user_rating'] = user_review.rating
+
+            return album_data
+        except Exception:
+            # Return minimal album data if there's an error
+            return {
+                'id': str(obj.album.id) if obj.album else None,
+                'title': 'Unknown Album',
+                'artist': 'Unknown Artist'
+            }
 
 
 class ListSerializer(serializers.ModelSerializer):
@@ -199,23 +238,39 @@ class ListSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_user(self, obj):
-        return {
-            'username': obj.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None,
-            'is_staff': obj.user.is_staff
-        }
-    
+        try:
+            return {
+                'username': obj.user.username,
+                'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'is_staff': obj.user.is_staff
+            }
+        except Exception:
+            return {
+                'username': 'Unknown',
+                'avatar': None,
+                'is_staff': False
+            }
+
     def get_album_count(self, obj):
-        return obj.items.count()
-    
+        try:
+            return obj.items.count()
+        except Exception:
+            return 0
+
     def get_likes_count(self, obj):
-        return obj.likes.count()
-    
+        try:
+            return obj.likes.count()
+        except Exception:
+            return 0
+
     def get_is_liked_by_user(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.likes.filter(user=request.user).exists()
-        return False
+        try:
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                return obj.likes.filter(user=request.user).exists()
+            return False
+        except Exception:
+            return False
 
 
 class ListSummarySerializer(serializers.ModelSerializer):
@@ -231,24 +286,40 @@ class ListSummarySerializer(serializers.ModelSerializer):
                   'user', 'album_count', 'likes_count', 'first_albums']
     
     def get_user(self, obj):
-        return {
-            'username': obj.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None,
-            'is_staff': obj.user.is_staff
-        }
-    
+        try:
+            return {
+                'username': obj.user.username,
+                'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'is_staff': obj.user.is_staff
+            }
+        except Exception:
+            return {
+                'username': 'Unknown',
+                'avatar': None,
+                'is_staff': False
+            }
+
     def get_album_count(self, obj):
-        return obj.items.count()
-    
+        try:
+            return obj.items.count()
+        except Exception:
+            return 0
+
     def get_likes_count(self, obj):
-        return obj.likes.count()
-    
+        try:
+            return obj.likes.count()
+        except Exception:
+            return 0
+
     def get_first_albums(self, obj):
-        # Return first 4 album covers for preview
-        first_items = obj.items.select_related('album')[:4]
-        return [{
-            'id': item.album.id,
-            'title': item.album.title,
-            'artist': item.album.artist,
-            'cover_url': item.album.cover_url
-        } for item in first_items] 
+        try:
+            # Return first 4 album covers for preview
+            first_items = obj.items.select_related('album')[:4]
+            return [{
+                'id': item.album.id,
+                'title': item.album.title,
+                'artist': item.album.artist,
+                'cover_url': item.album.cover_url
+            } for item in first_items]
+        except Exception:
+            return [] 

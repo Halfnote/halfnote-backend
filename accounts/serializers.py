@@ -31,23 +31,27 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def get_most_reviewed_genres(self, obj):
         """Get user's most reviewed genres with counts"""
-        from music.models import Genre
-        from django.db.models import Q
-        
-        genre_stats = Genre.objects.filter(
-            reviews__user=obj
-        ).annotate(
-            review_count=Count('reviews', filter=Q(reviews__user=obj))
-        ).order_by('-review_count')[:10]  # Top 10 genres
-        
-        return [
-            {
-                'id': genre.id,
-                'name': genre.name,
-                'count': genre.review_count
-            }
-            for genre in genre_stats
-        ]
+        try:
+            from music.models import Genre
+            from django.db.models import Q
+
+            genre_stats = Genre.objects.filter(
+                reviews__user=obj
+            ).annotate(
+                review_count=Count('reviews', filter=Q(reviews__user=obj))
+            ).order_by('-review_count')[:10]  # Top 10 genres
+
+            return [
+                {
+                    'id': genre.id,
+                    'name': genre.name,
+                    'count': genre.review_count
+                }
+                for genre in genre_stats
+            ]
+        except Exception as e:
+            # Return empty list if there's any issue to prevent profile page from breaking
+            return []
     
     def to_representation(self, instance):
         """Convert favorite_genres from list of strings to list of objects for frontend"""
