@@ -18,6 +18,7 @@ interface Review {
 interface EditReviewModalProps {
   isVisible: boolean;
   reviewId: number | null;
+  albumId?: string | null;  // For creating new reviews
   onClose: () => void;
   onSave: () => void;
 }
@@ -172,6 +173,7 @@ const SaveButton = styled(Button)`
 const EditReviewModal: React.FC<EditReviewModalProps> = ({
   isVisible,
   reviewId,
+  albumId,
   onClose,
   onSave
 }) => {
@@ -197,8 +199,8 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
     const loadGenres = async () => {
       try {
         const response = await fetch('/api/music/genres/');
-        const genres = await response.json();
-        setAvailableGenres(genres);
+        const data = await response.json();
+        setAvailableGenres(data.genres || []);
       } catch (error) {
         console.error('Error loading genres:', error);
         // Fallback to empty array if API fails
@@ -242,22 +244,35 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!reviewId || !formData.content.trim()) return;
+    if (!formData.content.trim()) return;
 
     setSaving(true);
     try {
-      await musicAPI.updateReview(
-        reviewId, 
-        formData.rating, 
-        formData.content, 
-        formData.genres
-      );
-      
+      if (reviewId) {
+        // Update existing review
+        await musicAPI.updateReview(
+          reviewId,
+          formData.rating,
+          formData.content,
+          formData.genres
+        );
+      } else if (albumId) {
+        // Create new review
+        await musicAPI.createReview(
+          albumId,
+          formData.rating,
+          formData.content,
+          formData.genres
+        );
+      } else {
+        throw new Error('No review ID or album ID provided');
+      }
+
       onSave(); // Callback to refresh the parent component
       onClose();
     } catch (error) {
-      console.error('Error updating review:', error);
-      alert('Error updating review');
+      console.error('Error saving review:', error);
+      alert('Error saving review');
     } finally {
       setSaving(false);
     }

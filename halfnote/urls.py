@@ -18,8 +18,8 @@ urlpatterns = [
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),
     
-    # React Frontend (catch-all for SPA)
-    re_path(r'^.*$', views.frontend, name='react-frontend'),
+    # React Frontend (catch-all for SPA, but exclude API and admin routes)
+    re_path(r'^(?!api/)(?!admin/).*$', views.frontend, name='react-frontend'),
 ]
 
 # Serve static and media files during development

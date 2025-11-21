@@ -946,6 +946,7 @@ const AlbumDetailPage: React.FC = () => {
         <EditReviewModal
           isVisible={showReviewModal}
           reviewId={userReview?.id || null}
+          albumId={discogsId}
           onClose={() => setShowReviewModal(false)}
           onSave={async () => {
             await loadAlbumData();
