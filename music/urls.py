@@ -10,6 +10,8 @@ urlpatterns = [
     # Search and discovery
     path('search/', views.search, name='search'),
     path('genres/', views.genres, name='genres'),
+    path('this-day-in-history/', views.this_day_in_history, name='this-day-in-history'),
+    path('artists/<str:artist_name>/', views.artist_detail, name='artist-detail'),
     
     # Albums and reviews
     path('albums/<str:discogs_id>/', views.album_detail, name='album-detail'),

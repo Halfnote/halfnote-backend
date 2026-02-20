@@ -12,9 +12,9 @@ def validate_username(value):
         'security', 'staff', 'moderator', 'mod', 'null', 'undefined'
     }
     
-    if len(value) < 3:
+    if len(value) < 2:
         raise ValidationError(
-            _('Username must be at least 3 characters long.')
+            _('Username must be at least 2 characters long.')
         )
     if len(value) > 30:
         raise ValidationError(

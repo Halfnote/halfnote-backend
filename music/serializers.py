@@ -1,10 +1,15 @@
 from rest_framework import serializers
-from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike
+from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, ThisDayInHistory
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name']
+
+class ThisDayInHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ThisDayInHistory
+        fields = ['id', 'date', 'title', 'description', 'year']
 
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)

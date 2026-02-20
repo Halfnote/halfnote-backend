@@ -193,4 +193,24 @@ class ListLike(models.Model):
         unique_together = ('user', 'list')
     
     def __str__(self):
-        return f"{self.user.username} likes {self.list.name}" 
+        return f"{self.user.username} likes {self.list.name}"
+
+
+class ThisDayInHistory(models.Model):
+    date = models.DateField(help_text="The date (month and day matter, year is stored separately)")
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    year = models.IntegerField(null=True, blank=True, help_text="The year this event occurred")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        year_str = f" ({self.year})" if self.year else ""
+        return f"{self.title}{year_str} - {self.date.strftime('%B %d')}"
+
+    class Meta:
+        ordering = ['year']
+        indexes = [
+            models.Index(fields=['date']),
+        ]
+        verbose_name = "This Day in History"
+        verbose_name_plural = "This Day in History"

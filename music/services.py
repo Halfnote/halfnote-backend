@@ -213,4 +213,49 @@ class ExternalMusicService:
             return album_data
         except Exception as e:
             logger.error(f"Error fetching album details from Discogs: {str(e)}")
-            return None 
+            return None
+
+    def get_artist_info(self, artist_name: str) -> Optional[Dict[str, Any]]:
+        """Get artist info from Discogs (bio and image)"""
+        logger.info(f"Fetching artist info for: {artist_name}")
+
+        try:
+            data = self._make_request("database/search", {
+                'q': artist_name,
+                'type': 'artist',
+                'per_page': 5,
+            })
+
+            if not data or not data.get('results'):
+                return None
+
+            # Prefer exact name match
+            results = data['results']
+            best = results[0]
+            for r in results:
+                if r.get('title', '').lower() == artist_name.lower():
+                    best = r
+                    break
+
+            artist_id = best.get('id')
+            if not artist_id:
+                return None
+
+            # Fetch detailed artist data
+            artist_data = self._make_request(f"artists/{artist_id}")
+            if not artist_data:
+                return None
+
+            image = ''
+            if artist_data.get('images'):
+                primary = [img for img in artist_data['images'] if img.get('type') == 'primary']
+                image = (primary[0] if primary else artist_data['images'][0]).get('uri', '')
+
+            return {
+                'name': self._clean_artist_name(artist_data.get('name', artist_name)),
+                'image': image,
+                'bio': artist_data.get('profile', ''),
+            }
+        except Exception as e:
+            logger.error(f"Error fetching artist info from Discogs: {str(e)}")
+            return None

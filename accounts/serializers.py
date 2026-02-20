@@ -179,18 +179,37 @@ class UserSerializer(serializers.ModelSerializer):
     follower_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
-    
+    top_rated_albums = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'top_rated_albums', 'is_staff']
         read_only_fields = ['id', 'email', 'is_staff']
-    
+
     def get_follower_count(self, obj):
         return obj.followers.count()
-    
+
     def get_following_count(self, obj):
         return obj.following.count()
-    
+
     def get_review_count(self, obj):
         from music.models import Review
         return Review.objects.filter(user=obj).count()
+
+    def get_top_rated_albums(self, obj):
+        from music.models import Review
+        top_reviews = (
+            Review.objects.filter(user=obj)
+            .select_related('album')
+            .order_by('-rating', '-created_at')[:4]
+        )
+        return [
+            {
+                'album_title': r.album.title,
+                'artist': r.album.artist,
+                'cover_url': r.album.cover_url,
+                'rating': r.rating,
+                'discogs_id': r.album.discogs_id,
+            }
+            for r in top_reviews
+        ]
