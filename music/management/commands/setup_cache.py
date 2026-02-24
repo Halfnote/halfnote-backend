@@ -4,7 +4,6 @@ Management command to set up caching infrastructure
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.conf import settings
-from music.cache_utils import setup_cache_table
 
 
 class Command(BaseCommand):

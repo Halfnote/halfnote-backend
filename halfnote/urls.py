@@ -12,14 +12,16 @@ from . import views
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
-    
-    # API
+
+    # API (with and without /api/ prefix for compatibility)
     path('api/', views.api_root, name='api-root'),
+    path('accounts/', include('accounts.urls')),
+    path('music/', include('music.urls')),
     path('api/accounts/', include('accounts.urls')),
     path('api/music/', include('music.urls')),
-    
+
     # React Frontend (catch-all for SPA, but exclude API and admin routes)
-    re_path(r'^(?!api/)(?!admin/).*$', views.frontend, name='react-frontend'),
+    re_path(r'^(?!api/)(?!admin/)(?!accounts/)(?!music/).*$', views.frontend, name='react-frontend'),
 ]
 
 # Serve static and media files during development

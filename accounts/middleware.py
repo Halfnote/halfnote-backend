@@ -4,6 +4,7 @@ Simple username redirect middleware for maintaining user profile URLs
 """
 
 from django.http import HttpResponsePermanentRedirect
+from django.utils.deprecation import MiddlewareMixin
 import re
 
 
@@ -36,5 +37,18 @@ class UsernameRedirectMiddleware:
                         new_path += '?' + request.GET.urlencode()
                     
                     return HttpResponsePermanentRedirect(new_path)
-        
+
         return self.get_response(request)
+
+
+class DisableCSRFForAPIMiddleware(MiddlewareMixin):
+    """
+    Disable CSRF validation for API endpoints.
+    API authentication uses JWT tokens, not session cookies.
+    """
+
+    def process_request(self, request):
+        # Exempt API endpoints from CSRF validation
+        if request.path.startswith('/accounts/') or request.path.startswith('/api/'):
+            setattr(request, '_dont_enforce_csrf_checks', True)
+        return None
