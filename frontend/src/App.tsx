@@ -20,6 +20,7 @@ import ListLikesPage from './pages/ListLikesPage';
 import SettingsPage from './pages/SettingsPage';
 import ListDetailPage from './pages/ListDetailPage';
 import AlbumDetailPage from './pages/AlbumDetailPage';
+import ArtistPage from './pages/ArtistPage';
 
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -181,6 +182,11 @@ const AppRoutes: React.FC = () => {
           <Route path="/albums/:discogsId" element={
             <ProtectedRoute>
               <AlbumDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/artists/:artistName" element={
+            <ProtectedRoute>
+              <ArtistPage />
             </ProtectedRoute>
           } />
           <Route path="/settings" element={<SettingsPage />} />

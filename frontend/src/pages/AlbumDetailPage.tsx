@@ -908,7 +908,7 @@ const AlbumDetailPage: React.FC = () => {
             <PrimaryButton onClick={handleWriteReview}>
               {userReview ? 'Edit Review' : 'Write Review'}
             </PrimaryButton>
-            <SecondaryButton onClick={() => navigate(`/search?q=${encodeURIComponent(album.artist)}`)}>
+            <SecondaryButton onClick={() => navigate(`/artists/${encodeURIComponent(album.artist)}`)}>
               More by {album.artist}
             </SecondaryButton>
           </ActionButtons>

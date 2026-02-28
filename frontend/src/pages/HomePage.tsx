@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
+import { musicAPI } from '../services/api';
 
 const Container = styled.div`
   max-width: 600px;
@@ -230,6 +231,58 @@ const SearchButton = styled(BtnPrimary)`
   white-space: nowrap;
 `;
 
+const HistoryPanel = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 32px;
+`;
+
+const HistoryTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const HistoryFact = styled.div`
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+`;
+
+const FactTitle = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+`;
+
+const FactYear = styled.span`
+  font-size: 14px;
+  color: #6366f1;
+  font-weight: 600;
+  margin-right: 8px;
+`;
+
+const FactDescription = styled.p`
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+`;
+
 const HomePage: React.FC = () => {
   const { user, login, register, logout } = useAuth();
   const navigate = useNavigate();
@@ -244,6 +297,15 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [historyFacts, setHistoryFacts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      musicAPI.getThisDayInHistory()
+        .then(data => setHistoryFacts(data.facts || []))
+        .catch(() => {});
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -323,6 +385,21 @@ const HomePage: React.FC = () => {
             {success && <SuccessMessage>{success}</SuccessMessage>}
           </WelcomeSection>
         </MainCard>
+
+        {historyFacts.length > 0 && (
+          <HistoryPanel>
+            <HistoryTitle>This Day in Music History</HistoryTitle>
+            {historyFacts.map((fact: any) => (
+              <HistoryFact key={fact.id}>
+                <FactTitle>
+                  {fact.year && <FactYear>{fact.year}</FactYear>}
+                  {fact.title}
+                </FactTitle>
+                <FactDescription>{fact.description}</FactDescription>
+              </HistoryFact>
+            ))}
+          </HistoryPanel>
+        )}
       </Container>
     );
   }

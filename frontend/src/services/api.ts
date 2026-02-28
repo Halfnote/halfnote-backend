@@ -320,6 +320,24 @@ export const musicAPI = {
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Failed to delete activity');
     }
+  },
+
+  getThisDayInHistory: async () => {
+    try {
+      const response = await api.get('/api/music/this-day-in-history/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get this day in history');
+    }
+  },
+
+  getArtistDetail: async (artistName: string) => {
+    try {
+      const response = await api.get(`/api/music/artists/${encodeURIComponent(artistName)}/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get artist details');
+    }
   }
 };
 

@@ -7,7 +7,8 @@ import re
 import logging
 import requests
 from django.conf import settings
-from django.db.models import Avg
+from urllib.parse import unquote
+from django.db.models import Avg, Count
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -15,11 +16,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike
+from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, ThisDayInHistory
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, 
-    ActivitySerializer, CommentSerializer, GenreSerializer, 
-    ListSerializer, ListSummarySerializer, ListItemSerializer
+    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer,
+    ActivitySerializer, CommentSerializer, GenreSerializer,
+    ListSerializer, ListSummarySerializer, ListItemSerializer,
+    ThisDayInHistorySerializer
 )
 from accounts.serializers import UserSerializer
 from .services import ExternalMusicService
@@ -768,3 +770,86 @@ def delete_activity(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, user=request.user)
     activity.delete()
     return Response({'message': 'Activity deleted'}, status=204)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def this_day_in_history(request):
+    """Get music facts for today's date"""
+    from django.utils import timezone as tz
+    today = tz.now().date()
+
+    cache_key = f'this_day_in_history_{today.month}_{today.day}'
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return Response(cached_data)
+
+    facts = ThisDayInHistory.objects.filter(
+        date__month=today.month,
+        date__day=today.day
+    ).order_by('year')
+
+    serializer = ThisDayInHistorySerializer(facts, many=True)
+    response_data = {'facts': serializer.data, 'date': today.isoformat()}
+
+    cache.set(cache_key, response_data, 900)  # 15 min cache
+    return Response(response_data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def artist_detail(request, artist_name):
+    """Get artist info + their albums in the database"""
+    name = unquote(artist_name)
+
+    cache_key = f'artist_{name.lower()}'
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return Response(cached_data)
+
+    # Get all albums by this artist with review stats in a single query
+    albums = (
+        Album.objects.filter(artist__iexact=name)
+        .annotate(
+            avg_rating=Avg('reviews__rating'),
+            review_count=Count('reviews')
+        )
+        .order_by('-avg_rating')
+    )
+
+    albums_data = [
+        {
+            'id': str(a.id),
+            'title': a.title,
+            'artist': a.artist,
+            'year': a.year,
+            'cover_url': a.cover_url,
+            'discogs_id': a.discogs_id,
+            'avg_rating': round(a.avg_rating, 1) if a.avg_rating else None,
+            'review_count': a.review_count,
+        }
+        for a in albums
+    ]
+
+    # Get overall average across all albums
+    overall_avg = None
+    if albums_data:
+        rated = [a['avg_rating'] for a in albums_data if a['avg_rating'] is not None]
+        if rated:
+            overall_avg = round(sum(rated) / len(rated), 1)
+
+    # Fetch artist info from Discogs
+    service = ExternalMusicService()
+    artist_info = service.get_artist_info(name)
+
+    response_data = {
+        'name': artist_info['name'] if artist_info else name,
+        'image': artist_info['image'] if artist_info else None,
+        'bio': artist_info['bio'] if artist_info else None,
+        'albums': albums_data,
+        'album_count': len(albums_data),
+        'average_rating': overall_avg,
+    }
+
+    cache.set(cache_key, response_data, 1800)  # 30 min cache
+    return Response(response_data)

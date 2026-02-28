@@ -365,6 +365,42 @@ const GenreChip = styled.button<{ $selected: boolean }>`
   }
 `;
 
+const UserAlbums = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+const AlbumThumb = styled.img`
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+`;
+
+const ThumbRating = styled.span`
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+`;
+
+const ThumbContainer = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
 interface SearchResult {
   id?: string;
   discogs_id?: string;
@@ -383,6 +419,13 @@ interface UserResult {
   avatar?: string;
   is_following?: boolean;
   is_staff?: boolean;
+  top_rated_albums?: Array<{
+    album_title: string;
+    artist: string;
+    cover_url?: string;
+    rating: number;
+    discogs_id: string;
+  }>;
 }
 
 const SearchResultsPage: React.FC = () => {
@@ -627,6 +670,24 @@ const SearchResultsPage: React.FC = () => {
                 </ResultTitle>
                 {userResult.bio && <ResultSubtitle>{userResult.bio}</ResultSubtitle>}
                 <ResultMeta>User</ResultMeta>
+                {userResult.top_rated_albums && userResult.top_rated_albums.length > 0 && (
+                  <UserAlbums onClick={(e) => e.stopPropagation()}>
+                    {userResult.top_rated_albums.map((album) => (
+                      <ThumbContainer key={album.discogs_id}>
+                        <AlbumThumb
+                          src={album.cover_url || 'https://via.placeholder.com/48x48?text=No+Cover'}
+                          alt={album.album_title}
+                          title={`${album.album_title} - ${album.artist} (${album.rating}/10)`}
+                          onClick={() => navigate(`/albums/${album.discogs_id}/`)}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48x48?text=No+Cover';
+                          }}
+                        />
+                        <ThumbRating>{album.rating}</ThumbRating>
+                      </ThumbContainer>
+                    ))}
+                  </UserAlbums>
+                )}
               </ResultInfo>
               {user && user.username !== userResult.username && (
                 <ResultActions onClick={(e) => e.stopPropagation()}>
