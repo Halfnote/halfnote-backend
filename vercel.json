@@ -17,6 +17,14 @@
       "dest": "/api/index.py"
     },
     {
+      "src": "/accounts/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/music/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
       "src": "/admin/(.*)",
       "dest": "/api/index.py"
     },
