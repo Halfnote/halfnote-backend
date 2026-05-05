@@ -7,29 +7,74 @@ import uuid
 class Genre(models.Model):
     # Simple predefined genres list
     PREDEFINED_GENRES = [
-        'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic', 
-        'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk', 
+        'Pop', 'Hip-Hop', 'Rock', 'Latin', 'Country', 'Electronic',
+        'Jazz', 'Reggae', 'Gospel', 'Classical', 'Funk', 'Folk',
         'Soundtrack', 'World'
     ]
-    
+
     name = models.CharField(max_length=50, unique=True)
     created_at = models.DateTimeField(default=timezone.now)
-    
+
     def __str__(self):
         return self.name
-    
+
     class Meta:
         ordering = ['name']
+
+
+class Artist(models.Model):
+    """Artist information from Discogs"""
+
+    # Primary identifiers
+    discogs_id = models.CharField(max_length=50, unique=True, db_index=True)
+    name = models.CharField(max_length=255, help_text="Main artist name")
+    real_name = models.CharField(max_length=255, blank=True, help_text="Real name if different from stage name")
+
+    # Biography and description
+    profile = models.TextField(blank=True, help_text="Artist biography/description from Discogs")
+
+    # Images
+    primary_image_url = models.URLField(max_length=500, blank=True, help_text="Primary artist photo")
+    images = models.JSONField(default=list, blank=True, help_text="All images from Discogs")
+
+    # Additional info
+    name_variations = models.JSONField(default=list, blank=True, help_text="Alternate spellings/names")
+    urls = models.JSONField(default=list, blank=True, help_text="Artist websites and social links")
+    members = models.JSONField(default=list, blank=True, help_text="Band members (for groups)")
+
+    # Discogs metadata
+    discogs_url = models.URLField(max_length=500, blank=True, help_text="Link to Discogs page")
+    data_quality = models.CharField(max_length=50, blank=True, help_text="Discogs data quality rating")
+
+    # Timestamps
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['discogs_id']),
+        ]
 
 
 
 class Album(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     title = models.CharField(max_length=255)
+
+    # Artist relationship (new)
+    artist_rel = models.ForeignKey(Artist, on_delete=models.SET_NULL, null=True, blank=True, related_name='albums', help_text="Link to Artist model")
+
+    # Legacy artist field (keeping for backwards compatibility during migration)
     artist = models.CharField(max_length=255)
+
     year = models.IntegerField(null=True, blank=True)
     cover_url = models.URLField(max_length=500, null=True, blank=True)
-    artist_photo_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to artist photo from external API")
+    artist_photo_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to artist photo from external API (deprecated, use artist_rel)")
     discogs_id = models.CharField(max_length=50, unique=True)
     
     # User-assigned genres (from predefined list)

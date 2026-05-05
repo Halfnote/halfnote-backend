@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Avg
-from .models import Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike
+from .models import Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
@@ -10,14 +10,90 @@ class GenreAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     readonly_fields = ('created_at', 'album_count', 'review_count')
     ordering = ('name',)
-    
+
     def album_count(self, obj):
         return obj.albums.count()
     album_count.short_description = 'Albums'
-    
+
     def review_count(self, obj):
         return obj.reviews.count()
     review_count.short_description = 'Reviews'
+
+
+@admin.register(Artist)
+class ArtistAdmin(admin.ModelAdmin):
+    list_display = ('artist_thumbnail', 'name', 'real_name', 'albums_count', 'discogs_id', 'created_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = ('name', 'real_name', 'discogs_id')
+    readonly_fields = ('id', 'discogs_id', 'created_at', 'updated_at', 'artist_photo', 'albums_count', 'profile_preview')
+    date_hierarchy = 'created_at'
+    ordering = ('name',)
+
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('name', 'real_name', 'discogs_id')
+        }),
+        ('Biography', {
+            'fields': ('profile_preview',),
+            'description': 'Artist biography from Discogs'
+        }),
+        ('Images', {
+            'fields': ('primary_image_url', 'artist_photo', 'images'),
+            'description': 'Artist photos and images'
+        }),
+        ('Additional Info', {
+            'fields': ('name_variations', 'urls', 'members'),
+            'classes': ('collapse',),
+            'description': 'Name variations, websites, and band members'
+        }),
+        ('Discogs Metadata', {
+            'fields': ('discogs_url', 'data_quality'),
+            'classes': ('collapse',)
+        }),
+        ('Statistics', {
+            'fields': ('albums_count',),
+            'classes': ('collapse',),
+            'description': 'Artist statistics'
+        }),
+        ('System Info', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def artist_thumbnail(self, obj):
+        """Display small thumbnail in list view"""
+        if obj.primary_image_url:
+            return format_html(
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 50%;" />',
+                obj.primary_image_url
+            )
+        return "No image"
+    artist_thumbnail.short_description = 'Photo'
+
+    def artist_photo(self, obj):
+        """Display larger photo in detail view"""
+        if obj.primary_image_url:
+            return format_html(
+                '<img src="{}" width="200" height="200" style="object-fit: cover; border-radius: 8px;" />',
+                obj.primary_image_url
+            )
+        return "No photo available"
+    artist_photo.short_description = 'Artist Photo'
+
+    def profile_preview(self, obj):
+        """Display formatted profile text"""
+        if obj.profile:
+            # Limit to first 500 characters for preview
+            preview = obj.profile[:500] + "..." if len(obj.profile) > 500 else obj.profile
+            return format_html('<div style="max-width: 600px; line-height: 1.6;">{}</div>', preview)
+        return "No profile available"
+    profile_preview.short_description = 'Biography'
+
+    def albums_count(self, obj):
+        """Show number of albums for this artist"""
+        return obj.albums.count()
+    albums_count.short_description = 'Albums'
 
 @admin.register(Album)
 class AlbumAdmin(admin.ModelAdmin):

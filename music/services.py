@@ -111,11 +111,11 @@ class ExternalMusicService:
     def get_album_details(self, discogs_id):
         """Get detailed information about an album from Discogs"""
         logger.info(f"Fetching album details for Discogs ID: {discogs_id}")
-        
+
         try:
             # First try to get the master release
             master_data = self._make_request(f"masters/{discogs_id}")
-            
+
             if master_data:
                 # If we found a master release, get the main release
                 main_release_id = master_data.get('main_release')
@@ -127,20 +127,20 @@ class ExternalMusicService:
                 # If not found as a master, try the release endpoint
                 release_data = self._make_request(f"releases/{discogs_id}")
                 master_data = None
-            
+
             if not release_data and not master_data:
                 logger.error(f"Album not found on Discogs: {discogs_id}")
                 return None
-            
+
             # Use release data if available, otherwise use master data
             data = release_data or master_data
-            
+
             # Get the main artist name
             artist_name = "Unknown Artist"
             if 'artists' in data and data['artists']:
                 raw_artist_name = data['artists'][0].get('name', "Unknown Artist")
                 artist_name = self._clean_artist_name(raw_artist_name)
-            
+
             # Get the tracklist with more details
             tracklist = []
             if 'tracklist' in data:
@@ -159,7 +159,7 @@ class ExternalMusicService:
                                 cleaned_artists.append(self._clean_artist_name(artist))
                             else:
                                 cleaned_artists.append(artist)
-                        
+
                         # Clean extraartists names as well
                         extraartists = track.get('extraartists', [])
                         cleaned_extraartists = []
@@ -171,7 +171,7 @@ class ExternalMusicService:
                                 cleaned_extraartists.append(cleaned_artist)
                             else:
                                 cleaned_extraartists.append(artist)
-                        
+
                         tracklist.append({
                             'position': track.get('position', ''),
                             'title': track.get('title', ''),
@@ -179,7 +179,7 @@ class ExternalMusicService:
                             'artists': cleaned_artists,
                             'extraartists': cleaned_extraartists
                         })
-            
+
             # Get credits with cleaned artist names
             credits = []
             if 'extraartists' in data:
@@ -189,7 +189,7 @@ class ExternalMusicService:
                         'role': artist.get('role', ''),
                         'id': artist.get('id', '')
                     })
-            
+
             album_data = {
                 'title': data.get('title', ''),
                 'artist': artist_name,
@@ -201,7 +201,7 @@ class ExternalMusicService:
                 'tracklist': tracklist,
                 'credits': credits
             }
-            
+
             # Get the cover image
             if 'images' in data and data['images']:
                 primary_images = [img for img in data['images'] if img.get('type') == 'primary']
@@ -209,8 +209,91 @@ class ExternalMusicService:
                     album_data['cover_image'] = primary_images[0].get('uri', '')
                 else:
                     album_data['cover_image'] = data['images'][0].get('uri', '')
-            
+
             return album_data
         except Exception as e:
             logger.error(f"Error fetching album details from Discogs: {str(e)}")
+            return None
+
+    def search_artist(self, artist_name: str) -> Optional[str]:
+        """
+        Search for an artist by name and return their Discogs artist ID
+        """
+        logger.info(f"Searching for artist: {artist_name}")
+
+        try:
+            params = {
+                'q': artist_name,
+                'type': 'artist',
+                'per_page': 1
+            }
+
+            data = self._make_request("database/search", params)
+            results = data.get('results', [])
+
+            if results:
+                artist_id = results[0].get('id')
+                logger.info(f"Found artist ID {artist_id} for {artist_name}")
+                return str(artist_id)
+
+            logger.warning(f"No artist found for: {artist_name}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error searching for artist {artist_name}: {str(e)}")
+            return None
+
+    def get_artist_details(self, artist_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about an artist from Discogs
+        """
+        logger.info(f"Fetching artist details for Discogs artist ID: {artist_id}")
+
+        try:
+            data = self._make_request(f"artists/{artist_id}")
+
+            if not data:
+                logger.error(f"Artist not found on Discogs: {artist_id}")
+                return None
+
+            # Extract primary image
+            primary_image_url = ''
+            images_list = data.get('images', [])
+            if images_list:
+                # Try to get primary image first
+                primary_images = [img for img in images_list if img.get('type') == 'primary']
+                if primary_images:
+                    primary_image_url = primary_images[0].get('uri', '')
+                else:
+                    # Fallback to first image
+                    primary_image_url = images_list[0].get('uri', '')
+
+            # Extract member information
+            members_list = []
+            if 'members' in data:
+                for member in data.get('members', []):
+                    members_list.append({
+                        'id': member.get('id', ''),
+                        'name': self._clean_artist_name(member.get('name', '')),
+                        'active': member.get('active', True)
+                    })
+
+            artist_data = {
+                'discogs_id': str(artist_id),
+                'name': self._clean_artist_name(data.get('name', '')),
+                'real_name': data.get('realname', ''),
+                'profile': data.get('profile', ''),
+                'primary_image_url': primary_image_url,
+                'images': images_list,
+                'name_variations': data.get('namevariations', []),
+                'urls': data.get('urls', []),
+                'members': members_list,
+                'discogs_url': data.get('uri', ''),
+                'data_quality': data.get('data_quality', '')
+            }
+
+            return artist_data
+
+        except Exception as e:
+            logger.error(f"Error fetching artist details from Discogs: {str(e)}")
             return None 

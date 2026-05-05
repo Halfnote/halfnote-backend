@@ -1,10 +1,23 @@
 from rest_framework import serializers
-from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike
+from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name']
+
+
+class ArtistSerializer(serializers.ModelSerializer):
+    """Serializer for Artist model with all Discogs fields"""
+    class Meta:
+        model = Artist
+        fields = [
+            'id', 'discogs_id', 'name', 'real_name', 'profile',
+            'primary_image_url', 'images', 'name_variations', 'urls',
+            'members', 'discogs_url', 'data_quality',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -80,12 +93,13 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 class AlbumSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
-    
+    artist_rel = ArtistSerializer(read_only=True)
+
     class Meta:
         model = Album
         fields = [
-            'id', 'title', 'artist', 'year', 'cover_url', 'artist_photo_url',
-            'discogs_id', 'genres', 'discogs_genres', 'discogs_styles', 
+            'id', 'title', 'artist', 'artist_rel', 'year', 'cover_url', 'artist_photo_url',
+            'discogs_id', 'genres', 'discogs_genres', 'discogs_styles',
             'tracklist', 'credits', 'created_at', 'updated_at'
         ]
 
