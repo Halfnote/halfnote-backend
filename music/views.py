@@ -727,20 +727,63 @@ def list_likes(request, list_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def search_artists(request):
+    """Search for artists"""
+    query = request.GET.get('q', '')
+
+    if not query:
+        return Response({'results': []})
+
+    # Search local Artist database
+    artists = Artist.objects.filter(name__icontains=query)[:10]
+
+    from .serializers import ArtistSerializer
+    serializer = ArtistSerializer(artists, many=True)
+
+    return Response({'results': serializer.data})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def artist_detail(request, artist_id):
+    """Get detailed information about a specific artist"""
+    try:
+        # Try to find by primary key first
+        artist = Artist.objects.get(pk=artist_id)
+    except (Artist.DoesNotExist, ValueError):
+        # If not found by PK, try by discogs_id
+        artist = get_object_or_404(Artist, discogs_id=artist_id)
+
+    from .serializers import ArtistSerializer
+    serializer = ArtistSerializer(artist)
+
+    # Also include related albums
+    albums = Album.objects.filter(artist_rel=artist).select_related('artist_rel')
+    album_data = AlbumSerializer(albums, many=True).data
+
+    return Response({
+        'artist': serializer.data,
+        'albums': album_data,
+        'album_count': albums.count()
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def genres(request):
     """Get all available genres with caching"""
     cache_key = 'all_genres'
     cached_genres = cache.get(cache_key)
-    
+
     if cached_genres:
         return Response({'genres': cached_genres})
-    
+
     genres = Genre.objects.all().order_by('name')
     serializer = GenreSerializer(genres, many=True)
-    
+
     # Cache for 1 hour (genres don't change often)
     cache.set(cache_key, serializer.data, 3600)
-    
+
     return Response({'genres': serializer.data})
 
 @api_view(['GET'])
