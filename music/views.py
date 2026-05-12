@@ -15,10 +15,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike
+from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer, 
-    ActivitySerializer, CommentSerializer, GenreSerializer, 
+    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer,
+    ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
 from accounts.serializers import UserSerializer
@@ -225,28 +225,88 @@ def album_detail(request, discogs_id):
     return Response(response_data)
 
 
+def get_or_create_artist(artist_name):
+    """
+    Get or create an Artist object from Discogs.
+    Returns the Artist instance or None if not found.
+    """
+    if not artist_name or artist_name == 'Various Artists':
+        return None
+
+    service = ExternalMusicService()
+
+    # Try to find existing artist by name first
+    existing_artist = Artist.objects.filter(name=artist_name).first()
+    if existing_artist:
+        logger.info(f"Found existing artist: {artist_name}")
+        return existing_artist
+
+    # Search for artist on Discogs
+    artist_id = service.search_artist(artist_name)
+    if not artist_id:
+        logger.warning(f"Could not find artist on Discogs: {artist_name}")
+        return None
+
+    # Check if we already have this artist by discogs_id
+    existing_artist = Artist.objects.filter(discogs_id=artist_id).first()
+    if existing_artist:
+        logger.info(f"Found existing artist by Discogs ID: {artist_id}")
+        return existing_artist
+
+    # Fetch full artist details
+    artist_data = service.get_artist_details(artist_id)
+    if not artist_data:
+        logger.error(f"Failed to fetch artist details for ID: {artist_id}")
+        return None
+
+    # Create new artist
+    try:
+        artist = Artist.objects.create(
+            discogs_id=artist_data['discogs_id'],
+            name=artist_data['name'],
+            real_name=artist_data.get('real_name', ''),
+            profile=artist_data.get('profile', ''),
+            primary_image_url=artist_data.get('primary_image_url', ''),
+            images=artist_data.get('images', []),
+            name_variations=artist_data.get('name_variations', []),
+            urls=artist_data.get('urls', []),
+            members=artist_data.get('members', []),
+            discogs_url=artist_data.get('discogs_url', ''),
+            data_quality=artist_data.get('data_quality', '')
+        )
+        logger.info(f"Created new artist: {artist.name} (ID: {artist.discogs_id})")
+        return artist
+    except Exception as e:
+        logger.error(f"Error creating artist {artist_name}: {str(e)}")
+        return None
+
+
 def import_album_from_discogs(discogs_id):
     """Import album from Discogs if it doesn't exist"""
     if Album.objects.filter(discogs_id=discogs_id).exists():
         return Album.objects.get(discogs_id=discogs_id)
-    
+
     service = ExternalMusicService()
     album_data = service.get_album_details(discogs_id)
-    
+
     if album_data:
-        # Fetch artist photo
+        # Get or create the artist
+        artist_instance = get_or_create_artist(album_data['artist'])
+
+        # Fetch artist photo (legacy support)
         artist_photo_url = get_artist_photo(album_data['artist'])
-        
+
         album = Album.objects.create(
             discogs_id=discogs_id,
             title=album_data['title'],
-            artist=album_data['artist'],
+            artist=album_data['artist'],  # Keep legacy field populated
+            artist_rel=artist_instance,  # New relationship
             year=album_data.get('year'),
             cover_url=album_data.get('cover_image', ''),
             artist_photo_url=artist_photo_url,
         )
         return album
-    
+
     return None
 
 
@@ -667,20 +727,63 @@ def list_likes(request, list_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def search_artists(request):
+    """Search for artists"""
+    query = request.GET.get('q', '')
+
+    if not query:
+        return Response({'results': []})
+
+    # Search local Artist database
+    artists = Artist.objects.filter(name__icontains=query)[:10]
+
+    from .serializers import ArtistSerializer
+    serializer = ArtistSerializer(artists, many=True)
+
+    return Response({'results': serializer.data})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def artist_detail(request, artist_id):
+    """Get detailed information about a specific artist"""
+    try:
+        # Try to find by primary key first
+        artist = Artist.objects.get(pk=artist_id)
+    except (Artist.DoesNotExist, ValueError):
+        # If not found by PK, try by discogs_id
+        artist = get_object_or_404(Artist, discogs_id=artist_id)
+
+    from .serializers import ArtistSerializer
+    serializer = ArtistSerializer(artist)
+
+    # Also include related albums
+    albums = Album.objects.filter(artist_rel=artist).select_related('artist_rel')
+    album_data = AlbumSerializer(albums, many=True).data
+
+    return Response({
+        'artist': serializer.data,
+        'albums': album_data,
+        'album_count': albums.count()
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def genres(request):
     """Get all available genres with caching"""
     cache_key = 'all_genres'
     cached_genres = cache.get(cache_key)
-    
+
     if cached_genres:
         return Response({'genres': cached_genres})
-    
+
     genres = Genre.objects.all().order_by('name')
     serializer = GenreSerializer(genres, many=True)
-    
+
     # Cache for 1 hour (genres don't change often)
     cache.set(cache_key, serializer.data, 3600)
-    
+
     return Response({'genres': serializer.data})
 
 @api_view(['GET'])
