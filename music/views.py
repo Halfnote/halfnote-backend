@@ -110,7 +110,7 @@ def search(request):
     """Search for albums using Discogs API"""
     query = request.GET.get('q')
     if not query:
-        return Response({'error': 'Query parameter required'}, status=400)
+        return Response({'results': []})
     
     # Check cache first
     cache_key = f'search_{query}'
@@ -160,6 +160,54 @@ def search(request):
         
     except Exception as e:
         logger.error(f"Search failed: {e}")
+        return Response({'error': 'Search failed'}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_artists(request):
+    """Search for artists using Discogs API"""
+    query = request.GET.get('q')
+    if not query:
+        return Response({'results': []})
+
+    cache_key = f'artist_search_{query.replace(" ", "_").lower()}'
+    cached_results = cache.get(cache_key)
+    if cached_results:
+        return Response({'results': cached_results, 'cached': True})
+
+    try:
+        response = requests.get(
+            f"{settings.DISCOGS_API_URL}/database/search",
+            params={
+                "q": query,
+                "type": "artist",
+                "per_page": 25,
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 10)
+        )
+        if not response.ok:
+            logger.error(f"Discogs artist search error: {response.status_code}")
+            return Response({'error': 'Search failed'}, status=500)
+
+        results = [
+            {
+                'id': r.get('id'),
+                'name': r.get('title', ''),
+                'photo_url': r.get('cover_image') or None,
+                'thumb': r.get('thumb') or None,
+            }
+            for r in response.json().get('results', [])
+        ]
+
+        cache.set(cache_key, results, 900)
+        return Response({'results': results, 'cached': False})
+
+    except Exception as e:
+        logger.error(f"Artist search failed: {e}")
         return Response({'error': 'Search failed'}, status=500)
 
 
@@ -817,8 +865,9 @@ def artist_detail(request, artist_name):
         .order_by('-avg_rating')
     )
 
-    albums_data = [
-        {
+    # Local albums keyed by discogs_id — these carry the ratings.
+    local = {
+        a.discogs_id: {
             'id': str(a.id),
             'title': a.title,
             'artist': a.artist,
@@ -829,18 +878,36 @@ def artist_detail(request, artist_name):
             'review_count': a.review_count,
         }
         for a in albums
-    ]
+    }
 
-    # Get overall average across all albums
-    overall_avg = None
-    if albums_data:
-        rated = [a['avg_rating'] for a in albums_data if a['avg_rating'] is not None]
-        if rated:
-            overall_avg = round(sum(rated) / len(rated), 1)
-
-    # Fetch artist info from Discogs
+    # Fetch artist info + discography from Discogs
     service = ExternalMusicService()
     artist_info = service.get_artist_info(name)
+
+    # Merge: Discogs discography for discovery, local ratings layered on top.
+    # Never drop a reviewed album, even if it's absent from the discography.
+    albums_data = []
+    seen = set()
+    for d in (artist_info.get('discography') if artist_info else []) or []:
+        merged = {**d, 'artist': name, 'avg_rating': None, 'review_count': 0}
+        if d['discogs_id'] in local:
+            merged.update(local[d['discogs_id']])
+        albums_data.append(merged)
+        seen.add(d['discogs_id'])
+    for did, a in local.items():
+        if did not in seen:
+            albums_data.append(a)
+
+    # Rated first (best first), then the rest newest-first.
+    albums_data.sort(key=lambda a: (
+        a['avg_rating'] is None,
+        -(a['avg_rating'] or 0),
+        -(a['year'] or 0),
+    ))
+
+    # Overall average across rated albums only
+    rated = [a['avg_rating'] for a in albums_data if a['avg_rating'] is not None]
+    overall_avg = round(sum(rated) / len(rated), 1) if rated else None
 
     response_data = {
         'name': artist_info['name'] if artist_info else name,

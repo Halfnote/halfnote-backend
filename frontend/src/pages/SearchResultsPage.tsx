@@ -486,7 +486,7 @@ const SearchResultsPage: React.FC = () => {
       // Search for users
       try {
         const userResults = await userAPI.searchUsers(query);
-        setUsers(userResults.users || userResults || []);
+        setUsers(userResults.results || userResults.users || []);
       } catch (error) {
         console.warn('User search failed:', error);
         setUsers([]);

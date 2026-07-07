@@ -279,12 +279,12 @@ def search_users(request):
     """Search for users"""
     query = request.GET.get('q', '')
     if not query:
-        return Response({'users': []})
-    
+        return Response({'results': []})
+
     users = User.objects.filter(username__icontains=query)[:20]
     serializer = UserSerializer(users, many=True, context={'request': request})
-    
-    return Response({'users': serializer.data})
+
+    return Response({'results': serializer.data})
 
 
 @api_view(['GET'])

@@ -215,6 +215,35 @@ class ExternalMusicService:
             logger.error(f"Error fetching album details from Discogs: {str(e)}")
             return None
 
+    def _get_discography(self, artist_id) -> list:
+        """Fetch an artist's master releases from Discogs (one paginated list call).
+
+        Masters only: dedups pressings and their `id` matches the master ids we
+        store on Album.discogs_id. ponytail: masters only; add standalone-release
+        fallback if discographies come back sparse.
+        """
+        try:
+            data = self._make_request(f"artists/{artist_id}/releases", {
+                'sort': 'year',
+                'sort_order': 'desc',
+                'per_page': 100,
+            })
+        except Exception as e:
+            logger.error(f"Error fetching discography for artist {artist_id}: {e}")
+            return []
+
+        albums = []
+        for r in (data or {}).get('releases', []):
+            if r.get('role') != 'Main' or r.get('type') != 'master':
+                continue
+            albums.append({
+                'discogs_id': str(r.get('id')),
+                'title': r.get('title', ''),
+                'year': r.get('year') or None,
+                'cover_url': r.get('thumb') or None,
+            })
+        return albums
+
     def get_artist_info(self, artist_name: str) -> Optional[Dict[str, Any]]:
         """Get artist info from Discogs (bio and image)"""
         logger.info(f"Fetching artist info for: {artist_name}")
@@ -255,6 +284,7 @@ class ExternalMusicService:
                 'name': self._clean_artist_name(artist_data.get('name', artist_name)),
                 'image': image,
                 'bio': artist_data.get('profile', ''),
+                'discography': self._get_discography(artist_id),
             }
         except Exception as e:
             logger.error(f"Error fetching artist info from Discogs: {str(e)}")
