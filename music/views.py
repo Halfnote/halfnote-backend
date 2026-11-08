@@ -6,6 +6,7 @@ Optimized views for music search, reviews, and social features with performance 
 import re
 import logging
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.db.models import Avg
 from django.core.cache import cache
@@ -102,6 +103,23 @@ def get_artist_photo(artist_name):
     return None
 
 
+ARTIST_PHOTO_TTL = 60 * 60 * 24
+PHOTO_RESULTS_LIMIT = 10
+
+
+def get_artist_photos(artist_names):
+    keys = {name: f'artist_photo_{name}' for name in artist_names}
+    cached = cache.get_many(keys.values())
+    photos = {name: cached[key] for name, key in keys.items() if key in cached}
+    missing = [name for name in artist_names if name not in photos]
+    if missing:
+        with ThreadPoolExecutor(max_workers=len(missing)) as pool:
+            fetched = dict(zip(missing, pool.map(get_artist_photo, missing)))
+        cache.set_many({keys[name]: url for name, url in fetched.items() if url}, ARTIST_PHOTO_TTL)
+        photos.update(fetched)
+    return photos
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -120,7 +138,7 @@ def search(request):
         results = search_discogs(query)
         processed_results = []
         
-        for i, result in enumerate(results):
+        for result in results:
             title = result.get('title', '')
             artist = 'Various Artists'
             album_title = title
@@ -134,11 +152,6 @@ def search(request):
                     artist = clean_artist or parts[0].strip()
                     album_title = parts[1].strip()
             
-            # Fetch artist photo for first 10 results only (to avoid too many API calls)
-            artist_photo_url = None
-            if i < 10 and artist != 'Various Artists':
-                artist_photo_url = get_artist_photo(artist)
-            
             processed_results.append({
                 'id': result.get('id'),
                 'title': album_title,
@@ -147,10 +160,15 @@ def search(request):
                 'genre': result.get('genre', []),
                 'style': result.get('style', []),
                 'cover_image': result.get('cover_image', ''),
-                'artist_photo_url': artist_photo_url,
+                'artist_photo_url': None,
                 'thumb': result.get('thumb', ''),
             })
         
+        artists = {r['artist'] for r in processed_results[:PHOTO_RESULTS_LIMIT] if r['artist'] != 'Various Artists'}
+        photos = get_artist_photos(artists)
+        for r in processed_results[:PHOTO_RESULTS_LIMIT]:
+            r['artist_photo_url'] = photos.get(r['artist'])
+
         # Cache for 15 minutes
         cache.set(cache_key, processed_results, 900)
         

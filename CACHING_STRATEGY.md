@@ -107,6 +107,7 @@ else:
 | **User Profile, Followers/Following Lists** | Not cached | Removed: `is_following` is per viewer but the key was shared |
 | **User Activity, Review Likes** | Not cached | Removed: reviews carry per-viewer `is_liked_by_user` but the key was shared |
 | **Search Results** | 5 minutes | Balance between freshness and performance |
+| **Artist Photos (Search)** | 24 hours, found photos only | One entry per artist, so a new query reuses photos; a failed or empty lookup is retried on the next search |
 | **Review Details** | 15 minutes | Individual reviews change less frequently |
 
 ## Query Optimization

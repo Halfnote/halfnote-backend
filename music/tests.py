@@ -149,3 +149,18 @@ class DiscogsImportTests(TestCase):
         response = client_for(self.user).post('/api/music/albums/777/review/', {'rating': 9}, format='json')
         self.assertEqual(response.status_code, 201)
         self.assert_saved_in_full()
+
+
+class SearchArtistPhotoTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def test_photo_fetched_once_per_artist_across_searches(self):
+        hits = [{'id': i, 'title': 'Radiohead - Album %d' % i} for i in range(5)]
+        with patch('music.views.search_discogs', return_value=hits), \
+                patch('music.views.get_artist_photo', return_value='https://example.com/r.jpg') as photo:
+            first = APIClient().get('/api/music/search/', {'q': 'radiohead'})
+            APIClient().get('/api/music/search/', {'q': 'radiohead ok'})
+
+        self.assertEqual(photo.call_count, 1)
+        self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
