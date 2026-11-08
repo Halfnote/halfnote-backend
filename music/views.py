@@ -169,58 +169,26 @@ def search(request):
 @permission_classes([AllowAny])
 def album_detail(request, discogs_id):
     """Get album details with reviews"""
-    # Check if album exists in database
-    album = Album.objects.filter(discogs_id=discogs_id).first()
-    
-    if album:
-        # Check if album has artist photo, if not fetch it
-        if not album.artist_photo_url and album.artist != 'Various Artists':
-            artist_photo_url = get_artist_photo(album.artist)
-            if artist_photo_url:
-                album.artist_photo_url = artist_photo_url
-                album.save()
-        
-        # Get reviews for existing album
-        reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
-        
-        response_data = {
-            'album': AlbumSerializer(album).data,
-            'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
-            'review_count': reviews.count(),
-            'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
-            'exists_in_db': True,
-            'cached': False
-        }
-    else:
-        # Only this branch is cached: it has no reviews, so nothing per viewer.
-        cache_key = f'album_{discogs_id}'
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response({**cached_data, 'cached': True})
+    album = import_album_from_discogs(discogs_id)
+    if not album:
+        return Response({'error': 'Album not found'}, status=404)
 
-        # Fetch from Discogs
-        service = ExternalMusicService()
-        album_data = service.get_album_details(discogs_id)
-        
-        if not album_data:
-            return Response({'error': 'Album not found'}, status=404)
-        
-        # Fetch artist photo for new albums too
-        if album_data.get('artist') and album_data.get('artist') != 'Various Artists':
-            artist_photo_url = get_artist_photo(album_data['artist'])
-            if artist_photo_url:
-                album_data['artist_photo_url'] = artist_photo_url
-        
-        response_data = {
-            'album': album_data,
-            'reviews': [],
-            'review_count': 0,
-            'average_rating': None,
-            'exists_in_db': False,
-            'cached': False
-        }
-        cache.set(cache_key, response_data, 300)
-    return Response(response_data)
+    if not album.artist_photo_url and album.artist != 'Various Artists':
+        artist_photo_url = get_artist_photo(album.artist)
+        if artist_photo_url:
+            album.artist_photo_url = artist_photo_url
+            album.save()
+
+    reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
+
+    return Response({
+        'album': AlbumSerializer(album).data,
+        'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
+        'review_count': reviews.count(),
+        'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
+        'exists_in_db': True,
+        'cached': False
+    })
 
 
 def get_or_create_artist(artist_name):
@@ -281,31 +249,27 @@ def get_or_create_artist(artist_name):
 
 def import_album_from_discogs(discogs_id):
     """Import album from Discogs if it doesn't exist"""
-    if Album.objects.filter(discogs_id=discogs_id).exists():
-        return Album.objects.get(discogs_id=discogs_id)
-
-    service = ExternalMusicService()
-    album_data = service.get_album_details(discogs_id)
-
-    if album_data:
-        # Get or create the artist
-        artist_instance = get_or_create_artist(album_data['artist'])
-
-        # Fetch artist photo (legacy support)
-        artist_photo_url = get_artist_photo(album_data['artist'])
-
-        album = Album.objects.create(
-            discogs_id=discogs_id,
-            title=album_data['title'],
-            artist=album_data['artist'],  # Keep legacy field populated
-            artist_rel=artist_instance,  # New relationship
-            year=album_data.get('year'),
-            cover_url=album_data.get('cover_image', ''),
-            artist_photo_url=artist_photo_url,
-        )
+    album = Album.objects.filter(discogs_id=discogs_id).first()
+    if album:
         return album
 
-    return None
+    album_data = ExternalMusicService().get_album_details(discogs_id)
+    if not album_data:
+        return None
+
+    album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
+        'title': album_data['title'],
+        'artist': album_data['artist'],
+        'artist_rel': get_or_create_artist(album_data['artist']),
+        'year': album_data.get('year') or None,
+        'cover_url': album_data.get('cover_image', ''),
+        'artist_photo_url': get_artist_photo(album_data['artist']),
+        'discogs_genres': album_data.get('genres', []),
+        'discogs_styles': album_data.get('styles', []),
+        'tracklist': album_data.get('tracklist', []),
+        'credits': album_data.get('credits', []),
+    })
+    return album
 
 
 # ============================================================================

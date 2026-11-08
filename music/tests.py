@@ -6,6 +6,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from music.models import Activity, Album, Review
+from music.services import ExternalMusicService
 
 User = get_user_model()
 
@@ -111,3 +112,40 @@ class ActivityFeedFreshnessTests(TestCase):
         page1 = self.feed(self.follower, 'type=friends&offset=0&limit=2')
         page2 = self.feed(self.follower, 'type=friends&offset=2&limit=2')
         self.assertEqual((len(page1), len(page2)), (2, 1))
+
+
+DISCOGS_ALBUM = {
+    'title': 'OK Computer', 'artist': 'Radiohead', 'year': 1997,
+    'genres': ['Rock'], 'styles': ['Alternative Rock'],
+    'cover_image': 'https://example.com/cover.jpg', 'discogs_id': '777',
+    'tracklist': [{'position': '1', 'title': 'Airbag', 'duration': '4:44', 'artists': [], 'extraartists': []}],
+    'credits': [{'name': 'Nigel Godrich', 'role': 'Producer', 'id': 1}],
+}
+
+
+@patch('music.views.get_artist_photo', return_value='https://example.com/artist.jpg')
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, 'get_album_details', return_value=DISCOGS_ALBUM)
+class DiscogsImportTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+
+    def assert_saved_in_full(self):
+        album = Album.objects.get(discogs_id='777')
+        self.assertEqual(
+            (album.tracklist, album.credits, album.discogs_genres, album.discogs_styles, album.cover_url),
+            (DISCOGS_ALBUM['tracklist'], DISCOGS_ALBUM['credits'], ['Rock'], ['Alternative Rock'],
+             'https://example.com/cover.jpg'))
+
+    def test_first_album_view_saves_album_and_returns_serializer_shape(self, *_):
+        data = client_for(self.user).get('/api/music/albums/777/').data
+        self.assert_saved_in_full()
+        self.assertTrue(data['exists_in_db'])
+        self.assertEqual(data['album']['cover_url'], 'https://example.com/cover.jpg')
+        self.assertEqual(data['album']['tracklist'], DISCOGS_ALBUM['tracklist'])
+
+    def test_first_review_saves_album_in_full(self, *_):
+        response = client_for(self.user).post('/api/music/albums/777/review/', {'rating': 9}, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assert_saved_in_full()
