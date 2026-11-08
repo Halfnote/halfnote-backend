@@ -169,12 +169,6 @@ def search(request):
 @permission_classes([AllowAny])
 def album_detail(request, discogs_id):
     """Get album details with reviews"""
-    # Check cache
-    cache_key = f'album_{discogs_id}'
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return Response({**cached_data, 'cached': True})
-    
     # Check if album exists in database
     album = Album.objects.filter(discogs_id=discogs_id).first()
     
@@ -187,7 +181,7 @@ def album_detail(request, discogs_id):
                 album.save()
         
         # Get reviews for existing album
-        reviews = Review.objects.filter(album=album).select_related('user').order_by('-created_at')
+        reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
         
         response_data = {
             'album': AlbumSerializer(album).data,
@@ -198,6 +192,12 @@ def album_detail(request, discogs_id):
             'cached': False
         }
     else:
+        # Only this branch is cached: it has no reviews, so nothing per viewer.
+        cache_key = f'album_{discogs_id}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response({**cached_data, 'cached': True})
+
         # Fetch from Discogs
         service = ExternalMusicService()
         album_data = service.get_album_details(discogs_id)
@@ -219,9 +219,7 @@ def album_detail(request, discogs_id):
             'exists_in_db': False,
             'cached': False
         }
-        
-    # Cache for 5 minutes
-    cache.set(cache_key, response_data, 300)
+        cache.set(cache_key, response_data, 300)
     return Response(response_data)
 
 
@@ -348,12 +346,7 @@ def create_review(request, discogs_id):
         review=review
     )
     
-    # Clear caches
-    cache.delete_many([
-        f'album_{discogs_id}',
-        f'user_reviews_{request.user.username}',
-        f'activity_feed_{request.user.id}',
-    ])
+    cache.delete(f'activity_feed_{request.user.id}')
     
     return Response(ReviewSerializer(review, context={'request': request}).data, status=201)
 
@@ -384,31 +377,17 @@ def review_detail(request, review_id):
             genre, _ = Genre.objects.get_or_create(name=genre_name)
             review.user_genres.add(genre)
         
-        # Clear caches
-        cache.delete_many([
-            f'album_{review.album.discogs_id}',
-            f'user_reviews_{request.user.username}',
-        ])
-        
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
     elif request.method == 'DELETE':
-        album_discogs_id = review.album.discogs_id
         review.delete()
-        
-        # Clear caches
-        cache.delete_many([
-            f'album_{album_discogs_id}',
-            f'user_reviews_{request.user.username}',
-        ])
-        
         return Response({'message': 'Review deleted'}, status=204)
 
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def toggle_review_like(request, review_id):
-    """Like or unlike a review with cache invalidation"""
+    """Like or unlike a review"""
     review = get_object_or_404(Review.objects.select_related('user'), id=review_id)
     
     like, created = ReviewLike.objects.get_or_create(
@@ -429,21 +408,10 @@ def toggle_review_like(request, review_id):
             review=review
         )
     
-    # Clear relevant caches when likes change
-    cache_keys = [
-        f'user_reviews_{review.user.username}',
+    cache.delete_many([
         f'activity_feed_{request.user.id}_friends',
         f'activity_feed_{request.user.id}_you',
-        f'user_activity_{review.user.username}',
-    ]
-    
-    # Clear review likes cache for different pagination combinations
-    for offset in [0, 20, 40]:
-        for limit in [20, 50]:
-            for include_review in ['true', 'false']:
-                cache_keys.append(f'review_likes_{review.id}_{offset}_{limit}_{include_review}')
-    
-    cache.delete_many(cache_keys)
+    ])
     
     return Response({
         'action': action,
@@ -552,7 +520,6 @@ def review_comments(request, review_id):
             f'review_comments_{review_id}',
             f'activity_feed_{request.user.id}_friends',
             f'activity_feed_{request.user.id}_you',
-            f'user_activity_{review.user.username}',
         ])
         
         return Response(CommentSerializer(comment, context={'request': request}).data, status=201)
@@ -789,19 +756,12 @@ def genres(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def review_likes(request, review_id):
-    """Get users who liked a review with caching"""
+    """Get users who liked a review"""
     review = get_object_or_404(Review, id=review_id)
     
     offset = int(request.GET.get('offset', 0))
     limit = min(int(request.GET.get('limit', 20)), 50)
     include_review = request.GET.get('include_review') == 'true'
-    
-    # Cache key includes pagination
-    cache_key = f'review_likes_{review_id}_{offset}_{limit}_{include_review}'
-    cached_data = cache.get(cache_key)
-    
-    if cached_data:
-        return Response(cached_data)
     
     likes = ReviewLike.objects.filter(review=review).select_related('user')[offset:offset + limit]
     total_count = review.likes.count()
@@ -825,9 +785,6 @@ def review_likes(request, review_id):
     
     if include_review:
         response_data['review'] = ReviewSerializer(review, context={'request': request}).data
-    
-    # Cache for 3 minutes (likes change frequently)
-    cache.set(cache_key, response_data, 180)
 
     return Response(response_data)
 
