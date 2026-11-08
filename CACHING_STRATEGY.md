@@ -100,7 +100,7 @@ else:
 
 | Data Type | Timeout | Reasoning |
 |-----------|---------|-----------|
-| **Activity Feeds** | 3 minutes | High frequency updates, balance freshness vs performance |
+| **Activity Feeds** | Not cached | Removed: the key ignored offset and limit, and a followee's write could not clear a follower's feed |
 | **User Reviews (Profile)** | Not cached | Removed: reviews carry per-viewer `is_liked_by_user` but the key was shared |
 | **User Lists (Profile)** | 8 minutes | Moderate frequency, updated more often than reviews |
 | **Album Metadata** | 5 minutes, Discogs-only albums | Albums in the DB are not cached: their reviews carry per-viewer `is_liked_by_user` |

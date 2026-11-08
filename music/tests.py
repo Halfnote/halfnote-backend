@@ -67,3 +67,47 @@ class ViewerSpecificFieldTests(TestCase):
         as_author = {u['username']: u['is_following'] for u in self.get_as(self.author, url)}
         self.assertEqual(as_alice['bob'], True)
         self.assertEqual(as_author['bob'], False)
+
+
+class ActivityFeedFreshnessTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.author = User.objects.create_user(username='author', password='pw')
+        self.follower = User.objects.create_user(username='follower', password='pw')
+        self.follower.following.add(self.author)
+        self.album = Album.objects.create(
+            title='Album', artist='Artist', discogs_id='123',
+            artist_photo_url='https://example.com/a.jpg',
+        )
+        self.add_review('old')
+
+    def add_review(self, discogs_id):
+        album = Album.objects.create(title=discogs_id, artist='X', discogs_id=discogs_id)
+        review = Review.objects.create(album=album, user=self.author, rating=8)
+        Activity.objects.create(user=self.author, activity_type='review_created', review=review)
+
+    def feed(self, user, query):
+        response = client_for(user).get(f'/api/music/activity/?{query}')
+        self.assertEqual(response.status_code, 200)
+        return [a['id'] for a in response.data]
+
+    def post_review(self):
+        response = client_for(self.author).post('/api/music/albums/123/review/', {'rating': 8}, format='json')
+        self.assertEqual(response.status_code, 201)
+
+    def test_new_review_shows_in_authors_feed(self):
+        self.assertEqual(len(self.feed(self.author, 'type=you')), 1)
+        self.post_review()
+        self.assertEqual(len(self.feed(self.author, 'type=you')), 2)
+
+    def test_new_review_shows_in_followers_feed(self):
+        self.assertEqual(len(self.feed(self.follower, 'type=friends')), 1)
+        self.post_review()
+        self.assertEqual(len(self.feed(self.follower, 'type=friends')), 2)
+
+    def test_feed_pages_differ(self):
+        self.add_review('x1')
+        self.add_review('x2')
+        page1 = self.feed(self.follower, 'type=friends&offset=0&limit=2')
+        page2 = self.feed(self.follower, 'type=friends&offset=2&limit=2')
+        self.assertEqual((len(page1), len(page2)), (2, 1))

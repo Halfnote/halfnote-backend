@@ -5,7 +5,6 @@ Optimized user authentication and profile management with performance improvemen
 
 from django.contrib.auth import authenticate, get_user_model
 from django.shortcuts import get_object_or_404
-from django.core.cache import cache
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -89,9 +88,6 @@ def profile(request):
     if serializer.is_valid():
         try:
             serializer.save()
-            
-            cache.delete(f'activity_feed_{request.user.id}')
-            
             return Response(serializer.data)
         except Exception as e:
             return Response({'error': f'Profile update failed: {str(e)}'}, status=500)
@@ -144,8 +140,6 @@ def follow_user(request, username):
     else:  # DELETE
         request.user.following.remove(target_user)
         action = 'unfollowed'
-    
-    cache.delete(f'activity_feed_{request.user.id}')
     
     return Response({
         'action': action,

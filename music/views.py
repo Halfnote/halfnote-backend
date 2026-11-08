@@ -346,8 +346,6 @@ def create_review(request, discogs_id):
         review=review
     )
     
-    cache.delete(f'activity_feed_{request.user.id}')
-    
     return Response(ReviewSerializer(review, context={'request': request}).data, status=201)
 
 
@@ -408,11 +406,6 @@ def toggle_review_like(request, review_id):
             review=review
         )
     
-    cache.delete_many([
-        f'activity_feed_{request.user.id}_friends',
-        f'activity_feed_{request.user.id}_you',
-    ])
-    
     return Response({
         'action': action,
         'like_count': ReviewLike.objects.filter(review=review).count()
@@ -428,13 +421,6 @@ def toggle_review_like(request, review_id):
 def activity_feed(request):
     """Get personalized activity feed with optimized queries"""
     activity_type = request.GET.get('type', 'friends')
-    
-    # Cache key for this specific feed type and user
-    cache_key = f'activity_feed_{request.user.id}_{activity_type}'
-    cached_activities = cache.get(cache_key)
-    
-    if cached_activities:
-        return Response(cached_activities)
     
     # Base query with optimal prefetching to avoid N+1 queries
     base_query = Activity.objects.select_related(
@@ -464,10 +450,6 @@ def activity_feed(request):
     
     paginated_activities = activities.order_by('-created_at')[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
-    
-    # Cache for 2 minutes (shorter for activity feed freshness)
-    cache.set(cache_key, serializer.data, 120)
-    
     return Response(serializer.data)
 
 
@@ -515,12 +497,7 @@ def review_comments(request, review_id):
             comment=comment
         )
         
-        # Clear relevant caches
-        cache.delete_many([
-            f'review_comments_{review_id}',
-            f'activity_feed_{request.user.id}_friends',
-            f'activity_feed_{request.user.id}_you',
-        ])
+        cache.delete(f'review_comments_{review_id}')
         
         return Response(CommentSerializer(comment, context={'request': request}).data, status=201)
 
