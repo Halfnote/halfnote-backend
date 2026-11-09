@@ -320,3 +320,48 @@ class ActivityHeadlineTests(TestCase):
         Activity.objects.create(user=user, activity_type='review_created', review=review)
         details = client_for(user).get('/api/music/activity/?type=you').data[0]['review_details']
         self.assertEqual((details['headline'], details['body'], details['rating']), (headline, 'More', None))
+
+
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, 'get_album_details', return_value=DISCOGS_ALBUM)
+class RecentlyViewedTests(TestCase):
+    url = '/api/music/recently-viewed/'
+
+    def setUp(self):
+        cache.clear()
+        self.client = client_for(User.objects.create_user(username='u', password='pw'))
+
+    def view(self, discogs_id):
+        return self.client.post(self.url, {'discogs_id': discogs_id}, format='json')
+
+    def ids(self):
+        return [r['id'] for r in self.client.get(self.url).data['results']]
+
+    def test_empty_history(self, *_):
+        self.assertEqual(self.client.get(self.url).data, {'results': []})
+
+    def test_first_view_imports_album_and_returns_search_shape(self, *_):
+        self.assertEqual(self.view('777').status_code, 204)
+        item = self.client.get(self.url).data['results'][0]
+        self.assertEqual(
+            {k: item[k] for k in ('id', 'title', 'artist', 'year', 'cover_image')},
+            {'id': 777, 'title': 'OK Computer', 'artist': 'Radiohead', 'year': 1997,
+             'cover_image': 'https://example.com/cover.jpg'})
+        self.assertIn('viewed_at', item)
+
+    def test_newest_first_one_entry_per_album_max_ten(self, *_):
+        for i in range(12):
+            Album.objects.create(title=f'A{i}', artist='X', discogs_id=str(i))
+            self.view(str(i))
+        self.view('3')
+        self.assertEqual(self.ids(), [3, 11, 10, 9, 8, 7, 6, 5, 4, 2])
+
+    def test_unknown_album_is_404(self, details, _):
+        details.return_value = None
+        self.assertEqual(self.view('999').status_code, 404)
+
+    def test_missing_discogs_id_is_400(self, *_):
+        self.assertEqual(self.client.post(self.url, {}, format='json').status_code, 400)
+
+    def test_requires_login(self, *_):
+        self.assertIn(APIClient().get(self.url).status_code, (401, 403))

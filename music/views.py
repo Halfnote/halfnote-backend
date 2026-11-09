@@ -10,12 +10,13 @@ from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import latest_rated_average, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import latest_rated_average, RecentlyViewedAlbum, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
     AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
@@ -378,6 +379,37 @@ def toggle_review_like(request, review_id):
         'action': action,
         'like_count': ReviewLike.objects.filter(review=review).count()
     })
+
+
+RECENTLY_VIEWED_LIMIT = 10
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def recently_viewed(request):
+    """GET the user's last 10 albums tapped from search; POST {discogs_id} to record a tap."""
+    if request.method == 'POST':
+        discogs_id = request.data.get('discogs_id')
+        if not discogs_id:
+            return Response({'error': 'discogs_id is required'}, status=400)
+        album = import_album_from_discogs(str(discogs_id))
+        if not album:
+            return Response({'error': 'Album not found'}, status=404)
+        RecentlyViewedAlbum.objects.update_or_create(
+            user=request.user, album=album, defaults={'viewed_at': timezone.now()})
+        return Response(status=204)
+
+    rows = (RecentlyViewedAlbum.objects.filter(user=request.user)
+            .select_related('album').order_by('-viewed_at')[:RECENTLY_VIEWED_LIMIT])
+    # Same item shape as /music/search/ so the composer renders both lists with one row.
+    return Response({'results': [{
+        'id': int(row.album.discogs_id) if row.album.discogs_id.isdigit() else row.album.discogs_id,
+        'title': row.album.title,
+        'artist': row.album.artist,
+        'year': row.album.year,
+        'cover_image': row.album.cover_url or '',
+        'viewed_at': row.viewed_at,
+    } for row in rows]})
 
 
 # ============================================================================

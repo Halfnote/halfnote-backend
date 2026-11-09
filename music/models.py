@@ -270,3 +270,13 @@ class ListLike(models.Model):
     
     def __str__(self):
         return f"{self.user.username} likes {self.list.name}" 
+
+class RecentlyViewedAlbum(models.Model):
+    """Albums a user tapped from search, for the review composer's "Recently viewed" list."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='recently_viewed')
+    album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='+')
+    viewed_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'album'], name='recently_viewed_once_per_album')]
+        indexes = [models.Index(fields=['user', '-viewed_at'])]
