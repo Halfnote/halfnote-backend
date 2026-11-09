@@ -191,12 +191,6 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    if not album.artist_photo_url and album.artist != 'Various Artists':
-        artist_photo_url = get_artist_photo(album.artist)
-        if artist_photo_url:
-            album.artist_photo_url = artist_photo_url
-            album.save()
-
     reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
 
     return Response({
@@ -275,13 +269,14 @@ def import_album_from_discogs(discogs_id):
     if not album_data:
         return None
 
+    artist = get_or_create_artist(album_data['artist'])
     album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
         'title': album_data['title'],
         'artist': album_data['artist'],
-        'artist_rel': get_or_create_artist(album_data['artist']),
+        'artist_rel': artist,
         'year': album_data.get('year') or None,
         'cover_url': album_data.get('cover_image', ''),
-        'artist_photo_url': get_artist_photo(album_data['artist']),
+        'artist_photo_url': artist.primary_image_url if artist else None,
         'discogs_genres': album_data.get('genres', []),
         'discogs_styles': album_data.get('styles', []),
         'tracklist': album_data.get('tracklist', []),

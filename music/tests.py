@@ -151,6 +151,25 @@ class DiscogsImportTests(TestCase):
         self.assert_saved_in_full()
 
 
+@patch.object(ExternalMusicService, 'get_artist_details', return_value={
+    'discogs_id': '42', 'name': 'Radiohead', 'primary_image_url': 'https://example.com/artist.jpg'})
+@patch.object(ExternalMusicService, 'search_artist', return_value='42')
+@patch.object(ExternalMusicService, 'get_album_details', return_value=DISCOGS_ALBUM)
+class AlbumArtistPhotoTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = client_for(User.objects.create_user(username='u', password='pw'))
+
+    def test_album_photo_comes_from_artist_row_without_refetching(self, *mocks):
+        with patch('music.views.get_artist_photo', return_value=None) as photo:
+            self.client.get('/api/music/albums/777/')
+            self.client.get('/api/music/albums/777/')
+
+        self.assertEqual(photo.call_count, 0)
+        self.assertEqual(Album.objects.get(discogs_id='777').artist_photo_url, 'https://example.com/artist.jpg')
+        self.assertEqual([m.call_count for m in mocks], [1, 1, 1])
+
+
 class SearchArtistPhotoTests(TestCase):
     def setUp(self):
         cache.clear()
