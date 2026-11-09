@@ -389,7 +389,7 @@ RECENTLY_VIEWED_LIMIT = 10
 def recently_viewed(request):
     """GET the user's last 10 albums tapped from search; POST {discogs_id} to record a tap."""
     if request.method == 'POST':
-        discogs_id = request.data.get('discogs_id')
+        discogs_id = request.data.get('discogs_id') if isinstance(request.data, dict) else None
         if not discogs_id:
             return Response({'error': 'discogs_id is required'}, status=400)
         album = import_album_from_discogs(str(discogs_id))

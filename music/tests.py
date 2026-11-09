@@ -361,7 +361,9 @@ class RecentlyViewedTests(TestCase):
         self.assertEqual(self.view('999').status_code, 404)
 
     def test_missing_discogs_id_is_400(self, *_):
-        self.assertEqual(self.client.post(self.url, {}, format='json').status_code, 400)
+        for body in ({}, [1], '1'):
+            with self.subTest(body=body):
+                self.assertEqual(self.client.post(self.url, body, format='json').status_code, 400)
 
     def test_requires_login(self, *_):
         self.assertIn(APIClient().get(self.url).status_code, (401, 403))
