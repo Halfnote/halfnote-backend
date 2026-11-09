@@ -8,7 +8,6 @@ import logging
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
-from django.db.models import Avg
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -16,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import latest_rated_average, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
     AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
@@ -191,13 +190,13 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
+    reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
         'album': AlbumSerializer(album).data,
         'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
-        'review_count': reviews.count(),
-        'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
+        'review_count': len({r.user_id for r in reviews}),
+        'average_rating': latest_rated_average(reviews),
         'exists_in_db': True,
         'cached': False
     })

@@ -113,7 +113,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 }
                 
                 # Add user's review info if they reviewed this album
-                user_review = Review.objects.filter(album=album, user=obj).first()
+                user_review = Review.objects.filter(album=album, user=obj).order_by('-created_at').first()
                 if user_review:
                     album_data['user_review_id'] = user_review.id
                     album_data['user_rating'] = user_review.rating

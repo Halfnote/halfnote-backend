@@ -277,3 +277,35 @@ class EditReviewTests(TestCase):
     def test_only_owner_can_edit(self):
         other = User.objects.create_user(username='o', password='pw')
         self.assertEqual(self.put({'rating': 1}, other).status_code, 403)
+
+
+class RepeatReviewStatsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.a = User.objects.create_user(username='a', password='pw')
+        self.b = User.objects.create_user(username='b', password='pw')
+        self.minute = 0
+
+    def review(self, user, rating, headline='h'):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.minute += 1
+        return Review.objects.create(
+            album=self.album, user=user, rating=rating, headline=headline,
+            created_at=timezone.now() + timedelta(minutes=self.minute))
+
+    def test_album_average_uses_each_users_latest_rated_review(self):
+        self.review(self.a, 4)
+        self.review(self.a, 10)
+        self.review(self.b, 6)
+        self.review(self.b, None)
+        data = client_for(self.a).get('/api/music/albums/123/').data
+        self.assertEqual((data['average_rating'], data['review_count'], len(data['reviews'])), (8, 2, 4))
+
+    def test_album_card_shows_most_recent_review(self):
+        self.review(self.a, 4)
+        latest = self.review(self.a, None)
+        self.a.favorite_albums.add(self.album)
+        card = client_for(self.a).get('/api/accounts/users/a/').data['favorite_albums'][0]
+        self.assertEqual((card['user_review_id'], card['user_rating']), (latest.id, None))

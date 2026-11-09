@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.db.models import Count, Avg
-from .models import Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
+from django.db.models import Count
+from .models import latest_rated_average, Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
@@ -173,7 +173,7 @@ class AlbumAdmin(admin.ModelAdmin):
     
     def avg_rating(self, obj):
         """Show average rating for this album"""
-        avg = obj.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        avg = latest_rated_average(obj.reviews.all())
         if avg:
             return f"{avg:.1f}/10"
         return "No ratings"

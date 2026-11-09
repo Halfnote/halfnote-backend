@@ -102,6 +102,15 @@ class Album(models.Model):
             models.Index(fields=['discogs_id']),
         ]
 
+def latest_rated_average(reviews):
+    """Average of each user's latest rated review, so repeat reviews can't stack the score."""
+    latest = {}
+    for review in sorted(reviews, key=lambda r: r.created_at, reverse=True):
+        if review.rating is not None:
+            latest.setdefault(review.user_id, review.rating)
+    return sum(latest.values()) / len(latest) if latest else None
+
+
 class Review(models.Model):
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='album_reviews')
