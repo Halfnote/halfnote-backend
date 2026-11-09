@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist
+from .models import HEADLINE_MAX, BODY_MAX, Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
@@ -54,7 +54,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'content', 'user_genres', 'created_at', 
+        fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'headline', 'body', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_artist_photo', 'album_year', 'album_discogs_id', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count']
         read_only_fields = ['id', 'created_at']
@@ -90,6 +90,37 @@ class ReviewSerializer(serializers.ModelSerializer):
             return len(obj.comments.all())
         except Exception:
             return 0
+
+class ReviewWriteSerializer(serializers.ModelSerializer):
+    """Input for creating and editing a review. Pass partial=True for edits."""
+    rating = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=10)
+    headline = serializers.CharField(required=False, allow_blank=True, max_length=HEADLINE_MAX)
+    body = serializers.CharField(required=False, allow_blank=True, max_length=BODY_MAX)
+
+    class Meta:
+        model = Review
+        fields = ['rating', 'headline', 'body']
+        # The model's check constraints are enforced in validate() with friendlier messages.
+        validators = []
+
+    def validate_headline(self, value):
+        if '\n' in value or '\r' in value:
+            raise serializers.ValidationError('No line breaks')
+        return value
+
+    def validate(self, attrs):
+        # On a partial edit, judge the review as it will stand after the change.
+        def final(field):
+            if field in attrs:
+                return attrs[field]
+            return getattr(self.instance, field) if self.instance else Review._meta.get_field(field).get_default()
+
+        if final('rating') is None and not final('headline'):
+            raise serializers.ValidationError('Add a rating or a headline')
+        if final('body') and not final('headline'):
+            raise serializers.ValidationError({'body': 'Add a headline before the body'})
+        return attrs
+
 
 class AlbumSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
@@ -165,6 +196,9 @@ class ActivitySerializer(serializers.ModelSerializer):
                 review_data = {
                     'id': obj.review.id,
                     'rating': obj.review.rating,
+                    'headline': obj.review.headline,
+                    'body': obj.review.body,
+                    # ponytail: deprecated cut preview; remove once web ActivityReviewCard reads headline.
                     'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
                     'is_liked_by_user': is_liked_by_user,
                     'user_genres': [{'id': g.id, 'name': g.name} for g in obj.review.user_genres.all()],
@@ -220,10 +254,7 @@ class ListItemSerializer(serializers.ModelSerializer):
             # Add user review information if available
             request = self.context.get('request')
             if request and request.user.is_authenticated:
-                user_review = Review.objects.filter(
-                    album=obj.album,
-                    user=request.user
-                ).first()
+                user_review = Review.latest(request.user, obj.album)
                 if user_review:
                     album_data['user_review_id'] = user_review.id
                     album_data['user_rating'] = user_review.rating

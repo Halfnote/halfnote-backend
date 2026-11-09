@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Review
+from music.models import Activity, Album, Genre, Review
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -183,3 +183,187 @@ class SearchArtistPhotoTests(TestCase):
 
         self.assertEqual(photo.call_count, 1)
         self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
+
+
+class ReviewConstraintTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='u', password='pw')
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+
+    def test_review_needs_rating_or_headline(self):
+        from django.db import IntegrityError
+        with self.assertRaises(IntegrityError):
+            Review.objects.create(album=self.album, user=self.user, rating=None, headline='')
+
+
+class CreateReviewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+
+    def post(self, body):
+        return client_for(self.user).post('/api/music/albums/123/review/', body, format='json')
+
+    def test_needs_rating_or_headline(self):
+        response = self.post({'body': ''})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['error'], 'Add a rating or a headline')
+
+    def test_short_take_without_rating(self):
+        response = self.post({'headline': 'Great record'})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            (response.data['rating'], response.data['headline'], response.data['body'], response.data['content']),
+            (None, 'Great record', '', 'Great record'))
+
+    def test_full_review_content_joins_headline_and_body(self):
+        response = self.post({'rating': 8, 'headline': 'Great record', 'body': 'Track 3.\nThe closer.'})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['content'], 'Great record\n\nTrack 3.\nThe closer.')
+
+    def test_rejects_body_without_headline(self):
+        response = self.post({'rating': 8, 'body': 'Orphan body'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('body', response.data['fields'])
+
+    def test_rejects_bad_fields(self):
+        cases = [
+            ({'rating': 11}, 'rating'),
+            ({'rating': 8, 'headline': 'x' * 151}, 'headline'),
+            ({'rating': 8, 'headline': 'two\nlines'}, 'headline'),
+            ({'rating': 8, 'headline': 'h', 'body': 'x' * 5001}, 'body'),
+        ]
+        for body, field in cases:
+            with self.subTest(field=field, body=str(body)[:40]):
+                response = self.post(body)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(list(response.data['fields']), [field])
+
+    def test_second_review_of_same_album_is_a_new_review(self):
+        self.assertEqual(self.post({'rating': 6}).status_code, 201)
+        self.assertEqual(self.post({'rating': 9}).status_code, 201)
+        self.assertEqual(Review.objects.filter(user=self.user).count(), 2)
+
+
+class EditReviewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.review = Review.objects.create(album=album, user=self.user, rating=7, headline='Head', body='Body')
+        self.review.user_genres.add(Genre.objects.get_or_create(name='Rock')[0])
+
+    def put(self, body, user=None):
+        return client_for(user or self.user).put(f'/api/music/reviews/{self.review.id}/', body, format='json')
+
+    def test_keys_left_out_keep_their_values(self):
+        response = self.put({'rating': 9})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            (response.data['rating'], response.data['headline'], response.data['body']), (9, 'Head', 'Body'))
+        self.assertEqual([g['name'] for g in response.data['user_genres']], ['Rock'])
+
+    def test_null_clears_rating_and_empty_body_makes_short_take(self):
+        response = self.put({'rating': None, 'body': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.data['rating'], response.data['content']), (None, 'Head'))
+
+    def test_rejects_change_leaving_no_rating_or_headline(self):
+        response = self.put({'rating': None, 'headline': '', 'body': ''})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['error'], 'Add a rating or a headline')
+
+    def test_only_owner_can_edit(self):
+        other = User.objects.create_user(username='o', password='pw')
+        self.assertEqual(self.put({'rating': 1}, other).status_code, 403)
+
+
+class RepeatReviewStatsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.a = User.objects.create_user(username='a', password='pw')
+        self.b = User.objects.create_user(username='b', password='pw')
+        self.minute = 0
+
+    def review(self, user, rating, headline='h'):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.minute += 1
+        return Review.objects.create(
+            album=self.album, user=user, rating=rating, headline=headline,
+            created_at=timezone.now() + timedelta(minutes=self.minute))
+
+    def test_album_average_uses_each_users_latest_rated_review(self):
+        self.review(self.a, 4)
+        self.review(self.a, 10)
+        self.review(self.b, 6)
+        self.review(self.b, None)
+        data = client_for(self.a).get('/api/music/albums/123/').data
+        self.assertEqual((data['average_rating'], data['review_count'], len(data['reviews'])), (8, 2, 4))
+
+    def test_album_card_shows_most_recent_review(self):
+        self.review(self.a, 4)
+        latest = self.review(self.a, None)
+        self.a.favorite_albums.add(self.album)
+        card = client_for(self.a).get('/api/accounts/users/a/').data['favorite_albums'][0]
+        self.assertEqual((card['user_review_id'], card['user_rating']), (latest.id, None))
+
+
+class ActivityHeadlineTests(TestCase):
+    def test_feed_carries_whole_headline_and_body(self):
+        user = User.objects.create_user(username='u', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        headline = 'x' * 150
+        review = Review.objects.create(album=album, user=user, headline=headline, body='More')
+        Activity.objects.create(user=user, activity_type='review_created', review=review)
+        details = client_for(user).get('/api/music/activity/?type=you').data[0]['review_details']
+        self.assertEqual((details['headline'], details['body'], details['rating']), (headline, 'More', None))
+
+
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, 'get_album_details', return_value=DISCOGS_ALBUM)
+class RecentlyViewedTests(TestCase):
+    url = '/api/music/recently-viewed/'
+
+    def setUp(self):
+        cache.clear()
+        self.client = client_for(User.objects.create_user(username='u', password='pw'))
+
+    def view(self, discogs_id):
+        return self.client.post(self.url, {'discogs_id': discogs_id}, format='json')
+
+    def ids(self):
+        return [r['id'] for r in self.client.get(self.url).data['results']]
+
+    def test_empty_history(self, *_):
+        self.assertEqual(self.client.get(self.url).data, {'results': []})
+
+    def test_first_view_imports_album_and_returns_search_shape(self, *_):
+        self.assertEqual(self.view('777').status_code, 204)
+        item = self.client.get(self.url).data['results'][0]
+        self.assertEqual(
+            {k: item[k] for k in ('id', 'title', 'artist', 'year', 'cover_image')},
+            {'id': 777, 'title': 'OK Computer', 'artist': 'Radiohead', 'year': 1997,
+             'cover_image': 'https://example.com/cover.jpg'})
+        self.assertIn('viewed_at', item)
+
+    def test_newest_first_one_entry_per_album_max_ten(self, *_):
+        for i in range(12):
+            Album.objects.create(title=f'A{i}', artist='X', discogs_id=str(i))
+            self.view(str(i))
+        self.view('3')
+        self.assertEqual(self.ids(), [3, 11, 10, 9, 8, 7, 6, 5, 4, 2])
+
+    def test_unknown_album_is_404(self, details, _):
+        details.return_value = None
+        self.assertEqual(self.view('999').status_code, 404)
+
+    def test_missing_discogs_id_is_400(self, *_):
+        for body in ({}, [1], '1'):
+            with self.subTest(body=body):
+                self.assertEqual(self.client.post(self.url, body, format='json').status_code, 400)
+
+    def test_requires_login(self, *_):
+        self.assertIn(APIClient().get(self.url).status_code, (401, 403))

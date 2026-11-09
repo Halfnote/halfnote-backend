@@ -11,6 +11,7 @@ urlpatterns = [
     path('search/', views.search, name='search'),
     path('search/artists/', views.search_artists, name='search-artists'),
     path('genres/', views.genres, name='genres'),
+    path('recently-viewed/', views.recently_viewed, name='recently-viewed'),
 
     # Artists
     path('artists/<str:artist_id>/', views.artist_detail, name='artist-detail'),

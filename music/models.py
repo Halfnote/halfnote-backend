@@ -4,6 +4,9 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
+HEADLINE_MAX = 150
+BODY_MAX = 5000
+
 class Genre(models.Model):
     # Simple predefined genres list
     PREDEFINED_GENRES = [
@@ -99,13 +102,25 @@ class Album(models.Model):
             models.Index(fields=['discogs_id']),
         ]
 
+def latest_rated_average(reviews):
+    """Average of each user's latest rated review, so repeat reviews can't stack the score."""
+    latest = {}
+    for review in sorted(reviews, key=lambda r: r.created_at, reverse=True):
+        if review.rating is not None:
+            latest.setdefault(review.user_id, review.rating)
+    return sum(latest.values()) / len(latest) if latest else None
+
+
 class Review(models.Model):
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='album_reviews')
     rating = models.IntegerField(
+        null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)]
     )
-    content = models.TextField(blank=True)
+    # The design's two writing areas: up to three serif lines, then an optional body.
+    headline = models.CharField(max_length=HEADLINE_MAX, blank=True, default='')
+    body = models.TextField(max_length=BODY_MAX, blank=True, default='')
     is_pinned = models.BooleanField(default=False, help_text="Pin this review to profile (max 2)")
     
     # User selects genres for this album when creating review
@@ -116,7 +131,28 @@ class Review(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('album', 'user')  # One review per album per user
+        # Users may review the same album more than once.
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(rating__isnull=True) | models.Q(rating__gte=1, rating__lte=10),
+                name='review_rating_1_to_10'),
+            models.CheckConstraint(
+                condition=models.Q(rating__isnull=False) | ~models.Q(headline=''),
+                name='review_has_rating_or_headline'),
+            models.CheckConstraint(
+                condition=models.Q(body='') | ~models.Q(headline=''),
+                name='review_body_needs_headline'),
+        ]
+
+    @classmethod
+    def latest(cls, user, album):
+        """The user's most recent review of the album, or None. Users may review an album more than once."""
+        return cls.objects.filter(album=album, user=user).order_by('-created_at').first()
+
+    @property
+    def content(self):
+        """Headline and body joined, for readers that want one string."""
+        return f"{self.headline}\n\n{self.body}" if self.body else self.headline
 
     def __str__(self):
         return f"{self.user.username}'s review of {self.album.title}"
@@ -239,3 +275,13 @@ class ListLike(models.Model):
     
     def __str__(self):
         return f"{self.user.username} likes {self.list.name}" 
+
+class RecentlyViewedAlbum(models.Model):
+    """Albums a user tapped from search, for the review composer's "Recently viewed" list."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='recently_viewed')
+    album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='+')
+    viewed_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'album'], name='recently_viewed_once_per_album')]
+        indexes = [models.Index(fields=['user', '-viewed_at'])]

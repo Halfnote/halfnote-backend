@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.db.models import Count, Avg
-from .models import Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
+from django.db.models import Count
+from .models import latest_rated_average, Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
@@ -173,7 +173,7 @@ class AlbumAdmin(admin.ModelAdmin):
     
     def avg_rating(self, obj):
         """Show average rating for this album"""
-        avg = obj.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        avg = latest_rated_average(obj.reviews.all())
         if avg:
             return f"{avg:.1f}/10"
         return "No ratings"
@@ -199,7 +199,7 @@ class AlbumAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ('user', 'album_title', 'album_artist', 'rating', 'likes_count', 'comments_count', 'is_pinned', 'created_at')
     list_filter = ('rating', 'is_pinned', 'created_at', 'user_genres')
-    search_fields = ('user__username', 'album__title', 'album__artist', 'content')
+    search_fields = ('user__username', 'album__title', 'album__artist', 'headline', 'body')
     readonly_fields = ('created_at', 'updated_at', 'likes_count', 'comments_count')
     raw_id_fields = ('user', 'album')
     filter_horizontal = ('user_genres',)
@@ -208,7 +208,7 @@ class ReviewAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Review Info', {
-            'fields': ('user', 'album', 'rating', 'content')
+            'fields': ('user', 'album', 'rating', 'headline', 'body')
         }),
         ('Settings', {
             'fields': ('is_pinned', 'user_genres'),

@@ -8,17 +8,17 @@ import logging
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
-from django.db.models import Avg
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import latest_rated_average, RecentlyViewedAlbum, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer,
+    AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
@@ -191,13 +191,13 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
+    reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
         'album': AlbumSerializer(album).data,
         'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
-        'review_count': reviews.count(),
-        'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
+        'review_count': len({r.user_id for r in reviews}),
+        'average_rating': latest_rated_average(reviews),
         'exists_in_db': True,
         'cached': False
     })
@@ -289,40 +289,37 @@ def import_album_from_discogs(discogs_id):
 # REVIEW VIEWS
 # ============================================================================
 
+def validation_error(errors):
+    """Contract shape: one message in `error`, the first problem per field in `fields`."""
+    fields = {name: str(msgs[0]) for name, msgs in errors.items() if name != 'non_field_errors'}
+    first = errors.get('non_field_errors') or next(iter(errors.values()))
+    return Response({'error': str(first[0]), 'fields': fields}, status=400)
+
+
+def set_genres(review, genre_names):
+    review.user_genres.set([Genre.objects.get_or_create(name=name)[0] for name in genre_names])
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_review(request, discogs_id):
-    """Create a new review for an album"""
-    # Import or get album
+    """Create a review. A user may review the same album more than once."""
     album = import_album_from_discogs(discogs_id)
     if not album:
         return Response({'error': 'Album not found'}, status=404)
-    
-    # Check if user already reviewed this album
-    if Review.objects.filter(user=request.user, album=album).exists():
-        return Response({'error': 'You have already reviewed this album'}, status=400)
-    
-    # Create review
-    review = Review.objects.create(
-        user=request.user,
-        album=album,
-        rating=request.data.get('rating'),
-        content=request.data.get('content', ''),
-    )
-    
-    # Handle genres
-    genre_names = request.data.get('genres', [])
-    for genre_name in genre_names:
-        genre, _ = Genre.objects.get_or_create(name=genre_name)
-        review.user_genres.add(genre)
-    
-    # Create activity
+
+    serializer = ReviewWriteSerializer(data=request.data)
+    if not serializer.is_valid():
+        return validation_error(serializer.errors)
+    review = serializer.save(user=request.user, album=album)
+    set_genres(review, request.data.get('genres', []))
+
     Activity.objects.create(
         user=request.user,
         activity_type='review_created',
         review=review
     )
-    
+
     return Response(ReviewSerializer(review, context={'request': request}).data, status=201)
 
 
@@ -340,18 +337,13 @@ def review_detail(request, review_id):
         return Response({'error': 'Permission denied'}, status=403)
     
     if request.method == 'PUT':
-        # Update review
-        review.rating = request.data.get('rating', review.rating)
-        review.content = request.data.get('content', review.content)
-        review.save()
-        
-        # Update genres
-        genre_names = request.data.get('genres', [])
-        review.user_genres.clear()
-        for genre_name in genre_names:
-            genre, _ = Genre.objects.get_or_create(name=genre_name)
-            review.user_genres.add(genre)
-        
+        # Partial: keys left out keep their values.
+        serializer = ReviewWriteSerializer(review, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return validation_error(serializer.errors)
+        review = serializer.save()
+        if 'genres' in request.data:
+            set_genres(review, request.data['genres'])
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
     elif request.method == 'DELETE':
@@ -387,6 +379,37 @@ def toggle_review_like(request, review_id):
         'action': action,
         'like_count': ReviewLike.objects.filter(review=review).count()
     })
+
+
+RECENTLY_VIEWED_LIMIT = 10
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def recently_viewed(request):
+    """GET the user's last 10 albums tapped from search; POST {discogs_id} to record a tap."""
+    if request.method == 'POST':
+        discogs_id = request.data.get('discogs_id') if isinstance(request.data, dict) else None
+        if not discogs_id:
+            return Response({'error': 'discogs_id is required'}, status=400)
+        album = import_album_from_discogs(str(discogs_id))
+        if not album:
+            return Response({'error': 'Album not found'}, status=404)
+        RecentlyViewedAlbum.objects.update_or_create(
+            user=request.user, album=album, defaults={'viewed_at': timezone.now()})
+        return Response(status=204)
+
+    rows = (RecentlyViewedAlbum.objects.filter(user=request.user)
+            .select_related('album').order_by('-viewed_at')[:RECENTLY_VIEWED_LIMIT])
+    # Same item shape as /music/search/ so the composer renders both lists with one row.
+    return Response({'results': [{
+        'id': int(row.album.discogs_id) if row.album.discogs_id.isdigit() else row.album.discogs_id,
+        'title': row.album.title,
+        'artist': row.album.artist,
+        'year': row.album.year,
+        'cover_image': row.album.cover_url or '',
+        'viewed_at': row.viewed_at,
+    } for row in rows]})
 
 
 # ============================================================================
