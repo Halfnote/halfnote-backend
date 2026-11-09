@@ -183,3 +183,14 @@ class SearchArtistPhotoTests(TestCase):
 
         self.assertEqual(photo.call_count, 1)
         self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
+
+
+class ReviewConstraintTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='u', password='pw')
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+
+    def test_review_needs_rating_or_headline(self):
+        from django.db import IntegrityError
+        with self.assertRaises(IntegrityError):
+            Review.objects.create(album=self.album, user=self.user, rating=None, headline='')

@@ -307,7 +307,8 @@ def create_review(request, discogs_id):
         user=request.user,
         album=album,
         rating=request.data.get('rating'),
-        content=request.data.get('content', ''),
+        headline=request.data.get('headline', ''),
+        body=request.data.get('body', ''),
     )
     
     # Handle genres
@@ -342,7 +343,8 @@ def review_detail(request, review_id):
     if request.method == 'PUT':
         # Update review
         review.rating = request.data.get('rating', review.rating)
-        review.content = request.data.get('content', review.content)
+        review.headline = request.data.get('headline', review.headline)
+        review.body = request.data.get('body', review.body)
         review.save()
         
         # Update genres
