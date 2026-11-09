@@ -6,6 +6,7 @@ Optimized views for music search, reviews, and social features with performance 
 import re
 import logging
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.db.models import Avg
 from django.core.cache import cache
@@ -102,6 +103,23 @@ def get_artist_photo(artist_name):
     return None
 
 
+ARTIST_PHOTO_TTL = 60 * 60 * 24
+PHOTO_RESULTS_LIMIT = 10
+
+
+def get_artist_photos(artist_names):
+    keys = {name: f'artist_photo_{name}' for name in artist_names}
+    cached = cache.get_many(keys.values())
+    photos = {name: cached[key] for name, key in keys.items() if key in cached}
+    missing = [name for name in artist_names if name not in photos]
+    if missing:
+        with ThreadPoolExecutor(max_workers=len(missing)) as pool:
+            fetched = dict(zip(missing, pool.map(get_artist_photo, missing)))
+        cache.set_many({keys[name]: url for name, url in fetched.items() if url}, ARTIST_PHOTO_TTL)
+        photos.update(fetched)
+    return photos
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -120,7 +138,7 @@ def search(request):
         results = search_discogs(query)
         processed_results = []
         
-        for i, result in enumerate(results):
+        for result in results:
             title = result.get('title', '')
             artist = 'Various Artists'
             album_title = title
@@ -134,11 +152,6 @@ def search(request):
                     artist = clean_artist or parts[0].strip()
                     album_title = parts[1].strip()
             
-            # Fetch artist photo for first 10 results only (to avoid too many API calls)
-            artist_photo_url = None
-            if i < 10 and artist != 'Various Artists':
-                artist_photo_url = get_artist_photo(artist)
-            
             processed_results.append({
                 'id': result.get('id'),
                 'title': album_title,
@@ -147,10 +160,15 @@ def search(request):
                 'genre': result.get('genre', []),
                 'style': result.get('style', []),
                 'cover_image': result.get('cover_image', ''),
-                'artist_photo_url': artist_photo_url,
+                'artist_photo_url': None,
                 'thumb': result.get('thumb', ''),
             })
         
+        artists = {r['artist'] for r in processed_results[:PHOTO_RESULTS_LIMIT] if r['artist'] != 'Various Artists'}
+        photos = get_artist_photos(artists)
+        for r in processed_results[:PHOTO_RESULTS_LIMIT]:
+            r['artist_photo_url'] = photos.get(r['artist'])
+
         # Cache for 15 minutes
         cache.set(cache_key, processed_results, 900)
         
@@ -169,60 +187,20 @@ def search(request):
 @permission_classes([AllowAny])
 def album_detail(request, discogs_id):
     """Get album details with reviews"""
-    # Check cache
-    cache_key = f'album_{discogs_id}'
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return Response({**cached_data, 'cached': True})
-    
-    # Check if album exists in database
-    album = Album.objects.filter(discogs_id=discogs_id).first()
-    
-    if album:
-        # Check if album has artist photo, if not fetch it
-        if not album.artist_photo_url and album.artist != 'Various Artists':
-            artist_photo_url = get_artist_photo(album.artist)
-            if artist_photo_url:
-                album.artist_photo_url = artist_photo_url
-                album.save()
-        
-        # Get reviews for existing album
-        reviews = Review.objects.filter(album=album).select_related('user').order_by('-created_at')
-        
-        response_data = {
-            'album': AlbumSerializer(album).data,
-            'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
-            'review_count': reviews.count(),
-            'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
-            'exists_in_db': True,
-            'cached': False
-        }
-    else:
-        # Fetch from Discogs
-        service = ExternalMusicService()
-        album_data = service.get_album_details(discogs_id)
-        
-        if not album_data:
-            return Response({'error': 'Album not found'}, status=404)
-        
-        # Fetch artist photo for new albums too
-        if album_data.get('artist') and album_data.get('artist') != 'Various Artists':
-            artist_photo_url = get_artist_photo(album_data['artist'])
-            if artist_photo_url:
-                album_data['artist_photo_url'] = artist_photo_url
-        
-        response_data = {
-            'album': album_data,
-            'reviews': [],
-            'review_count': 0,
-            'average_rating': None,
-            'exists_in_db': False,
-            'cached': False
-        }
-        
-    # Cache for 5 minutes
-    cache.set(cache_key, response_data, 300)
-    return Response(response_data)
+    album = import_album_from_discogs(discogs_id)
+    if not album:
+        return Response({'error': 'Album not found'}, status=404)
+
+    reviews = Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at')
+
+    return Response({
+        'album': AlbumSerializer(album).data,
+        'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
+        'review_count': reviews.count(),
+        'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'],
+        'exists_in_db': True,
+        'cached': False
+    })
 
 
 def get_or_create_artist(artist_name):
@@ -283,31 +261,28 @@ def get_or_create_artist(artist_name):
 
 def import_album_from_discogs(discogs_id):
     """Import album from Discogs if it doesn't exist"""
-    if Album.objects.filter(discogs_id=discogs_id).exists():
-        return Album.objects.get(discogs_id=discogs_id)
-
-    service = ExternalMusicService()
-    album_data = service.get_album_details(discogs_id)
-
-    if album_data:
-        # Get or create the artist
-        artist_instance = get_or_create_artist(album_data['artist'])
-
-        # Fetch artist photo (legacy support)
-        artist_photo_url = get_artist_photo(album_data['artist'])
-
-        album = Album.objects.create(
-            discogs_id=discogs_id,
-            title=album_data['title'],
-            artist=album_data['artist'],  # Keep legacy field populated
-            artist_rel=artist_instance,  # New relationship
-            year=album_data.get('year'),
-            cover_url=album_data.get('cover_image', ''),
-            artist_photo_url=artist_photo_url,
-        )
+    album = Album.objects.filter(discogs_id=discogs_id).first()
+    if album:
         return album
 
-    return None
+    album_data = ExternalMusicService().get_album_details(discogs_id)
+    if not album_data:
+        return None
+
+    artist = get_or_create_artist(album_data['artist'])
+    album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
+        'title': album_data['title'],
+        'artist': album_data['artist'],
+        'artist_rel': artist,
+        'year': album_data.get('year') or None,
+        'cover_url': album_data.get('cover_image', ''),
+        'artist_photo_url': artist.primary_image_url if artist else None,
+        'discogs_genres': album_data.get('genres', []),
+        'discogs_styles': album_data.get('styles', []),
+        'tracklist': album_data.get('tracklist', []),
+        'credits': album_data.get('credits', []),
+    })
+    return album
 
 
 # ============================================================================
@@ -348,13 +323,6 @@ def create_review(request, discogs_id):
         review=review
     )
     
-    # Clear caches
-    cache.delete_many([
-        f'album_{discogs_id}',
-        f'user_reviews_{request.user.username}',
-        f'activity_feed_{request.user.id}',
-    ])
-    
     return Response(ReviewSerializer(review, context={'request': request}).data, status=201)
 
 
@@ -384,31 +352,17 @@ def review_detail(request, review_id):
             genre, _ = Genre.objects.get_or_create(name=genre_name)
             review.user_genres.add(genre)
         
-        # Clear caches
-        cache.delete_many([
-            f'album_{review.album.discogs_id}',
-            f'user_reviews_{request.user.username}',
-        ])
-        
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
     elif request.method == 'DELETE':
-        album_discogs_id = review.album.discogs_id
         review.delete()
-        
-        # Clear caches
-        cache.delete_many([
-            f'album_{album_discogs_id}',
-            f'user_reviews_{request.user.username}',
-        ])
-        
         return Response({'message': 'Review deleted'}, status=204)
 
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def toggle_review_like(request, review_id):
-    """Like or unlike a review with cache invalidation"""
+    """Like or unlike a review"""
     review = get_object_or_404(Review.objects.select_related('user'), id=review_id)
     
     like, created = ReviewLike.objects.get_or_create(
@@ -429,22 +383,6 @@ def toggle_review_like(request, review_id):
             review=review
         )
     
-    # Clear relevant caches when likes change
-    cache_keys = [
-        f'user_reviews_{review.user.username}',
-        f'activity_feed_{request.user.id}_friends',
-        f'activity_feed_{request.user.id}_you',
-        f'user_activity_{review.user.username}',
-    ]
-    
-    # Clear review likes cache for different pagination combinations
-    for offset in [0, 20, 40]:
-        for limit in [20, 50]:
-            for include_review in ['true', 'false']:
-                cache_keys.append(f'review_likes_{review.id}_{offset}_{limit}_{include_review}')
-    
-    cache.delete_many(cache_keys)
-    
     return Response({
         'action': action,
         'like_count': ReviewLike.objects.filter(review=review).count()
@@ -460,13 +398,6 @@ def toggle_review_like(request, review_id):
 def activity_feed(request):
     """Get personalized activity feed with optimized queries"""
     activity_type = request.GET.get('type', 'friends')
-    
-    # Cache key for this specific feed type and user
-    cache_key = f'activity_feed_{request.user.id}_{activity_type}'
-    cached_activities = cache.get(cache_key)
-    
-    if cached_activities:
-        return Response(cached_activities)
     
     # Base query with optimal prefetching to avoid N+1 queries
     base_query = Activity.objects.select_related(
@@ -496,10 +427,6 @@ def activity_feed(request):
     
     paginated_activities = activities.order_by('-created_at')[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
-    
-    # Cache for 2 minutes (shorter for activity feed freshness)
-    cache.set(cache_key, serializer.data, 120)
-    
     return Response(serializer.data)
 
 
@@ -547,13 +474,7 @@ def review_comments(request, review_id):
             comment=comment
         )
         
-        # Clear relevant caches
-        cache.delete_many([
-            f'review_comments_{review_id}',
-            f'activity_feed_{request.user.id}_friends',
-            f'activity_feed_{request.user.id}_you',
-            f'user_activity_{review.user.username}',
-        ])
+        cache.delete(f'review_comments_{review_id}')
         
         return Response(CommentSerializer(comment, context={'request': request}).data, status=201)
 
@@ -789,19 +710,12 @@ def genres(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def review_likes(request, review_id):
-    """Get users who liked a review with caching"""
+    """Get users who liked a review"""
     review = get_object_or_404(Review, id=review_id)
     
     offset = int(request.GET.get('offset', 0))
     limit = min(int(request.GET.get('limit', 20)), 50)
     include_review = request.GET.get('include_review') == 'true'
-    
-    # Cache key includes pagination
-    cache_key = f'review_likes_{review_id}_{offset}_{limit}_{include_review}'
-    cached_data = cache.get(cache_key)
-    
-    if cached_data:
-        return Response(cached_data)
     
     likes = ReviewLike.objects.filter(review=review).select_related('user')[offset:offset + limit]
     total_count = review.likes.count()
@@ -825,9 +739,6 @@ def review_likes(request, review_id):
     
     if include_review:
         response_data['review'] = ReviewSerializer(review, context={'request': request}).data
-    
-    # Cache for 3 minutes (likes change frequently)
-    cache.set(cache_key, response_data, 180)
 
     return Response(response_data)
 

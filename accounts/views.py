@@ -5,7 +5,6 @@ Optimized user authentication and profile management with performance improvemen
 
 from django.contrib.auth import authenticate, get_user_model
 from django.shortcuts import get_object_or_404
-from django.core.cache import cache
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -89,15 +88,6 @@ def profile(request):
     if serializer.is_valid():
         try:
             serializer.save()
-            
-            # Clear user caches
-            cache_keys = [
-                f'user_profile_{request.user.username}',
-                f'user_reviews_{request.user.username}',
-                f'activity_feed_{request.user.id}',
-            ]
-            cache.delete_many(cache_keys)
-            
             return Response(serializer.data)
         except Exception as e:
             return Response({'error': f'Profile update failed: {str(e)}'}, status=500)
@@ -115,13 +105,6 @@ def user_reviews(request, username):
     offset = int(request.GET.get('offset', 0))
     limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    # Cache key includes pagination for more efficient caching
-    cache_key = f'user_reviews_{username}_{offset}_{limit}'
-    cached_reviews = cache.get(cache_key)
-    
-    if cached_reviews:
-        return Response(cached_reviews)
-    
     # Optimized query with all necessary prefetching
     reviews = Review.objects.filter(user=user).select_related(
         'album', 'user'
@@ -130,10 +113,6 @@ def user_reviews(request, username):
     ).order_by('-created_at')[offset:offset + limit]
     
     serializer = ReviewSerializer(reviews, many=True, context={'request': request})
-    
-    # Cache for 3 minutes (balanced freshness vs performance)
-    cache.set(cache_key, serializer.data, 180)
-    
     return Response(serializer.data)
 
 
@@ -142,21 +121,8 @@ def user_reviews(request, username):
 def user_profile(request, username):
     """Get public user profile"""
     user = get_object_or_404(User, username=username)
-    
-    # Check cache
-    cache_key = f'user_profile_{username}'
-    cached_profile = cache.get(cache_key)
-    
-    if cached_profile:
-        return Response({**cached_profile, 'cached': True})
-    
     serializer = UserProfileSerializer(user, context={'request': request})
-    profile_data = serializer.data
-    
-    # Cache for 10 minutes
-    cache.set(cache_key, profile_data, 600)
-    
-    return Response({**profile_data, 'cached': False})
+    return Response({**serializer.data, 'cached': False})
 
 
 @api_view(['POST', 'DELETE'])
@@ -175,25 +141,6 @@ def follow_user(request, username):
         request.user.following.remove(target_user)
         action = 'unfollowed'
     
-    # Clear relevant caches including followers/following lists
-    cache_keys = [
-        f'user_profile_{username}',
-        f'user_profile_{request.user.username}',
-        f'activity_feed_{request.user.id}',
-        f'user_followers_{username}',
-        f'user_following_{request.user.username}',
-    ]
-    
-    # Clear all paginated versions of followers/following
-    for offset in [0, 20, 40]:
-        for limit in [20, 50]:
-            cache_keys.extend([
-                f'user_followers_{username}_{offset}_{limit}',
-                f'user_following_{request.user.username}_{offset}_{limit}',
-            ])
-    
-    cache.delete_many(cache_keys)
-    
     return Response({
         'action': action,
         'target_user': username,
@@ -211,22 +158,12 @@ def user_followers(request, username):
     offset = int(request.GET.get('offset', 0))
     limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    # Cache for followers list
-    cache_key = f'user_followers_{username}_{offset}_{limit}'
-    cached_followers = cache.get(cache_key)
-    
-    if cached_followers:
-        return Response(cached_followers)
-    
     # Optimized query with prefetching (avatar is an ImageField, not relational)
     followers = user.followers.prefetch_related(
         'followers', 'following'
     )[offset:offset + limit]
     
     serializer = UserFollowSerializer(followers, many=True, context={'request': request})
-    
-    # Cache for 5 minutes
-    cache.set(cache_key, serializer.data, 300)
     
     # Return array directly as expected by frontend
     return Response(serializer.data)
@@ -241,22 +178,12 @@ def user_following(request, username):
     offset = int(request.GET.get('offset', 0))
     limit = min(int(request.GET.get('limit', 20)), 50)  # Cap at 50 items
     
-    # Cache for following list
-    cache_key = f'user_following_{username}_{offset}_{limit}'
-    cached_following = cache.get(cache_key)
-    
-    if cached_following:
-        return Response(cached_following)
-    
     # Optimized query with prefetching (avatar is an ImageField, not relational)
     following = user.following.prefetch_related(
         'followers', 'following'
     )[offset:offset + limit]
     
     serializer = UserFollowSerializer(following, many=True, context={'request': request})
-    
-    # Cache for 5 minutes
-    cache.set(cache_key, serializer.data, 300)
     
     # Return array directly as expected by frontend
     return Response(serializer.data)
@@ -344,13 +271,6 @@ def user_activity(request, username):
     """Get activity feed for a specific user with optimized queries"""
     user = get_object_or_404(User, username=username)
     
-    # Cache for this user's activity
-    cache_key = f'user_activity_{username}'
-    cached_activity = cache.get(cache_key)
-    
-    if cached_activity:
-        return Response(cached_activity)
-    
     from music.models import Activity
     from music.serializers import ActivitySerializer
     
@@ -362,8 +282,4 @@ def user_activity(request, username):
     ).order_by('-created_at')[:20]
     
     serializer = ActivitySerializer(activities, many=True, context={'request': request})
-    
-    # Cache for 2 minutes
-    cache.set(cache_key, serializer.data, 120)
-    
     return Response(serializer.data)

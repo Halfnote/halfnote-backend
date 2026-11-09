@@ -100,12 +100,14 @@ else:
 
 | Data Type | Timeout | Reasoning |
 |-----------|---------|-----------|
-| **Activity Feeds** | 3 minutes | High frequency updates, balance freshness vs performance |
-| **User Reviews (Profile)** | 10 minutes | Moderate update frequency, profile-specific content |
+| **Activity Feeds** | Not cached | Removed: the key ignored offset and limit, and a followee's write could not clear a follower's feed |
+| **User Reviews (Profile)** | Not cached | Removed: reviews carry per-viewer `is_liked_by_user` but the key was shared |
 | **User Lists (Profile)** | 8 minutes | Moderate frequency, updated more often than reviews |
-| **Album Metadata** | 1 hour | Rarely changes, can be cached longer |
-| **User Following Lists** | 10 minutes | Moderate frequency updates |
+| **Album Metadata** | Not cached | The first view saves the album from Discogs and later views read the DB; reviews carry per-viewer `is_liked_by_user` |
+| **User Profile, Followers/Following Lists** | Not cached | Removed: `is_following` is per viewer but the key was shared |
+| **User Activity, Review Likes** | Not cached | Removed: reviews carry per-viewer `is_liked_by_user` but the key was shared |
 | **Search Results** | 5 minutes | Balance between freshness and performance |
+| **Artist Photos (Search)** | 24 hours, found photos only | One entry per artist, so a new query reuses photos; a failed or empty lookup is retried on the next search |
 | **Review Details** | 15 minutes | Individual reviews change less frequently |
 
 ## Query Optimization
