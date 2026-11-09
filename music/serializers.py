@@ -254,10 +254,7 @@ class ListItemSerializer(serializers.ModelSerializer):
             # Add user review information if available
             request = self.context.get('request')
             if request and request.user.is_authenticated:
-                user_review = Review.objects.filter(
-                    album=obj.album,
-                    user=request.user
-                ).order_by('-created_at').first()
+                user_review = Review.latest(request.user, obj.album)
                 if user_review:
                     album_data['user_review_id'] = user_review.id
                     album_data['user_rating'] = user_review.rating

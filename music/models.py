@@ -144,6 +144,11 @@ class Review(models.Model):
                 name='review_body_needs_headline'),
         ]
 
+    @classmethod
+    def latest(cls, user, album):
+        """The user's most recent review of the album, or None. Users may review an album more than once."""
+        return cls.objects.filter(album=album, user=user).order_by('-created_at').first()
+
     @property
     def content(self):
         """Headline and body joined, for readers that want one string."""
