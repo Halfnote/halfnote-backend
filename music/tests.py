@@ -194,3 +194,53 @@ class ReviewConstraintTests(TestCase):
         from django.db import IntegrityError
         with self.assertRaises(IntegrityError):
             Review.objects.create(album=self.album, user=self.user, rating=None, headline='')
+
+
+class CreateReviewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+
+    def post(self, body):
+        return client_for(self.user).post('/api/music/albums/123/review/', body, format='json')
+
+    def test_needs_rating_or_headline(self):
+        response = self.post({'body': ''})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['error'], 'Add a rating or a headline')
+
+    def test_short_take_without_rating(self):
+        response = self.post({'headline': 'Great record'})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            (response.data['rating'], response.data['headline'], response.data['body'], response.data['content']),
+            (None, 'Great record', '', 'Great record'))
+
+    def test_full_review_content_joins_headline_and_body(self):
+        response = self.post({'rating': 8, 'headline': 'Great record', 'body': 'Track 3.\nThe closer.'})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['content'], 'Great record\n\nTrack 3.\nThe closer.')
+
+    def test_rejects_body_without_headline(self):
+        response = self.post({'rating': 8, 'body': 'Orphan body'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('body', response.data['fields'])
+
+    def test_rejects_bad_fields(self):
+        cases = [
+            ({'rating': 11}, 'rating'),
+            ({'rating': 8, 'headline': 'x' * 151}, 'headline'),
+            ({'rating': 8, 'headline': 'two\nlines'}, 'headline'),
+            ({'rating': 8, 'headline': 'h', 'body': 'x' * 5001}, 'body'),
+        ]
+        for body, field in cases:
+            with self.subTest(field=field, body=str(body)[:40]):
+                response = self.post(body)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(list(response.data['fields']), [field])
+
+    def test_second_review_of_same_album_is_a_new_review(self):
+        self.assertEqual(self.post({'rating': 6}).status_code, 201)
+        self.assertEqual(self.post({'rating': 9}).status_code, 201)
+        self.assertEqual(Review.objects.filter(user=self.user).count(), 2)

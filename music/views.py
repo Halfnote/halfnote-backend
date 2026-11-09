@@ -18,7 +18,7 @@ from rest_framework.response import Response
 
 from .models import Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, AlbumSearchResultSerializer,
+    AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
@@ -289,41 +289,37 @@ def import_album_from_discogs(discogs_id):
 # REVIEW VIEWS
 # ============================================================================
 
+def validation_error(errors):
+    """Contract shape: one message in `error`, the first problem per field in `fields`."""
+    fields = {name: str(msgs[0]) for name, msgs in errors.items() if name != 'non_field_errors'}
+    first = errors.get('non_field_errors') or next(iter(errors.values()))
+    return Response({'error': str(first[0]), 'fields': fields}, status=400)
+
+
+def set_genres(review, genre_names):
+    review.user_genres.set([Genre.objects.get_or_create(name=name)[0] for name in genre_names])
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_review(request, discogs_id):
-    """Create a new review for an album"""
-    # Import or get album
+    """Create a review. A user may review the same album more than once."""
     album = import_album_from_discogs(discogs_id)
     if not album:
         return Response({'error': 'Album not found'}, status=404)
-    
-    # Check if user already reviewed this album
-    if Review.objects.filter(user=request.user, album=album).exists():
-        return Response({'error': 'You have already reviewed this album'}, status=400)
-    
-    # Create review
-    review = Review.objects.create(
-        user=request.user,
-        album=album,
-        rating=request.data.get('rating'),
-        headline=request.data.get('headline', ''),
-        body=request.data.get('body', ''),
-    )
-    
-    # Handle genres
-    genre_names = request.data.get('genres', [])
-    for genre_name in genre_names:
-        genre, _ = Genre.objects.get_or_create(name=genre_name)
-        review.user_genres.add(genre)
-    
-    # Create activity
+
+    serializer = ReviewWriteSerializer(data=request.data)
+    if not serializer.is_valid():
+        return validation_error(serializer.errors)
+    review = serializer.save(user=request.user, album=album)
+    set_genres(review, request.data.get('genres', []))
+
     Activity.objects.create(
         user=request.user,
         activity_type='review_created',
         review=review
     )
-    
+
     return Response(ReviewSerializer(review, context={'request': request}).data, status=201)
 
 
@@ -341,19 +337,13 @@ def review_detail(request, review_id):
         return Response({'error': 'Permission denied'}, status=403)
     
     if request.method == 'PUT':
-        # Update review
-        review.rating = request.data.get('rating', review.rating)
-        review.headline = request.data.get('headline', review.headline)
-        review.body = request.data.get('body', review.body)
-        review.save()
-        
-        # Update genres
-        genre_names = request.data.get('genres', [])
-        review.user_genres.clear()
-        for genre_name in genre_names:
-            genre, _ = Genre.objects.get_or_create(name=genre_name)
-            review.user_genres.add(genre)
-        
+        # Partial: keys left out keep their values.
+        serializer = ReviewWriteSerializer(review, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return validation_error(serializer.errors)
+        review = serializer.save()
+        if 'genres' in request.data:
+            set_genres(review, request.data['genres'])
         return Response(ReviewSerializer(review, context={'request': request}).data)
     
     elif request.method == 'DELETE':
