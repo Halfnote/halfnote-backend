@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Review
+from music.models import Activity, Album, Genre, Review
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -244,3 +244,36 @@ class CreateReviewTests(TestCase):
         self.assertEqual(self.post({'rating': 6}).status_code, 201)
         self.assertEqual(self.post({'rating': 9}).status_code, 201)
         self.assertEqual(Review.objects.filter(user=self.user).count(), 2)
+
+
+class EditReviewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.review = Review.objects.create(album=album, user=self.user, rating=7, headline='Head', body='Body')
+        self.review.user_genres.add(Genre.objects.get_or_create(name='Rock')[0])
+
+    def put(self, body, user=None):
+        return client_for(user or self.user).put(f'/api/music/reviews/{self.review.id}/', body, format='json')
+
+    def test_keys_left_out_keep_their_values(self):
+        response = self.put({'rating': 9})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            (response.data['rating'], response.data['headline'], response.data['body']), (9, 'Head', 'Body'))
+        self.assertEqual([g['name'] for g in response.data['user_genres']], ['Rock'])
+
+    def test_null_clears_rating_and_empty_body_makes_short_take(self):
+        response = self.put({'rating': None, 'body': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.data['rating'], response.data['content']), (None, 'Head'))
+
+    def test_rejects_change_leaving_no_rating_or_headline(self):
+        response = self.put({'rating': None, 'headline': '', 'body': ''})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['error'], 'Add a rating or a headline')
+
+    def test_only_owner_can_edit(self):
+        other = User.objects.create_user(username='o', password='pw')
+        self.assertEqual(self.put({'rating': 1}, other).status_code, 403)
