@@ -196,6 +196,9 @@ class ActivitySerializer(serializers.ModelSerializer):
                 review_data = {
                     'id': obj.review.id,
                     'rating': obj.review.rating,
+                    'headline': obj.review.headline,
+                    'body': obj.review.body,
+                    # ponytail: deprecated cut preview; remove once web ActivityReviewCard reads headline.
                     'content': obj.review.content[:100] + '...' if len(obj.review.content) > 100 else obj.review.content,
                     'is_liked_by_user': is_liked_by_user,
                     'user_genres': [{'id': g.id, 'name': g.name} for g in obj.review.user_genres.all()],

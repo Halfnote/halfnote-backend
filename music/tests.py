@@ -309,3 +309,14 @@ class RepeatReviewStatsTests(TestCase):
         self.a.favorite_albums.add(self.album)
         card = client_for(self.a).get('/api/accounts/users/a/').data['favorite_albums'][0]
         self.assertEqual((card['user_review_id'], card['user_rating']), (latest.id, None))
+
+
+class ActivityHeadlineTests(TestCase):
+    def test_feed_carries_whole_headline_and_body(self):
+        user = User.objects.create_user(username='u', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        headline = 'x' * 150
+        review = Review.objects.create(album=album, user=user, headline=headline, body='More')
+        Activity.objects.create(user=user, activity_type='review_created', review=review)
+        details = client_for(user).get('/api/music/activity/?type=you').data[0]['review_details']
+        self.assertEqual((details['headline'], details['body'], details['rating']), (headline, 'More', None))
