@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Comment, Genre, Review, ReviewLike
+from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -550,3 +550,30 @@ class ReviewLikeTests(TestCase):
     def test_requires_login(self):
         for method in ('put', 'delete'):
             self.assertEqual(getattr(APIClient(), method)(self.url).status_code, 401)
+
+
+TRACKS = [
+    {'position': 'A1', 'title': 'Airbag', 'duration': '4:44',
+     'artists': [{'name': 'Radiohead'}], 'extraartists': [{'name': 'Nigel Godrich', 'role': 'Producer'}]},
+    {'position': '', 'title': 'Untitled', 'duration': '', 'artists': [], 'extraartists': []},
+    {'position': 'B1', 'title': 'Long One', 'duration': '1:02:03', 'artists': [], 'extraartists': []},
+    {'position': 'B2', 'title': 'Odd', 'duration': 'about 3m', 'artists': [], 'extraartists': []},
+]
+
+
+@patch('music.views.get_artist_photo', return_value=None)
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'tracklist': TRACKS})
+class SongImportTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+
+    def test_import_creates_one_song_per_track(self, *_):
+        client_for(self.user).get('/api/music/albums/777/')
+        songs = Song.objects.filter(album__discogs_id='777').order_by('sort_order')
+        self.assertEqual(
+            [(s.position, s.title, s.sort_order, s.duration_seconds) for s in songs],
+            [('A1', 'Airbag', 1, 284), ('2', 'Untitled', 2, None), ('B1', 'Long One', 3, 3723), ('B2', 'Odd', 4, None)])
+        self.assertEqual((songs[0].artists, songs[0].credits),
+                         ([{'name': 'Radiohead'}], [{'name': 'Nigel Godrich', 'role': 'Producer'}]))

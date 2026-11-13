@@ -102,6 +102,50 @@ class Album(models.Model):
             models.Index(fields=['discogs_id']),
         ]
 
+class Song(models.Model):
+    """One track from an album's Discogs tracklist."""
+    album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='songs')
+    position = models.CharField(max_length=20)
+    title = models.CharField(max_length=255)
+    sort_order = models.IntegerField()
+    duration_seconds = models.IntegerField(null=True, blank=True)
+    artists = models.JSONField(default=list, blank=True)
+    credits = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ['sort_order']
+        constraints = [models.UniqueConstraint(fields=['album', 'position'], name='song_position_once_per_album')]
+
+    def __str__(self):
+        return f"{self.position}. {self.title}"
+
+
+def duration_seconds(text):
+    """Discogs "m:ss" or "h:mm:ss" in seconds, or None when the length is missing or unreadable."""
+    parts = str(text or '').split(':')
+    if len(parts) not in (2, 3) or not all(p.isdigit() for p in parts):
+        return None
+    seconds = 0
+    for part in parts:
+        seconds = seconds * 60 + int(part)
+    return seconds
+
+
+def fill_songs(song_model, album):
+    """Upsert one song per tracklist entry, keyed on position so re-running keeps ids.
+    Takes the model class so the backfill migration can pass its historical model."""
+    for number, track in enumerate(album.tracklist or [], start=1):
+        song_model.objects.update_or_create(
+            album=album, position=track.get('position') or str(number),
+            defaults={
+                'title': track.get('title', ''),
+                'sort_order': number,
+                'duration_seconds': duration_seconds(track.get('duration')),
+                'artists': track.get('artists', []),
+                'credits': track.get('extraartists', []),
+            })
+
+
 def latest_rated_average(reviews):
     """Average of each user's latest rated review, so repeat reviews can't stack the score."""
     latest = {}

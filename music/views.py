@@ -18,7 +18,7 @@ from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import latest_rated_average, RecentlyViewedAlbum, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
     AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
@@ -284,6 +284,7 @@ def import_album_from_discogs(discogs_id):
         'tracklist': album_data.get('tracklist', []),
         'credits': album_data.get('credits', []),
     })
+    fill_songs(Song, album)
     return album
 
 
