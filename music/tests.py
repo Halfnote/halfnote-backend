@@ -592,3 +592,16 @@ class FillSongsTests(TestCase):
         fill_songs(Song, album)
         self.assertEqual(list(album.songs.values_list('id', flat=True)), ids)
         self.assertEqual(album.songs.first().title, 'Airbag (Remastered)')
+
+
+class AlbumSongsTests(TestCase):
+    def test_album_page_lists_songs_in_album_order(self):
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123', tracklist=TRACKS)
+        b1 = Song.objects.create(album=album, position='B1', title='Second', sort_order=2, duration_seconds=252)
+        a1 = Song.objects.create(album=album, position='A1', title='First', sort_order=1)
+        data = APIClient().get('/api/music/albums/123/').data['album']
+        self.assertEqual(data['songs'], [
+            {'id': a1.id, 'position': 'A1', 'title': 'First', 'duration_seconds': None},
+            {'id': b1.id, 'position': 'B1', 'title': 'Second', 'duration_seconds': 252},
+        ])
+        self.assertEqual(data['tracklist'], TRACKS)

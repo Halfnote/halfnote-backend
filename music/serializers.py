@@ -1,10 +1,16 @@
 from rest_framework import serializers
-from .models import HEADLINE_MAX, BODY_MAX, Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist
+from .models import HEADLINE_MAX, BODY_MAX, Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist, Song
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name']
+
+
+class SongSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Song
+        fields = ['id', 'position', 'title', 'duration_seconds']
 
 
 class ArtistSerializer(serializers.ModelSerializer):

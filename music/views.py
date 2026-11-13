@@ -20,7 +20,7 @@ from rest_framework.response import Response
 
 from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
+    AlbumSerializer, SongSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
@@ -196,7 +196,8 @@ def album_detail(request, discogs_id):
     reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
-        'album': AlbumSerializer(album).data,
+        # Songs only on the album page, so album lists elsewhere don't query them per album.
+        'album': {**AlbumSerializer(album).data, 'songs': SongSerializer(album.songs.all(), many=True).data},
         'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
         'review_count': len({r.user_id for r in reviews}),
         'average_rating': latest_rated_average(reviews),
