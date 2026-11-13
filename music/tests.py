@@ -503,3 +503,50 @@ class FeedTests(TestCase):
         client = client_for(self.me)
         with self.assertNumQueries(5):
             self.assertEqual(len(client.get(self.url).data['results']), 20)
+
+
+class ReviewLikeTests(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(username='author', password='pw')
+        self.fan = User.objects.create_user(username='fan', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.review = Review.objects.create(album=album, user=self.author, rating=8)
+        self.url = f'/api/music/reviews/{self.review.id}/like/'
+        self.client = client_for(self.fan)
+
+    def send(self, method, url=None):
+        return getattr(self.client, method)(url or self.url)
+
+    def like_activities(self):
+        return Activity.objects.filter(user=self.fan, review=self.review, activity_type='review_liked').count()
+
+    def test_put_and_delete_are_idempotent(self):
+        for _ in range(2):
+            response = self.send('put')
+            self.assertEqual((response.status_code, response.data), (200, {'liked': True, 'likes_count': 1}))
+        for _ in range(2):
+            response = self.send('delete')
+            self.assertEqual((response.status_code, response.data), (200, {'liked': False, 'likes_count': 0}))
+        self.assertEqual(self.like_activities(), 1)
+
+    def test_like_unlike_like_creates_one_activity(self):
+        for method in ('put', 'delete', 'put'):
+            self.send(method)
+        self.assertEqual(self.like_activities(), 1)
+
+    def test_old_post_toggle_still_works_and_creates_one_activity(self):
+        responses = [self.send('post').data for _ in range(3)]
+        self.assertEqual(responses, [
+            {'action': 'liked', 'like_count': 1},
+            {'action': 'unliked', 'like_count': 0},
+            {'action': 'liked', 'like_count': 1},
+        ])
+        self.assertEqual(self.like_activities(), 1)
+
+    def test_missing_review_is_404(self):
+        for method in ('put', 'delete'):
+            self.assertEqual(self.send(method, '/api/music/reviews/999/like/').status_code, 404)
+
+    def test_requires_login(self):
+        for method in ('put', 'delete'):
+            self.assertEqual(getattr(APIClient(), method)(self.url).status_code, 401)

@@ -353,34 +353,27 @@ def review_detail(request, review_id):
         return Response({'message': 'Review deleted'}, status=204)
 
 
-@api_view(['POST', 'DELETE'])
+@api_view(['PUT', 'DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
-def toggle_review_like(request, review_id):
-    """Like or unlike a review"""
-    review = get_object_or_404(Review.objects.select_related('user'), id=review_id)
-    
-    like, created = ReviewLike.objects.get_or_create(
-        user=request.user,
-        review=review
-    )
-    
-    if not created:
-        # Unlike
-        like.delete()
-        action = 'unliked'
+def review_like(request, review_id):
+    """PUT likes, DELETE unlikes; both idempotent. POST is the deprecated toggle."""
+    review = get_object_or_404(Review, id=review_id)
+    likes = ReviewLike.objects.filter(user=request.user, review=review)
+    liked = not likes.exists() if request.method == 'POST' else request.method == 'PUT'
+
+    if liked:
+        likes.get_or_create(user=request.user, review=review)
+        # Only the first like is activity, so re-liking can't push a review back to the top.
+        activity = dict(user=request.user, activity_type='review_liked', review=review)
+        if not Activity.objects.filter(**activity).exists():
+            Activity.objects.create(**activity)
     else:
-        # Like and create activity
-        action = 'liked'
-        Activity.objects.create(
-            user=request.user,
-            activity_type='review_liked',
-            review=review
-        )
-    
-    return Response({
-        'action': action,
-        'like_count': ReviewLike.objects.filter(review=review).count()
-    })
+        likes.delete()
+
+    count = review.likes.count()
+    if request.method == 'POST':
+        return Response({'action': 'liked' if liked else 'unliked', 'like_count': count})
+    return Response({'liked': liked, 'likes_count': count})
 
 
 RECENTLY_VIEWED_LIMIT = 10
