@@ -408,3 +408,38 @@ class FeedTests(TestCase):
 
     def test_empty_feed(self):
         self.assertEqual(self.feed(), {'next': None, 'previous': None, 'results': []})
+
+    def test_shows_followed_and_own_reviews_not_strangers(self):
+        mine = self.post(self.me, 1)
+        friends = self.post(self.friend, 2)
+        self.post(self.stranger, 3)
+        self.assertEqual(self.ids(), [friends.id, mine.id])
+
+    def test_strangers_activity_on_my_review_bumps_it(self):
+        mine = self.post(self.me, 1)
+        friends = self.post(self.friend, 2)
+        self.act(self.stranger, 'review_liked', mine, 3)
+        self.assertEqual(self.ids(), [mine.id, friends.id])
+
+    def test_strangers_activity_on_followed_review_does_not_count(self):
+        mine = self.post(self.me, 1)
+        friends = self.post(self.friend, 2)
+        self.act(self.stranger, 'review_liked', friends, 3)
+        self.act(self.stranger, 'comment_created', mine, 4)
+        self.act(self.stranger, 'comment_created', friends, 5)
+        self.assertEqual(self.ids(), [mine.id, friends.id])
+
+    def test_followed_activity_on_strangers_review_shows_it(self):
+        old = self.post(self.stranger, 1)
+        friends = self.post(self.friend, 2)
+        self.act(self.friend, 'review_liked', old, 3)
+        self.assertEqual(self.ids(), [old.id, friends.id])
+
+    def test_one_card_per_review_with_many_activities(self):
+        friends = self.post(self.friend, 1)
+        mine = self.post(self.me, 2)
+        for minutes in (3, 4, 5):
+            self.act(self.friend, 'comment_created', friends, minutes)
+            self.act(self.stranger, 'comment_created', mine, minutes)
+        self.act(self.me, 'review_liked', friends, 6)
+        self.assertEqual(self.ids(), [friends.id, mine.id])
