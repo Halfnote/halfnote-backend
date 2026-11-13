@@ -9,6 +9,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -273,19 +274,20 @@ def import_album_from_discogs(discogs_id):
         return None
 
     artist = get_or_create_artist(album_data['artist'])
-    album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
-        'title': album_data['title'],
-        'artist': album_data['artist'],
-        'artist_rel': artist,
-        'year': album_data.get('year') or None,
-        'cover_url': album_data.get('cover_image', ''),
-        'artist_photo_url': artist.primary_image_url if artist else None,
-        'discogs_genres': album_data.get('genres', []),
-        'discogs_styles': album_data.get('styles', []),
-        'tracklist': album_data.get('tracklist', []),
-        'credits': album_data.get('credits', []),
-    })
-    fill_songs(Song, album)
+    with transaction.atomic():
+        album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
+            'title': album_data['title'],
+            'artist': album_data['artist'],
+            'artist_rel': artist,
+            'year': album_data.get('year') or None,
+            'cover_url': album_data.get('cover_image', ''),
+            'artist_photo_url': artist.primary_image_url if artist else None,
+            'discogs_genres': album_data.get('genres', []),
+            'discogs_styles': album_data.get('styles', []),
+            'tracklist': album_data.get('tracklist', []),
+            'credits': album_data.get('credits', []),
+        })
+        fill_songs(Song, album)
     return album
 
 

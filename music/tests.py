@@ -580,6 +580,12 @@ class SongImportTests(TestCase):
         self.assertEqual((songs[0].artists, songs[0].credits),
                          ([{'name': 'Radiohead'}], [{'name': 'Nigel Godrich', 'role': 'Producer'}]))
 
+    def test_failed_song_fill_does_not_leave_an_album_without_songs(self, *_):
+        with patch('music.views.fill_songs', side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                client_for(self.user).get('/api/music/albums/777/')
+        self.assertFalse(Album.objects.filter(discogs_id='777').exists())
+
 
 class FillSongsTests(TestCase):
     """fill_songs is what the backfill migration runs for albums imported before songs existed."""
