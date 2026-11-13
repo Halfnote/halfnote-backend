@@ -9,7 +9,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Max, Q
+from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -460,19 +460,57 @@ class FeedPagination(CursorPagination):
     ordering = ('-latest_at', '-id')
 
 
+def person(user):
+    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None}
+
+
+def count_by_review(model, review_ids):
+    return dict(model.objects.filter(review__in=review_ids).values_list('review').annotate(Count('id')))
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed(request):
     """One card per review, ordered by its newest counted activity (see activity-contract.md)."""
     me = request.user
+    following = me.following.all()
     # Filter before annotate so MAX only sees the counted activity rows.
     reviews = (Review.objects
-               .filter(Q(activity__user=me) | Q(activity__user__in=me.following.all()) | Q(user=me))
+               .filter(Q(activity__user=me) | Q(activity__user__in=following) | Q(user=me))
                .annotate(latest_at=Max('activity__created_at'))
-               .filter(latest_at__isnull=False))
+               .filter(latest_at__isnull=False)
+               .select_related('user', 'album'))
     paginator = FeedPagination()
     page = paginator.paginate_queryset(reviews, request)
-    return paginator.get_paginated_response([{'review': {'id': r.id}} for r in page])
+
+    ids = [r.id for r in page]
+    latest_at = {r.id: r.latest_at for r in page}
+    candidates = (Activity.objects
+                  .filter(Q(user=me) | Q(user__in=following) | Q(review__user=me),
+                          review__in=ids, created_at__in=latest_at.values())
+                  .select_related('user').order_by('id'))
+    latest = {a.review_id: a for a in candidates if a.created_at == latest_at[a.review_id]}
+    likes = count_by_review(ReviewLike, ids)
+    comments = count_by_review(Comment, ids)
+    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
+
+    return paginator.get_paginated_response([{
+        'review': {
+            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
+            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
+            'is_liked': r.id in liked, 'favorite_song': None,
+        },
+        'author': person(r.user),
+        'album': {
+            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
+            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
+        },
+        'latest_activity': {
+            'type': latest[r.id].activity_type,
+            'actor': person(latest[r.id].user),
+            'created_at': latest[r.id].created_at,
+        },
+    } for r in page])
 
 
 # ============================================================================

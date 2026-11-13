@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Genre, Review
+from music.models import Activity, Album, Comment, Genre, Review, ReviewLike
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -463,3 +463,33 @@ class FeedTests(TestCase):
     def test_invalid_cursor_is_404(self):
         response = client_for(self.me).get(self.url + '?cursor=bogus')
         self.assertEqual((response.status_code, str(response.data['detail'])), (404, 'Invalid cursor'))
+
+    def test_card_shape_and_latest_activity_per_viewer(self):
+        review = self.post(self.friend, 1, discogs_id='42')
+        ReviewLike.objects.create(user=self.me, review=review)
+        self.act(self.me, 'review_liked', review, 2)
+        Comment.objects.create(user=self.stranger, review=review, content='c')
+        self.act(self.stranger, 'comment_created', review, 3)
+
+        card = self.feed()['results'][0]
+        self.assertEqual(card, {
+            'review': {
+                'id': review.id, 'rating': 7, 'headline': 'h', 'body': '', 'created_at': self.at(1),
+                'likes_count': 1, 'comments_count': 1, 'is_liked': True, 'favorite_song': None,
+            },
+            'author': {'username': 'friend', 'name': 'Friend', 'avatar': None},
+            'album': {
+                'discogs_id': '42', 'title': 'T42', 'artist': 'A', 'year': 2001, 'cover_url': None,
+                'tracklist': [{'position': '1', 'title': 'One', 'duration': '1:00'}],
+            },
+            'latest_activity': {
+                'type': 'review_liked',
+                'actor': {'username': 'me', 'name': '', 'avatar': None},
+                'created_at': self.at(2),
+            },
+        })
+
+        card = self.feed(self.friend)['results'][0]
+        self.assertFalse(card['review']['is_liked'])
+        self.assertEqual((card['latest_activity']['type'], card['latest_activity']['actor']['username']),
+                         ('comment_created', 'stranger'))
