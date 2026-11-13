@@ -193,7 +193,7 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
+    reviews = list(Review.objects.filter(album=album).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
         # Songs only on the album page, so album lists elsewhere don't query them per album.
@@ -474,7 +474,7 @@ def feed(request):
                .filter(Q(activity__user=me) | Q(activity__user__in=following) | Q(user=me))
                .annotate(latest_at=Max('activity__created_at'))
                .filter(latest_at__isnull=False)
-               .select_related('user', 'album'))
+               .select_related('user', 'album', 'favorite_song'))
     paginator = FeedPagination()
     page = paginator.paginate_queryset(reviews, request)
 
@@ -493,7 +493,8 @@ def feed(request):
         'review': {
             'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
             'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
-            'is_liked': r.id in liked, 'favorite_song': None,
+            'is_liked': r.id in liked,
+            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
         },
         'author': person(r.user),
         'album': {

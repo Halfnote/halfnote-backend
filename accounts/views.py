@@ -107,7 +107,7 @@ def user_reviews(request, username):
     
     # Optimized query with all necessary prefetching
     reviews = Review.objects.filter(user=user).select_related(
-        'album', 'user'
+        'album', 'user', 'favorite_song'
     ).prefetch_related(
         'user_genres', 'likes__user', 'comments__user'
     ).order_by('-created_at')[offset:offset + limit]

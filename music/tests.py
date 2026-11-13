@@ -497,6 +497,8 @@ class FeedTests(TestCase):
     def test_page_query_count_does_not_grow_with_cards(self):
         for minutes in range(25):
             review = self.post(self.friend if minutes % 2 else self.stranger, minutes)
+            review.favorite_song = Song.objects.create(album=review.album, position='1', title='One', sort_order=1)
+            review.save()
             ReviewLike.objects.create(user=self.stranger, review=review)
             Comment.objects.create(user=self.friend, review=review, content='c')
             self.act(self.friend, 'comment_created', review, minutes + 30)
@@ -652,3 +654,18 @@ class FavoriteSongTests(TestCase):
         self.assertEqual(put({'favorite_song_id': None}).data['favorite_song'], None)
         review.refresh_from_db()
         self.assertIsNone(review.favorite_song)
+
+
+    def test_deleting_song_clears_favourite(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)
+        self.sky.delete()
+        response = client_for(self.user).get(f'/api/music/reviews/{review.id}/')
+        self.assertEqual((response.status_code, response.data['favorite_song']), (200, None))
+
+    def test_feed_card_and_album_page_reviews_carry_favourite_song(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)
+        Activity.objects.create(user=self.user, activity_type='review_created', review=review)
+        card = client_for(self.user).get('/api/music/feed/').data['results'][0]
+        self.assertEqual(card['review']['favorite_song'], self.sky_json)
+        page = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual(page['reviews'][0]['favorite_song'], self.sky_json)
