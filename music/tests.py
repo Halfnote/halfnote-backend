@@ -443,3 +443,23 @@ class FeedTests(TestCase):
             self.act(self.stranger, 'comment_created', mine, minutes)
         self.act(self.me, 'review_liked', friends, 6)
         self.assertEqual(self.ids(), [friends.id, mine.id])
+
+    def test_cursor_pages_through_every_card_once(self):
+        reviews = [self.post(self.friend, minutes) for minutes in range(25)]
+        for minutes in range(30, 35):
+            self.act(self.stranger, 'comment_created', reviews[0], minutes)
+        first = self.feed()
+        second = self.feed(url=first['next'])
+        self.assertEqual((len(first['results']), len(second['results']), second['next']), (20, 5, None))
+        seen = [card['review']['id'] for card in first['results'] + second['results']]
+        self.assertEqual(seen, [r.id for r in reversed(reviews)])
+
+    def test_ties_on_latest_activity_page_by_id(self):
+        reviews = [self.post(self.friend, 0, discogs_id=str(n)) for n in range(21)]
+        first = self.feed()
+        seen = [card['review']['id'] for card in first['results'] + self.feed(url=first['next'])['results']]
+        self.assertEqual(seen, [r.id for r in reversed(reviews)])
+
+    def test_invalid_cursor_is_404(self):
+        response = client_for(self.me).get(self.url + '?cursor=bogus')
+        self.assertEqual((response.status_code, str(response.data['detail'])), (404, 'Invalid cursor'))
