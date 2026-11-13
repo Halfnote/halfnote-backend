@@ -15,8 +15,8 @@ class Migration(migrations.Migration):
             name='Song',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('position', models.CharField(max_length=20)),
-                ('title', models.CharField(max_length=255)),
+                ('position', models.CharField(max_length=50)),
+                ('title', models.CharField(max_length=500)),
                 ('sort_order', models.IntegerField()),
                 ('duration_seconds', models.IntegerField(blank=True, null=True)),
                 ('artists', models.JSONField(blank=True, default=list)),

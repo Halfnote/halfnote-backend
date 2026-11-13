@@ -105,8 +105,8 @@ class Album(models.Model):
 class Song(models.Model):
     """One track from an album's Discogs tracklist."""
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name='songs')
-    position = models.CharField(max_length=20)
-    title = models.CharField(max_length=255)
+    position = models.CharField(max_length=50)
+    title = models.CharField(max_length=500)
     sort_order = models.IntegerField()
     duration_seconds = models.IntegerField(null=True, blank=True)
     artists = models.JSONField(default=list, blank=True)

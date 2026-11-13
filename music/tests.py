@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song
+from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song, fill_songs
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -577,3 +577,18 @@ class SongImportTests(TestCase):
             [('A1', 'Airbag', 1, 284), ('2', 'Untitled', 2, None), ('B1', 'Long One', 3, 3723), ('B2', 'Odd', 4, None)])
         self.assertEqual((songs[0].artists, songs[0].credits),
                          ([{'name': 'Radiohead'}], [{'name': 'Nigel Godrich', 'role': 'Producer'}]))
+
+
+class FillSongsTests(TestCase):
+    """fill_songs is what the backfill migration runs for albums imported before songs existed."""
+
+    def test_fills_from_stored_tracklist_and_refill_keeps_ids(self):
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123', tracklist=TRACKS)
+        fill_songs(Song, album)
+        ids = list(album.songs.values_list('id', flat=True))
+        self.assertEqual(list(album.songs.values_list('position', flat=True)), ['A1', '2', 'B1', 'B2'])
+
+        album.tracklist = [{**TRACKS[0], 'title': 'Airbag (Remastered)'}, *TRACKS[1:]]
+        fill_songs(Song, album)
+        self.assertEqual(list(album.songs.values_list('id', flat=True)), ids)
+        self.assertEqual(album.songs.first().title, 'Airbag (Remastered)')
