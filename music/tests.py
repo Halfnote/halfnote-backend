@@ -493,3 +493,13 @@ class FeedTests(TestCase):
         self.assertFalse(card['review']['is_liked'])
         self.assertEqual((card['latest_activity']['type'], card['latest_activity']['actor']['username']),
                          ('comment_created', 'stranger'))
+
+    def test_page_query_count_does_not_grow_with_cards(self):
+        for minutes in range(25):
+            review = self.post(self.friend if minutes % 2 else self.stranger, minutes)
+            ReviewLike.objects.create(user=self.stranger, review=review)
+            Comment.objects.create(user=self.friend, review=review, content='c')
+            self.act(self.friend, 'comment_created', review, minutes + 30)
+        client = client_for(self.me)
+        with self.assertNumQueries(5):
+            self.assertEqual(len(client.get(self.url).data['results']), 20)
