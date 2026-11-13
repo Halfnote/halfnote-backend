@@ -31,6 +31,7 @@ urlpatterns = [
     path('comments/<int:comment_id>/', views.comment_detail, name='comment-detail'),
     
     # Activity and social
+    path('feed/', views.feed, name='feed'),
     path('activity/', views.activity_feed, name='activity-feed'),
     path('activity/<int:activity_id>/delete/', views.delete_activity, name='delete-activity'),
     

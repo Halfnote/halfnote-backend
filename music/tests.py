@@ -1,8 +1,10 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from music.models import Activity, Album, Genre, Review
@@ -367,3 +369,42 @@ class RecentlyViewedTests(TestCase):
 
     def test_requires_login(self, *_):
         self.assertIn(APIClient().get(self.url).status_code, (401, 403))
+
+
+class FeedTests(TestCase):
+    url = '/api/music/feed/'
+
+    def setUp(self):
+        self.me = User.objects.create_user(username='me', password='pw')
+        self.friend = User.objects.create_user(username='friend', password='pw', name='Friend')
+        self.stranger = User.objects.create_user(username='stranger', password='pw')
+        self.me.following.add(self.friend)
+        self.t = timezone.now() - timedelta(days=1)
+
+    def at(self, minutes):
+        return self.t + timedelta(minutes=minutes)
+
+    def post(self, user, minutes, discogs_id=None):
+        discogs_id = discogs_id or f'{user.username}-{minutes}'
+        album = Album.objects.create(title=f'T{discogs_id}', artist='A', discogs_id=discogs_id, year=2001,
+                                     tracklist=[{'position': '1', 'title': 'One', 'duration': '1:00'}])
+        review = Review.objects.create(album=album, user=user, rating=7, headline='h', created_at=self.at(minutes))
+        Activity.objects.create(user=user, activity_type='review_created', review=review, created_at=self.at(minutes))
+        return review
+
+    def act(self, user, kind, review, minutes):
+        Activity.objects.create(user=user, activity_type=kind, review=review, created_at=self.at(minutes))
+
+    def feed(self, user=None, url=None):
+        response = client_for(user or self.me).get(url or self.url)
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def ids(self, user=None):
+        return [card['review']['id'] for card in self.feed(user)['results']]
+
+    def test_requires_login(self):
+        self.assertEqual(APIClient().get(self.url).status_code, 401)
+
+    def test_empty_feed(self):
+        self.assertEqual(self.feed(), {'next': None, 'previous': None, 'results': []})

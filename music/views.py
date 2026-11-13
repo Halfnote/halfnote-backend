@@ -9,10 +9,12 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -451,6 +453,26 @@ def activity_feed(request):
     paginated_activities = activities.order_by('-created_at')[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+class FeedPagination(CursorPagination):
+    page_size = 20
+    ordering = ('-latest_at', '-id')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def feed(request):
+    """One card per review, ordered by its newest counted activity (see activity-contract.md)."""
+    me = request.user
+    # Filter before annotate so MAX only sees the counted activity rows.
+    reviews = (Review.objects
+               .filter(Q(activity__user=me) | Q(activity__user__in=me.following.all()) | Q(user=me))
+               .annotate(latest_at=Max('activity__created_at'))
+               .filter(latest_at__isnull=False))
+    paginator = FeedPagination()
+    page = paginator.paginate_queryset(reviews, request)
+    return paginator.get_paginated_response([{'review': {'id': r.id}} for r in page])
 
 
 # ============================================================================
