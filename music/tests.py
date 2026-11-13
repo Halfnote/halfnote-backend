@@ -640,3 +640,15 @@ class FavoriteSongTests(TestCase):
                     'fields': {'favorite_song_id': 'Pick a song from this album'},
                 })
         self.assertFalse(Review.objects.exists())
+
+    def test_edit_sets_keeps_and_clears(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7)
+        url = f'/api/music/reviews/{review.id}/'
+        put = lambda body: client_for(self.user).put(url, body, format='json')
+        self.assertEqual(put({'favorite_song_id': self.sky.id}).data['favorite_song'], self.sky_json)
+        self.assertEqual(put({'rating': 9}).data['favorite_song'], self.sky_json)
+        response = put({'favorite_song_id': self.elsewhere.id})
+        self.assertEqual((response.status_code, list(response.data['fields'])), (400, ['favorite_song_id']))
+        self.assertEqual(put({'favorite_song_id': None}).data['favorite_song'], None)
+        review.refresh_from_db()
+        self.assertIsNone(review.favorite_song)
