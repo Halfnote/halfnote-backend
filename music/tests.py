@@ -605,3 +605,27 @@ class AlbumSongsTests(TestCase):
             {'id': b1.id, 'position': 'B1', 'title': 'Second', 'duration_seconds': 252},
         ])
         self.assertEqual(data['tracklist'], TRACKS)
+
+
+class FavoriteSongTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.sky = Song.objects.create(album=self.album, position='A3', title='Sky', sort_order=3, duration_seconds=252)
+        other = Album.objects.create(title='Other', artist='Artist', discogs_id='456')
+        self.elsewhere = Song.objects.create(album=other, position='1', title='Elsewhere', sort_order=1)
+        self.sky_json = {'id': self.sky.id, 'position': 'A3', 'title': 'Sky', 'duration_seconds': 252}
+
+    def create(self, body):
+        return client_for(self.user).post('/api/music/albums/123/review/', {'rating': 8, **body}, format='json')
+
+    def test_create_with_song_from_album(self):
+        response = self.create({'favorite_song_id': self.sky.id})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['favorite_song'], self.sky_json)
+        self.assertEqual(Review.objects.get().favorite_song, self.sky)
+
+    def test_create_without_song_is_null(self):
+        response = self.create({})
+        self.assertEqual((response.status_code, response.data['favorite_song']), (201, None))

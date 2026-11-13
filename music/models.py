@@ -166,6 +166,7 @@ class Review(models.Model):
     headline = models.CharField(max_length=HEADLINE_MAX, blank=True, default='')
     body = models.TextField(max_length=BODY_MAX, blank=True, default='')
     is_pinned = models.BooleanField(default=False, help_text="Pin this review to profile (max 2)")
+    favorite_song = models.ForeignKey(Song, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     
     # User selects genres for this album when creating review
     user_genres = models.ManyToManyField(Genre, blank=True, related_name='reviews', 

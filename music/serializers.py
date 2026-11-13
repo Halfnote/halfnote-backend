@@ -57,12 +57,13 @@ class ReviewSerializer(serializers.ModelSerializer):
     likes_count = serializers.SerializerMethodField()
     is_liked_by_user = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
+    favorite_song = SongSerializer(read_only=True)
     
     class Meta:
         model = Review
         fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'headline', 'body', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_artist_photo', 'album_year', 'album_discogs_id', 'is_pinned',
-                  'likes_count', 'is_liked_by_user', 'comments_count']
+                  'likes_count', 'is_liked_by_user', 'comments_count', 'favorite_song']
         read_only_fields = ['id', 'created_at']
     
     def get_user_avatar(self, obj):
@@ -102,10 +103,12 @@ class ReviewWriteSerializer(serializers.ModelSerializer):
     rating = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=10)
     headline = serializers.CharField(required=False, allow_blank=True, max_length=HEADLINE_MAX)
     body = serializers.CharField(required=False, allow_blank=True, max_length=BODY_MAX)
+    favorite_song_id = serializers.PrimaryKeyRelatedField(
+        source='favorite_song', queryset=Song.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Review
-        fields = ['rating', 'headline', 'body']
+        fields = ['rating', 'headline', 'body', 'favorite_song_id']
         # The model's check constraints are enforced in validate() with friendlier messages.
         validators = []
 
