@@ -629,3 +629,14 @@ class FavoriteSongTests(TestCase):
     def test_create_without_song_is_null(self):
         response = self.create({})
         self.assertEqual((response.status_code, response.data['favorite_song']), (201, None))
+
+    def test_rejects_song_from_another_album_or_missing(self):
+        for song_id in (self.elsewhere.id, 999999, 'abc'):
+            with self.subTest(song_id=song_id):
+                response = self.create({'favorite_song_id': song_id})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.data, {
+                    'error': 'Pick a song from this album',
+                    'fields': {'favorite_song_id': 'Pick a song from this album'},
+                })
+        self.assertFalse(Review.objects.exists())

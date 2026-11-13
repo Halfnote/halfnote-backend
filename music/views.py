@@ -312,7 +312,7 @@ def create_review(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    serializer = ReviewWriteSerializer(data=request.data)
+    serializer = ReviewWriteSerializer(data=request.data, context={'album': album})
     if not serializer.is_valid():
         return validation_error(serializer.errors)
     review = serializer.save(user=request.user, album=album)

@@ -98,13 +98,17 @@ class ReviewSerializer(serializers.ModelSerializer):
         except Exception:
             return 0
 
+PICK_A_SONG = 'Pick a song from this album'
+
+
 class ReviewWriteSerializer(serializers.ModelSerializer):
-    """Input for creating and editing a review. Pass partial=True for edits."""
+    """Input for creating and editing a review. Pass partial=True for edits, or context['album'] for creates."""
     rating = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=10)
     headline = serializers.CharField(required=False, allow_blank=True, max_length=HEADLINE_MAX)
     body = serializers.CharField(required=False, allow_blank=True, max_length=BODY_MAX)
     favorite_song_id = serializers.PrimaryKeyRelatedField(
-        source='favorite_song', queryset=Song.objects.all(), required=False, allow_null=True)
+        source='favorite_song', queryset=Song.objects.all(), required=False, allow_null=True,
+        error_messages={'does_not_exist': PICK_A_SONG, 'incorrect_type': PICK_A_SONG})
 
     class Meta:
         model = Review
@@ -116,6 +120,12 @@ class ReviewWriteSerializer(serializers.ModelSerializer):
         if '\n' in value or '\r' in value:
             raise serializers.ValidationError('No line breaks')
         return value
+
+    def validate_favorite_song_id(self, song):
+        album = self.instance.album if self.instance else self.context['album']
+        if song and song.album_id != album.pk:
+            raise serializers.ValidationError(PICK_A_SONG)
+        return song
 
     def validate(self, attrs):
         # On a partial edit, judge the review as it will stand after the change.
