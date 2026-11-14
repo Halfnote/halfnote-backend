@@ -9,16 +9,19 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import latest_rated_average, RecentlyViewedAlbum, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
+    AlbumSerializer, SongSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
@@ -191,10 +194,11 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
+    reviews = list(Review.objects.filter(album=album).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
-        'album': AlbumSerializer(album).data,
+        # Songs only on the album page, so album lists elsewhere don't query them per album.
+        'album': {**AlbumSerializer(album).data, 'songs': SongSerializer(album.songs.all(), many=True).data},
         'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
         'review_count': len({r.user_id for r in reviews}),
         'average_rating': latest_rated_average(reviews),
@@ -270,18 +274,20 @@ def import_album_from_discogs(discogs_id):
         return None
 
     artist = get_or_create_artist(album_data['artist'])
-    album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
-        'title': album_data['title'],
-        'artist': album_data['artist'],
-        'artist_rel': artist,
-        'year': album_data.get('year') or None,
-        'cover_url': album_data.get('cover_image', ''),
-        'artist_photo_url': artist.primary_image_url if artist else None,
-        'discogs_genres': album_data.get('genres', []),
-        'discogs_styles': album_data.get('styles', []),
-        'tracklist': album_data.get('tracklist', []),
-        'credits': album_data.get('credits', []),
-    })
+    with transaction.atomic():
+        album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
+            'title': album_data['title'],
+            'artist': album_data['artist'],
+            'artist_rel': artist,
+            'year': album_data.get('year') or None,
+            'cover_url': album_data.get('cover_image', ''),
+            'artist_photo_url': artist.primary_image_url if artist else None,
+            'discogs_genres': album_data.get('genres', []),
+            'discogs_styles': album_data.get('styles', []),
+            'tracklist': album_data.get('tracklist', []),
+            'credits': album_data.get('credits', []),
+        })
+        fill_songs(Song, album)
     return album
 
 
@@ -308,7 +314,7 @@ def create_review(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    serializer = ReviewWriteSerializer(data=request.data)
+    serializer = ReviewWriteSerializer(data=request.data, context={'album': album})
     if not serializer.is_valid():
         return validation_error(serializer.errors)
     review = serializer.save(user=request.user, album=album)
@@ -351,34 +357,27 @@ def review_detail(request, review_id):
         return Response({'message': 'Review deleted'}, status=204)
 
 
-@api_view(['POST', 'DELETE'])
+@api_view(['PUT', 'DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
-def toggle_review_like(request, review_id):
-    """Like or unlike a review"""
-    review = get_object_or_404(Review.objects.select_related('user'), id=review_id)
-    
-    like, created = ReviewLike.objects.get_or_create(
-        user=request.user,
-        review=review
-    )
-    
-    if not created:
-        # Unlike
-        like.delete()
-        action = 'unliked'
+def review_like(request, review_id):
+    """PUT likes, DELETE unlikes; both idempotent. POST is the deprecated toggle."""
+    review = get_object_or_404(Review, id=review_id)
+    likes = ReviewLike.objects.filter(user=request.user, review=review)
+    liked = not likes.exists() if request.method == 'POST' else request.method == 'PUT'
+
+    if liked:
+        likes.get_or_create(user=request.user, review=review)
+        # Only the first like is activity, so re-liking can't push a review back to the top.
+        activity = dict(user=request.user, activity_type='review_liked', review=review)
+        if not Activity.objects.filter(**activity).exists():
+            Activity.objects.create(**activity)
     else:
-        # Like and create activity
-        action = 'liked'
-        Activity.objects.create(
-            user=request.user,
-            activity_type='review_liked',
-            review=review
-        )
-    
-    return Response({
-        'action': action,
-        'like_count': ReviewLike.objects.filter(review=review).count()
-    })
+        likes.delete()
+
+    count = review.likes.count()
+    if request.method == 'POST':
+        return Response({'action': 'liked' if liked else 'unliked', 'like_count': count})
+    return Response({'liked': liked, 'likes_count': count})
 
 
 RECENTLY_VIEWED_LIMIT = 10
@@ -451,6 +450,65 @@ def activity_feed(request):
     paginated_activities = activities.order_by('-created_at')[offset:offset + limit]
     serializer = ActivitySerializer(paginated_activities, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+class FeedPagination(CursorPagination):
+    page_size = 20
+    ordering = ('-latest_at', '-id')
+
+
+def person(user):
+    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None}
+
+
+def count_by_review(model, review_ids):
+    return dict(model.objects.filter(review__in=review_ids).values_list('review').annotate(Count('id')))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def feed(request):
+    """One card per review, ordered by its newest counted activity (see activity-contract.md)."""
+    me = request.user
+    following = me.following.all()
+    # Filter before annotate so MAX only sees the counted activity rows.
+    reviews = (Review.objects
+               .filter(Q(activity__user=me) | Q(activity__user__in=following) | Q(user=me))
+               .annotate(latest_at=Max('activity__created_at'))
+               .filter(latest_at__isnull=False)
+               .select_related('user', 'album', 'favorite_song'))
+    paginator = FeedPagination()
+    page = paginator.paginate_queryset(reviews, request)
+
+    ids = [r.id for r in page]
+    latest_at = {r.id: r.latest_at for r in page}
+    candidates = (Activity.objects
+                  .filter(Q(user=me) | Q(user__in=following) | Q(review__user=me),
+                          review__in=ids, created_at__in=latest_at.values())
+                  .select_related('user').order_by('id'))
+    latest = {a.review_id: a for a in candidates if a.created_at == latest_at[a.review_id]}
+    likes = count_by_review(ReviewLike, ids)
+    comments = count_by_review(Comment, ids)
+    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
+
+    return paginator.get_paginated_response([{
+        'review': {
+            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
+            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
+            'is_liked': r.id in liked,
+            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
+        },
+        'author': person(r.user),
+        'album': {
+            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
+            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
+        },
+        'latest_activity': {
+            'type': latest[r.id].activity_type,
+            'actor': person(latest[r.id].user),
+            'created_at': latest[r.id].created_at,
+        },
+    } for r in page])
 
 
 # ============================================================================

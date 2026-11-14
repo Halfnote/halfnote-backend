@@ -22,7 +22,7 @@ urlpatterns = [
     
     # Review management
     path('reviews/<int:review_id>/', views.review_detail, name='review-detail'),
-    path('reviews/<int:review_id>/like/', views.toggle_review_like, name='toggle-review-like'),
+    path('reviews/<int:review_id>/like/', views.review_like, name='review-like'),
     path('reviews/<int:review_id>/likes/', views.review_likes, name='review-likes'),
     path('reviews/<int:review_id>/pin/', views.pin_review, name='pin-review'),
     path('reviews/<int:review_id>/comments/', views.review_comments, name='review-comments'),
@@ -31,6 +31,7 @@ urlpatterns = [
     path('comments/<int:comment_id>/', views.comment_detail, name='comment-detail'),
     
     # Activity and social
+    path('feed/', views.feed, name='feed'),
     path('activity/', views.activity_feed, name='activity-feed'),
     path('activity/<int:activity_id>/delete/', views.delete_activity, name='delete-activity'),
     

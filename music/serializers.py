@@ -1,10 +1,16 @@
 from rest_framework import serializers
-from .models import HEADLINE_MAX, BODY_MAX, Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist
+from .models import HEADLINE_MAX, BODY_MAX, Album, Review, Genre, ReviewLike, Activity, Comment, List, ListItem, ListLike, Artist, Song
 
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name']
+
+
+class SongSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Song
+        fields = ['id', 'position', 'title', 'duration_seconds']
 
 
 class ArtistSerializer(serializers.ModelSerializer):
@@ -51,12 +57,13 @@ class ReviewSerializer(serializers.ModelSerializer):
     likes_count = serializers.SerializerMethodField()
     is_liked_by_user = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
+    favorite_song = SongSerializer(read_only=True)
     
     class Meta:
         model = Review
         fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'headline', 'body', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_artist_photo', 'album_year', 'album_discogs_id', 'is_pinned',
-                  'likes_count', 'is_liked_by_user', 'comments_count']
+                  'likes_count', 'is_liked_by_user', 'comments_count', 'favorite_song']
         read_only_fields = ['id', 'created_at']
     
     def get_user_avatar(self, obj):
@@ -91,15 +98,21 @@ class ReviewSerializer(serializers.ModelSerializer):
         except Exception:
             return 0
 
+PICK_A_SONG = 'Pick a song from this album'
+
+
 class ReviewWriteSerializer(serializers.ModelSerializer):
-    """Input for creating and editing a review. Pass partial=True for edits."""
+    """Input for creating and editing a review. Pass partial=True for edits, or context['album'] for creates."""
     rating = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=10)
     headline = serializers.CharField(required=False, allow_blank=True, max_length=HEADLINE_MAX)
     body = serializers.CharField(required=False, allow_blank=True, max_length=BODY_MAX)
+    favorite_song_id = serializers.PrimaryKeyRelatedField(
+        source='favorite_song', queryset=Song.objects.all(), required=False, allow_null=True,
+        error_messages={'does_not_exist': PICK_A_SONG, 'incorrect_type': PICK_A_SONG})
 
     class Meta:
         model = Review
-        fields = ['rating', 'headline', 'body']
+        fields = ['rating', 'headline', 'body', 'favorite_song_id']
         # The model's check constraints are enforced in validate() with friendlier messages.
         validators = []
 
@@ -107,6 +120,12 @@ class ReviewWriteSerializer(serializers.ModelSerializer):
         if '\n' in value or '\r' in value:
             raise serializers.ValidationError('No line breaks')
         return value
+
+    def validate_favorite_song_id(self, song):
+        album = self.instance.album if self.instance else self.context['album']
+        if song and song.album_id != album.pk:
+            raise serializers.ValidationError(PICK_A_SONG)
+        return song
 
     def validate(self, attrs):
         # On a partial edit, judge the review as it will stand after the change.
