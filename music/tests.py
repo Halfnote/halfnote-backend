@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Comment, Genre, Review, ReviewLike
+from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song, fill_songs
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -497,6 +497,8 @@ class FeedTests(TestCase):
     def test_page_query_count_does_not_grow_with_cards(self):
         for minutes in range(25):
             review = self.post(self.friend if minutes % 2 else self.stranger, minutes)
+            review.favorite_song = Song.objects.create(album=review.album, position='1', title='One', sort_order=1)
+            review.save()
             ReviewLike.objects.create(user=self.stranger, review=review)
             Comment.objects.create(user=self.friend, review=review, content='c')
             self.act(self.friend, 'comment_created', review, minutes + 30)
@@ -550,3 +552,126 @@ class ReviewLikeTests(TestCase):
     def test_requires_login(self):
         for method in ('put', 'delete'):
             self.assertEqual(getattr(APIClient(), method)(self.url).status_code, 401)
+
+
+TRACKS = [
+    {'position': 'A1', 'title': 'Airbag', 'duration': '4:44',
+     'artists': [{'name': 'Radiohead'}], 'extraartists': [{'name': 'Nigel Godrich', 'role': 'Producer'}]},
+    {'position': '', 'title': 'Untitled', 'duration': '', 'artists': [], 'extraartists': []},
+    {'position': 'B1', 'title': 'Long One', 'duration': '1:02:03', 'artists': [], 'extraartists': []},
+    {'position': 'B2', 'title': 'Odd', 'duration': 'about 3m', 'artists': [], 'extraartists': []},
+]
+
+
+@patch('music.views.get_artist_photo', return_value=None)
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'tracklist': TRACKS})
+class SongImportTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+
+    def test_import_creates_one_song_per_track(self, *_):
+        client_for(self.user).get('/api/music/albums/777/')
+        songs = Song.objects.filter(album__discogs_id='777').order_by('sort_order')
+        self.assertEqual(
+            [(s.position, s.title, s.sort_order, s.duration_seconds) for s in songs],
+            [('A1', 'Airbag', 1, 284), ('2', 'Untitled', 2, None), ('B1', 'Long One', 3, 3723), ('B2', 'Odd', 4, None)])
+        self.assertEqual((songs[0].artists, songs[0].credits),
+                         ([{'name': 'Radiohead'}], [{'name': 'Nigel Godrich', 'role': 'Producer'}]))
+
+    def test_failed_song_fill_does_not_leave_an_album_without_songs(self, *_):
+        with patch('music.views.fill_songs', side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                client_for(self.user).get('/api/music/albums/777/')
+        self.assertFalse(Album.objects.filter(discogs_id='777').exists())
+
+
+class FillSongsTests(TestCase):
+    """fill_songs is what the backfill migration runs for albums imported before songs existed."""
+
+    def test_fills_from_stored_tracklist_and_refill_keeps_ids(self):
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123', tracklist=TRACKS)
+        fill_songs(Song, album)
+        ids = list(album.songs.values_list('id', flat=True))
+        self.assertEqual(list(album.songs.values_list('position', flat=True)), ['A1', '2', 'B1', 'B2'])
+
+        album.tracklist = [{**TRACKS[0], 'title': 'Airbag (Remastered)'}, *TRACKS[1:]]
+        fill_songs(Song, album)
+        self.assertEqual(list(album.songs.values_list('id', flat=True)), ids)
+        self.assertEqual(album.songs.first().title, 'Airbag (Remastered)')
+
+
+class AlbumSongsTests(TestCase):
+    def test_album_page_lists_songs_in_album_order(self):
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123', tracklist=TRACKS)
+        b1 = Song.objects.create(album=album, position='B1', title='Second', sort_order=2, duration_seconds=252)
+        a1 = Song.objects.create(album=album, position='A1', title='First', sort_order=1)
+        data = APIClient().get('/api/music/albums/123/').data['album']
+        self.assertEqual(data['songs'], [
+            {'id': a1.id, 'position': 'A1', 'title': 'First', 'duration_seconds': None},
+            {'id': b1.id, 'position': 'B1', 'title': 'Second', 'duration_seconds': 252},
+        ])
+        self.assertEqual(data['tracklist'], TRACKS)
+
+
+class FavoriteSongTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='u', password='pw')
+        self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.sky = Song.objects.create(album=self.album, position='A3', title='Sky', sort_order=3, duration_seconds=252)
+        other = Album.objects.create(title='Other', artist='Artist', discogs_id='456')
+        self.elsewhere = Song.objects.create(album=other, position='1', title='Elsewhere', sort_order=1)
+        self.sky_json = {'id': self.sky.id, 'position': 'A3', 'title': 'Sky', 'duration_seconds': 252}
+
+    def create(self, body):
+        return client_for(self.user).post('/api/music/albums/123/review/', {'rating': 8, **body}, format='json')
+
+    def test_create_with_song_from_album(self):
+        response = self.create({'favorite_song_id': self.sky.id})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['favorite_song'], self.sky_json)
+        self.assertEqual(Review.objects.get().favorite_song, self.sky)
+
+    def test_create_without_song_is_null(self):
+        response = self.create({})
+        self.assertEqual((response.status_code, response.data['favorite_song']), (201, None))
+
+    def test_rejects_song_from_another_album_or_missing(self):
+        for song_id in (self.elsewhere.id, 999999, 'abc'):
+            with self.subTest(song_id=song_id):
+                response = self.create({'favorite_song_id': song_id})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.data, {
+                    'error': 'Pick a song from this album',
+                    'fields': {'favorite_song_id': 'Pick a song from this album'},
+                })
+        self.assertFalse(Review.objects.exists())
+
+    def test_edit_sets_keeps_and_clears(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7)
+        url = f'/api/music/reviews/{review.id}/'
+        put = lambda body: client_for(self.user).put(url, body, format='json')
+        self.assertEqual(put({'favorite_song_id': self.sky.id}).data['favorite_song'], self.sky_json)
+        self.assertEqual(put({'rating': 9}).data['favorite_song'], self.sky_json)
+        response = put({'favorite_song_id': self.elsewhere.id})
+        self.assertEqual((response.status_code, list(response.data['fields'])), (400, ['favorite_song_id']))
+        self.assertEqual(put({'favorite_song_id': None}).data['favorite_song'], None)
+        review.refresh_from_db()
+        self.assertIsNone(review.favorite_song)
+
+
+    def test_deleting_song_clears_favourite(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)
+        self.sky.delete()
+        response = client_for(self.user).get(f'/api/music/reviews/{review.id}/')
+        self.assertEqual((response.status_code, response.data['favorite_song']), (200, None))
+
+    def test_feed_card_and_album_page_reviews_carry_favourite_song(self):
+        review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)
+        Activity.objects.create(user=self.user, activity_type='review_created', review=review)
+        card = client_for(self.user).get('/api/music/feed/').data['results'][0]
+        self.assertEqual(card['review']['favorite_song'], self.sky_json)
+        page = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual(page['reviews'][0]['favorite_song'], self.sky_json)

@@ -9,6 +9,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -18,9 +19,9 @@ from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import latest_rated_average, RecentlyViewedAlbum, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
 from .serializers import (
-    AlbumSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
+    AlbumSerializer, SongSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
@@ -193,10 +194,11 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = list(Review.objects.filter(album=album).select_related('user').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
+    reviews = list(Review.objects.filter(album=album).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
 
     return Response({
-        'album': AlbumSerializer(album).data,
+        # Songs only on the album page, so album lists elsewhere don't query them per album.
+        'album': {**AlbumSerializer(album).data, 'songs': SongSerializer(album.songs.all(), many=True).data},
         'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
         'review_count': len({r.user_id for r in reviews}),
         'average_rating': latest_rated_average(reviews),
@@ -272,18 +274,20 @@ def import_album_from_discogs(discogs_id):
         return None
 
     artist = get_or_create_artist(album_data['artist'])
-    album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
-        'title': album_data['title'],
-        'artist': album_data['artist'],
-        'artist_rel': artist,
-        'year': album_data.get('year') or None,
-        'cover_url': album_data.get('cover_image', ''),
-        'artist_photo_url': artist.primary_image_url if artist else None,
-        'discogs_genres': album_data.get('genres', []),
-        'discogs_styles': album_data.get('styles', []),
-        'tracklist': album_data.get('tracklist', []),
-        'credits': album_data.get('credits', []),
-    })
+    with transaction.atomic():
+        album, _ = Album.objects.get_or_create(discogs_id=discogs_id, defaults={
+            'title': album_data['title'],
+            'artist': album_data['artist'],
+            'artist_rel': artist,
+            'year': album_data.get('year') or None,
+            'cover_url': album_data.get('cover_image', ''),
+            'artist_photo_url': artist.primary_image_url if artist else None,
+            'discogs_genres': album_data.get('genres', []),
+            'discogs_styles': album_data.get('styles', []),
+            'tracklist': album_data.get('tracklist', []),
+            'credits': album_data.get('credits', []),
+        })
+        fill_songs(Song, album)
     return album
 
 
@@ -310,7 +314,7 @@ def create_review(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    serializer = ReviewWriteSerializer(data=request.data)
+    serializer = ReviewWriteSerializer(data=request.data, context={'album': album})
     if not serializer.is_valid():
         return validation_error(serializer.errors)
     review = serializer.save(user=request.user, album=album)
@@ -472,7 +476,7 @@ def feed(request):
                .filter(Q(activity__user=me) | Q(activity__user__in=following) | Q(user=me))
                .annotate(latest_at=Max('activity__created_at'))
                .filter(latest_at__isnull=False)
-               .select_related('user', 'album'))
+               .select_related('user', 'album', 'favorite_song'))
     paginator = FeedPagination()
     page = paginator.paginate_queryset(reviews, request)
 
@@ -491,7 +495,8 @@ def feed(request):
         'review': {
             'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
             'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
-            'is_liked': r.id in liked, 'favorite_song': None,
+            'is_liked': r.id in liked,
+            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
         },
         'author': person(r.user),
         'album': {
