@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: halfnote-backend
+    runtime: python
+    plan: free
+    region: virginia
+    branch: main
+    # Free plan has no pre-deploy hook, so migrations run during the build.
+    buildCommand: pip install -r requirements.txt && python manage.py migrate && python manage.py setup_cache
+    startCommand: gunicorn halfnote.wsgi --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: PGSSLMODE
+        value: require
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DISCOGS_CONSUMER_KEY
+        sync: false
+      - key: DISCOGS_CONSUMER_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
