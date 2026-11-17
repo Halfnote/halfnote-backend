@@ -359,6 +359,26 @@ class EditReviewTests(TestCase):
         self.assertEqual(self.put({'rating': 1}, other).status_code, 403)
 
 
+class ReviewDetailTests(TestCase):
+    def test_get_returns_the_feed_card_shape_for_any_review(self):
+        author = User.objects.create_user(username='stranger', password='pw', name='Stranger')
+        viewer = User.objects.create_user(username='viewer', password='pw')
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123', year=2026, tracklist=[{'title': 'One'}])
+        review = Review.objects.create(album=album, user=author, rating=8, headline='Head', body='Body')
+        ReviewLike.objects.create(user=viewer, review=review)
+
+        response = client_for(viewer).get(f'/api/music/reviews/{review.id}/')
+
+        self.assertEqual(response.status_code, 200)
+        card = response.data
+        self.assertNotIn('latest_activity', card)
+        self.assertEqual(card['author'], {'username': 'stranger', 'name': 'Stranger', 'avatar': None})
+        self.assertEqual(
+            (card['review']['id'], card['review']['rating'], card['review']['headline'], card['review']['likes_count'], card['review']['is_liked']),
+            (review.id, 8, 'Head', 1, True))
+        self.assertEqual((card['album']['discogs_id'], card['album']['tracklist']), ('123', [{'title': 'One'}]))
+
+
 class RepeatReviewStatsTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -871,7 +891,7 @@ class FavoriteSongTests(TestCase):
         review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)
         self.sky.delete()
         response = client_for(self.user).get(f'/api/music/reviews/{review.id}/')
-        self.assertEqual((response.status_code, response.data['favorite_song']), (200, None))
+        self.assertEqual((response.status_code, response.data['review']['favorite_song']), (200, None))
 
     def test_feed_card_and_album_page_reviews_carry_favourite_song(self):
         review = Review.objects.create(album=self.album, user=self.user, rating=7, favorite_song=self.sky)

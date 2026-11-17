@@ -355,7 +355,7 @@ def review_detail(request, review_id):
     review = get_object_or_404(Review, id=review_id)
     
     if request.method == 'GET':
-        return Response(ReviewSerializer(review, context={'request': request}).data)
+        return Response(review_cards([review], request.user)[0])
     
     # Only allow owner to modify
     if review.user != request.user:
