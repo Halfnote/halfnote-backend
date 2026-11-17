@@ -1,8 +1,10 @@
 from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -187,6 +189,17 @@ class AlbumLabelTests(TestCase):
         data = client_for(User.objects.create_user(username='u', password='pw')).get('/api/music/albums/888/').data
         self.assertEqual(data['album']['label'], 'Merky Records')
         self.assertEqual(Album.objects.get(discogs_id='888').label, 'Merky Records')
+
+
+@patch('music.management.commands.backfill_album_meta.time.sleep')
+@patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'label': 'Parlophone'})
+class BackfillAlbumMetaTests(TestCase):
+    def test_fills_empty_labels_and_skips_filled_ones(self, details, _):
+        Album.objects.create(title='Empty', artist='X', discogs_id='1')
+        Album.objects.create(title='Filled', artist='X', discogs_id='2', label='XL')
+        call_command('backfill_album_meta', stdout=StringIO())
+        self.assertEqual(dict(Album.objects.values_list('discogs_id', 'label')), {'1': 'Parlophone', '2': 'XL'})
+        details.assert_called_once_with('1')
 
 
 class SearchArtistPhotoTests(TestCase):
