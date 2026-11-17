@@ -173,7 +173,7 @@ class AlbumAdmin(admin.ModelAdmin):
     
     def avg_rating(self, obj):
         """Show average rating for this album"""
-        avg = latest_rated_average(obj.reviews.all())
+        avg, _ = latest_rated_average(obj.reviews.all())
         if avg:
             return f"{avg:.1f}/10"
         return "No ratings"

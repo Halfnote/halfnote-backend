@@ -9,9 +9,10 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Exists, Max, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -28,6 +29,8 @@ from .serializers import (
 )
 from accounts.serializers import UserSerializer
 from .services import ExternalMusicService
+
+User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
@@ -195,14 +198,20 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = list(Review.objects.filter(album=album).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
+    is_following_author = Exists(User.following.through.objects.filter(from_user_id=request.user.id, to_user=OuterRef('user')))
+    reviews = list(Review.objects.filter(album=album).annotate(is_following_author=is_following_author).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-is_following_author', '-created_at'))
+    average_rating, rating_count = latest_rated_average(reviews)
 
     return Response({
         # Songs only on the album page, so album lists elsewhere don't query them per album.
         'album': {**AlbumSerializer(album).data, 'songs': SongSerializer(album.songs.all(), many=True).data},
-        'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
+        'reviews': [
+            {**data, 'is_following_author': review.is_following_author}
+            for review, data in zip(reviews, ReviewSerializer(reviews, many=True, context={'request': request}).data)
+        ],
         'review_count': len({r.user_id for r in reviews}),
-        'average_rating': latest_rated_average(reviews),
+        'average_rating': average_rating,
+        'rating_count': rating_count,
         'exists_in_db': True,
         'cached': False
     })
@@ -625,8 +634,6 @@ def lists_view(request):
 @permission_classes([AllowAny])
 def user_lists(request, username):
     """Get lists by a specific user"""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
     
     user = get_object_or_404(User, username=username)
     

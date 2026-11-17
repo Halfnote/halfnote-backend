@@ -335,12 +335,51 @@ class RepeatReviewStatsTests(TestCase):
         data = client_for(self.a).get('/api/music/albums/123/').data
         self.assertEqual((data['average_rating'], data['review_count'], len(data['reviews'])), (8, 2, 4))
 
+    def test_rating_count_counts_each_users_latest_rated_review_once(self):
+        c = User.objects.create_user(username='c', password='pw')
+        self.review(self.a, 4)
+        self.review(self.a, 10)
+        self.review(self.b, 6)
+        self.review(self.b, None)
+        self.review(c, None)
+        data = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual((data['rating_count'], data['review_count']), (2, 3))
+
+    def test_rating_count_is_zero_without_ratings(self):
+        self.review(self.a, None)
+        data = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual((data['rating_count'], data['average_rating']), (0, None))
+
     def test_album_card_shows_most_recent_review(self):
         self.review(self.a, 4)
         latest = self.review(self.a, None)
         self.a.favorite_albums.add(self.album)
         card = client_for(self.a).get('/api/accounts/users/a/').data['favorite_albums'][0]
         self.assertEqual((card['user_review_id'], card['user_rating']), (latest.id, None))
+
+
+class AlbumReviewOrderTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.viewer = User.objects.create_user(username='viewer', password='pw')
+        now = timezone.now()
+        for days_ago, name in [(14, 'maraq'), (2, 'kofiadj'), (6, 'priyaplays')]:
+            Review.objects.create(album=album, user=User.objects.create_user(username=name, password='pw'),
+                                  rating=7, created_at=now - timedelta(days=days_ago))
+        self.viewer.following.add(User.objects.get(username='maraq'))
+
+    def rows(self, client):
+        return [(r['username'], r['is_following_author'])
+                for r in client.get('/api/music/albums/123/').data['reviews']]
+
+    def test_followed_authors_first_then_newest(self):
+        self.assertEqual(self.rows(client_for(self.viewer)),
+                         [('maraq', True), ('kofiadj', False), ('priyaplays', False)])
+
+    def test_anonymous_gets_newest_first_and_no_follows(self):
+        self.assertEqual(self.rows(APIClient()),
+                         [('kofiadj', False), ('priyaplays', False), ('maraq', False)])
 
 
 class ActivityHeadlineTests(TestCase):

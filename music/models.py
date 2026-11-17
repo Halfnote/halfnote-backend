@@ -148,12 +148,12 @@ def fill_songs(song_model, album):
 
 
 def latest_rated_average(reviews):
-    """Average of each user's latest rated review, so repeat reviews can't stack the score."""
+    """(average, count) of each user's latest rated review, so repeat reviews can't stack the score."""
     latest = {}
     for review in sorted(reviews, key=lambda r: r.created_at, reverse=True):
         if review.rating is not None:
             latest.setdefault(review.user_id, review.rating)
-    return sum(latest.values()) / len(latest) if latest else None
+    return (sum(latest.values()) / len(latest) if latest else None), len(latest)
 
 
 class Review(models.Model):
