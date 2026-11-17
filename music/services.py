@@ -114,7 +114,12 @@ class ExternalMusicService:
 
         try:
             # First try to get the master release
-            master_data = self._make_request(f"masters/{discogs_id}")
+            try:
+                master_data = self._make_request(f"masters/{discogs_id}")
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code != 404:
+                    raise
+                master_data = None
 
             if master_data:
                 # If we found a master release, get the main release

@@ -1,7 +1,9 @@
 from datetime import timedelta
 from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import requests
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
@@ -178,6 +180,28 @@ def discogs_label_response(endpoint, params=None):
     if endpoint.startswith('masters/'):
         return {'main_release': 1}
     return {'title': 'Gang Signs & Prayer', 'artists': [{'name': 'Stormzy'}], 'labels': [{'name': 'Merky Records (2)'}]}
+
+
+def discogs_error(code):
+    return requests.exceptions.HTTPError(response=SimpleNamespace(status_code=code))
+
+
+class ReleaseFallbackTests(TestCase):
+    def details(self, master_error):
+        def respond(endpoint, params=None):
+            if endpoint.startswith('masters/'):
+                raise master_error
+            return {'title': 'Legendary Love', 'artists': [{'name': 'Snoh Aalegra'}]}
+        with patch.object(ExternalMusicService, '_make_request', side_effect=respond) as request:
+            return ExternalMusicService().get_album_details('39018578'), [c.args[0] for c in request.call_args_list]
+
+    def test_id_that_is_not_a_master_is_read_as_a_release(self):
+        album, endpoints = self.details(discogs_error(404))
+        self.assertEqual((album['title'], endpoints), ('Legendary Love', ['masters/39018578', 'releases/39018578']))
+
+    def test_other_master_errors_do_not_fall_back_to_a_release(self):
+        album, endpoints = self.details(discogs_error(429))
+        self.assertEqual((album, endpoints), (None, ['masters/39018578']))
 
 
 @patch('music.views.get_artist_photo', return_value=None)
