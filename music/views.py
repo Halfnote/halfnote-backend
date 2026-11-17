@@ -8,7 +8,7 @@ import logging
 import requests
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -541,9 +541,9 @@ def feed(request):
 def discover(request):
     raw = request.query_params.get('date')
     try:
-        day = date.fromisoformat(raw) if raw else timezone.now().date()
+        day = datetime.strptime(raw, '%Y-%m-%d').date() if raw else timezone.now().date()
     except ValueError:
-        return Response({'error': 'date must be YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'date must be YYYY-MM-DD'}, status=400)
     entry = (OnThisDay.objects.filter(month=day.month, day=day.day).order_by('?')
              .values('month', 'day', 'year', 'headline', 'body', 'discogs_id').first())
     if entry:

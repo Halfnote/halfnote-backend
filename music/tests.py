@@ -191,13 +191,13 @@ class AlbumLabelTests(TestCase):
         self.assertEqual(Album.objects.get(discogs_id='888').label, 'Merky Records')
 
 
-@patch('music.management.commands.backfill_album_meta.time.sleep')
+@patch('music.management.commands.backfill_album_labels.time.sleep')
 @patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'label': 'Parlophone'})
 class BackfillAlbumMetaTests(TestCase):
     def test_fills_empty_labels_and_skips_filled_ones(self, details, _):
         Album.objects.create(title='Empty', artist='X', discogs_id='1')
         Album.objects.create(title='Filled', artist='X', discogs_id='2', label='XL')
-        call_command('backfill_album_meta', stdout=StringIO())
+        call_command('backfill_album_labels', stdout=StringIO())
         self.assertEqual(dict(Album.objects.values_list('discogs_id', 'label')), {'1': 'Parlophone', '2': 'XL'})
         details.assert_called_once_with('1')
 
@@ -610,7 +610,7 @@ class DiscoverTests(TestCase):
         self.assertEqual(APIClient().get(self.url).status_code, 401)
 
     def test_invalid_date_is_400(self):
-        for bad in ('2026-13-01', 'tomorrow', '16/11/2026'):
+        for bad in ('2026-13-01', 'tomorrow', '16/11/2026', '20261116', '2026-W47-1'):
             response = client_for(self.me).get(self.url, {'date': bad})
             self.assertEqual((response.status_code, response.data), (400, {'error': 'date must be YYYY-MM-DD'}))
 
@@ -656,6 +656,11 @@ class DiscoverTests(TestCase):
         unliked = self.review(1)
         top = self.review(10, likes=3)
         self.assertEqual(self.top_ids(), [top.id, newer.id, older.id, unliked.id])
+
+    def test_top_reviews_include_unrated_short_takes(self):
+        album = Album.objects.create(title='T', artist='A', discogs_id='unrated', year=2001)
+        take = Review.objects.create(album=album, user=self.me, rating=None, headline='short take')
+        self.assertEqual(self.top_ids(), [take.id])
 
     def test_top_reviews_cap_at_5(self):
         reviews = [self.review(1, likes=n) for n in range(7)]
