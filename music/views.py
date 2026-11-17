@@ -6,6 +6,7 @@ Optimized views for music search, reviews, and social features with performance 
 import re
 import logging
 import requests
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from django.conf import settings
@@ -127,6 +128,13 @@ def get_artist_photos(artist_names):
     return photos
 
 
+def with_average_ratings(results):
+    reviews = defaultdict(list)
+    for review in Review.objects.filter(album__discogs_id__in=[str(r['id']) for r in results], rating__isnull=False).select_related('album'):
+        reviews[review.album.discogs_id].append(review)
+    return [{**r, 'average_rating': latest_rated_average(reviews[str(r['id'])])[0]} for r in results]
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -139,7 +147,7 @@ def search(request):
     cache_key = f'search_{query}'
     cached_results = cache.get(cache_key)
     if cached_results:
-        return Response({'results': cached_results, 'cached': True})
+        return Response({'results': with_average_ratings(cached_results), 'cached': True})
     
     try:
         results = search_discogs(query)
@@ -179,7 +187,7 @@ def search(request):
         # Cache for 15 minutes
         cache.set(cache_key, processed_results, 900)
         
-        return Response({'results': processed_results, 'cached': False})
+        return Response({'results': with_average_ratings(processed_results), 'cached': False})
         
     except Exception as e:
         logger.error(f"Search failed: {e}")

@@ -217,6 +217,30 @@ class SearchArtistPhotoTests(TestCase):
         self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
 
 
+class SearchAverageRatingTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.enterContext(patch('music.views.get_artist_photo', return_value=None))
+        self.enterContext(patch('music.views.search_discogs', return_value=[
+            {'id': 123, 'title': 'Artist - Rated'}, {'id': 456, 'title': 'Artist - Unknown'}]))
+        self.album = Album.objects.create(title='Rated', artist='Artist', discogs_id='123')
+        self.a = User.objects.create_user(username='a', password='pw')
+        now = timezone.now()
+        Review.objects.create(album=self.album, user=self.a, rating=4, created_at=now - timedelta(days=1))
+        Review.objects.create(album=self.album, user=self.a, rating=8, created_at=now)
+
+    def ratings(self):
+        return {r['id']: r['average_rating'] for r in APIClient().get('/api/music/search/', {'q': 'artist'}).json()['results']}
+
+    def test_results_carry_latest_rated_average_or_null(self):
+        self.assertEqual(self.ratings(), {123: 8, 456: None})
+
+    def test_cached_search_reflects_new_rating(self):
+        self.ratings()
+        Review.objects.create(album=self.album, user=User.objects.create_user(username='b', password='pw'), rating=4)
+        self.assertEqual(self.ratings(), {123: 6, 456: None})
+
+
 class ReviewConstraintTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='u', password='pw')
