@@ -198,6 +198,7 @@ class ExternalMusicService:
                 'styles': data.get('styles', []),
                 'cover_image': '',
                 'discogs_id': discogs_id,
+                'label': self._clean_artist_name(data['labels'][0]['name']) if data.get('labels') else '',
                 'tracklist': tracklist,
                 'credits': credits
             }

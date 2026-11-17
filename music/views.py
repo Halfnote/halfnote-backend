@@ -286,6 +286,7 @@ def import_album_from_discogs(discogs_id):
             'discogs_styles': album_data.get('styles', []),
             'tracklist': album_data.get('tracklist', []),
             'credits': album_data.get('credits', []),
+            'label': album_data.get('label', ''),
         })
         fill_songs(Song, album)
     return album

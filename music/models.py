@@ -79,6 +79,7 @@ class Album(models.Model):
     cover_url = models.URLField(max_length=500, null=True, blank=True)
     artist_photo_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to artist photo from external API (deprecated, use artist_rel)")
     discogs_id = models.CharField(max_length=50, unique=True)
+    label = models.CharField(max_length=255, blank=True, default='')
     
     # User-assigned genres (from predefined list)
     genres = models.ManyToManyField(Genre, blank=True, related_name='albums')

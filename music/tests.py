@@ -172,6 +172,23 @@ class AlbumArtistPhotoTests(TestCase):
         self.assertEqual([m.call_count for m in mocks], [1, 1, 1])
 
 
+def discogs_label_response(endpoint, params=None):
+    if endpoint.startswith('masters/'):
+        return {'main_release': 1}
+    return {'title': 'Gang Signs & Prayer', 'artists': [{'name': 'Stormzy'}], 'labels': [{'name': 'Merky Records (2)'}]}
+
+
+@patch('music.views.get_artist_photo', return_value=None)
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, '_make_request', side_effect=discogs_label_response)
+class AlbumLabelTests(TestCase):
+    def test_album_detail_returns_label_without_discogs_suffix(self, *_):
+        cache.clear()
+        data = client_for(User.objects.create_user(username='u', password='pw')).get('/api/music/albums/888/').data
+        self.assertEqual(data['album']['label'], 'Merky Records')
+        self.assertEqual(Album.objects.get(discogs_id='888').label, 'Merky Records')
+
+
 class SearchArtistPhotoTests(TestCase):
     def setUp(self):
         cache.clear()
