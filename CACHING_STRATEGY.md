@@ -106,7 +106,8 @@ else:
 | **Album Metadata** | Not cached | The first view saves the album from Discogs and later views read the DB; reviews carry per-viewer `is_liked_by_user` |
 | **User Profile, Followers/Following Lists** | Not cached | Removed: `is_following` is per viewer but the key was shared |
 | **User Activity, Review Likes** | Not cached | Removed: reviews carry per-viewer `is_liked_by_user` but the key was shared |
-| **Search Results** | 5 minutes | Balance between freshness and performance |
+| **Search Results** | 15 minutes, Discogs results only | `average_rating` is added after the cache read, so ratings are always current |
+| **Discover** | Not cached | `top_reviews` carries per-viewer `is_liked` and `on_this_day` is picked at random per request |
 | **Artist Photos (Search)** | 24 hours, found photos only | One entry per artist, so a new query reuses photos; a failed or empty lookup is retried on the next search |
 | **Review Details** | 15 minutes | Individual reviews change less frequently |
 

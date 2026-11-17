@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count
-from .models import latest_rated_average, Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist
+from .models import latest_rated_average, Album, Review, Genre, Comment, Activity, ReviewLike, List, ListItem, ListLike, Artist, OnThisDay
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
@@ -173,7 +173,7 @@ class AlbumAdmin(admin.ModelAdmin):
     
     def avg_rating(self, obj):
         """Show average rating for this album"""
-        avg = latest_rated_average(obj.reviews.all())
+        avg, _ = latest_rated_average(obj.reviews.all())
         if avg:
             return f"{avg:.1f}/10"
         return "No ratings"
@@ -381,6 +381,11 @@ class ListItemAdmin(admin.ModelAdmin):
 class ListLikeAdmin(admin.ModelAdmin):
     list_display = ['user', 'list', 'created_at']
     search_fields = ['user__username', 'list__name']
+
+@admin.register(OnThisDay)
+class OnThisDayAdmin(admin.ModelAdmin):
+    list_display = ['month', 'day', 'year', 'headline']
+    search_fields = ['headline']
 
 # Customize admin site headers
 admin.site.site_header = "halfnote Administration"

@@ -149,7 +149,7 @@ class AlbumSerializer(serializers.ModelSerializer):
         model = Album
         fields = [
             'id', 'title', 'artist', 'artist_rel', 'year', 'cover_url', 'artist_photo_url',
-            'discogs_id', 'genres', 'discogs_genres', 'discogs_styles',
+            'discogs_id', 'label', 'genres', 'discogs_genres', 'discogs_styles',
             'tracklist', 'credits', 'created_at', 'updated_at'
         ]
 

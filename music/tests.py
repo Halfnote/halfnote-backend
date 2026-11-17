@@ -1,13 +1,17 @@
 from datetime import timedelta
+from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import requests
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song, fill_songs
+from music.models import Activity, Album, Comment, Genre, OnThisDay, Review, ReviewLike, Song, fill_songs
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -172,6 +176,56 @@ class AlbumArtistPhotoTests(TestCase):
         self.assertEqual([m.call_count for m in mocks], [1, 1, 1])
 
 
+def discogs_label_response(endpoint, params=None):
+    if endpoint.startswith('masters/'):
+        return {'main_release': 1}
+    return {'title': 'Gang Signs & Prayer', 'artists': [{'name': 'Stormzy'}], 'labels': [{'name': 'Merky Records (2)'}]}
+
+
+def discogs_error(code):
+    return requests.exceptions.HTTPError(response=SimpleNamespace(status_code=code))
+
+
+class ReleaseFallbackTests(TestCase):
+    def details(self, master_error):
+        def respond(endpoint, params=None):
+            if endpoint.startswith('masters/'):
+                raise master_error
+            return {'title': 'Legendary Love', 'artists': [{'name': 'Snoh Aalegra'}]}
+        with patch.object(ExternalMusicService, '_make_request', side_effect=respond) as request:
+            return ExternalMusicService().get_album_details('39018578'), [c.args[0] for c in request.call_args_list]
+
+    def test_id_that_is_not_a_master_is_read_as_a_release(self):
+        album, endpoints = self.details(discogs_error(404))
+        self.assertEqual((album['title'], endpoints), ('Legendary Love', ['masters/39018578', 'releases/39018578']))
+
+    def test_other_master_errors_do_not_fall_back_to_a_release(self):
+        album, endpoints = self.details(discogs_error(429))
+        self.assertEqual((album, endpoints), (None, ['masters/39018578']))
+
+
+@patch('music.views.get_artist_photo', return_value=None)
+@patch.object(ExternalMusicService, 'search_artist', return_value=None)
+@patch.object(ExternalMusicService, '_make_request', side_effect=discogs_label_response)
+class AlbumLabelTests(TestCase):
+    def test_album_detail_returns_label_without_discogs_suffix(self, *_):
+        cache.clear()
+        data = client_for(User.objects.create_user(username='u', password='pw')).get('/api/music/albums/888/').data
+        self.assertEqual(data['album']['label'], 'Merky Records')
+        self.assertEqual(Album.objects.get(discogs_id='888').label, 'Merky Records')
+
+
+@patch('music.management.commands.backfill_album_labels.time.sleep')
+@patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'label': 'Parlophone'})
+class BackfillAlbumMetaTests(TestCase):
+    def test_fills_empty_labels_and_skips_filled_ones(self, details, _):
+        Album.objects.create(title='Empty', artist='X', discogs_id='1')
+        Album.objects.create(title='Filled', artist='X', discogs_id='2', label='XL')
+        call_command('backfill_album_labels', stdout=StringIO())
+        self.assertEqual(dict(Album.objects.values_list('discogs_id', 'label')), {'1': 'Parlophone', '2': 'XL'})
+        details.assert_called_once_with('1')
+
+
 class SearchArtistPhotoTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -185,6 +239,30 @@ class SearchArtistPhotoTests(TestCase):
 
         self.assertEqual(photo.call_count, 1)
         self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
+
+
+class SearchAverageRatingTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.enterContext(patch('music.views.get_artist_photo', return_value=None))
+        self.enterContext(patch('music.views.search_discogs', return_value=[
+            {'id': 123, 'title': 'Artist - Rated'}, {'id': 456, 'title': 'Artist - Unknown'}]))
+        self.album = Album.objects.create(title='Rated', artist='Artist', discogs_id='123')
+        self.a = User.objects.create_user(username='a', password='pw')
+        now = timezone.now()
+        Review.objects.create(album=self.album, user=self.a, rating=4, created_at=now - timedelta(days=1))
+        Review.objects.create(album=self.album, user=self.a, rating=8, created_at=now)
+
+    def ratings(self):
+        return {r['id']: r['average_rating'] for r in APIClient().get('/api/music/search/', {'q': 'artist'}).json()['results']}
+
+    def test_results_carry_latest_rated_average_or_null(self):
+        self.assertEqual(self.ratings(), {123: 8, 456: None})
+
+    def test_cached_search_reflects_new_rating(self):
+        self.ratings()
+        Review.objects.create(album=self.album, user=User.objects.create_user(username='b', password='pw'), rating=4)
+        self.assertEqual(self.ratings(), {123: 6, 456: None})
 
 
 class ReviewConstraintTests(TestCase):
@@ -305,12 +383,51 @@ class RepeatReviewStatsTests(TestCase):
         data = client_for(self.a).get('/api/music/albums/123/').data
         self.assertEqual((data['average_rating'], data['review_count'], len(data['reviews'])), (8, 2, 4))
 
+    def test_rating_count_counts_each_users_latest_rated_review_once(self):
+        c = User.objects.create_user(username='c', password='pw')
+        self.review(self.a, 4)
+        self.review(self.a, 10)
+        self.review(self.b, 6)
+        self.review(self.b, None)
+        self.review(c, None)
+        data = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual((data['rating_count'], data['review_count']), (2, 3))
+
+    def test_rating_count_is_zero_without_ratings(self):
+        self.review(self.a, None)
+        data = APIClient().get('/api/music/albums/123/').data
+        self.assertEqual((data['rating_count'], data['average_rating']), (0, None))
+
     def test_album_card_shows_most_recent_review(self):
         self.review(self.a, 4)
         latest = self.review(self.a, None)
         self.a.favorite_albums.add(self.album)
         card = client_for(self.a).get('/api/accounts/users/a/').data['favorite_albums'][0]
         self.assertEqual((card['user_review_id'], card['user_rating']), (latest.id, None))
+
+
+class AlbumReviewOrderTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
+        self.viewer = User.objects.create_user(username='viewer', password='pw')
+        now = timezone.now()
+        for days_ago, name in [(14, 'maraq'), (2, 'kofiadj'), (6, 'priyaplays')]:
+            Review.objects.create(album=album, user=User.objects.create_user(username=name, password='pw'),
+                                  rating=7, created_at=now - timedelta(days=days_ago))
+        self.viewer.following.add(User.objects.get(username='maraq'))
+
+    def rows(self, client):
+        return [(r['username'], r['is_following_author'])
+                for r in client.get('/api/music/albums/123/').data['reviews']]
+
+    def test_followed_authors_first_then_newest(self):
+        self.assertEqual(self.rows(client_for(self.viewer)),
+                         [('maraq', True), ('kofiadj', False), ('priyaplays', False)])
+
+    def test_anonymous_gets_newest_first_and_no_follows(self):
+        self.assertEqual(self.rows(APIClient()),
+                         [('kofiadj', False), ('priyaplays', False), ('maraq', False)])
 
 
 class ActivityHeadlineTests(TestCase):
@@ -505,6 +622,94 @@ class FeedTests(TestCase):
         client = client_for(self.me)
         with self.assertNumQueries(5):
             self.assertEqual(len(client.get(self.url).data['results']), 20)
+
+
+class DiscoverTests(TestCase):
+    url = '/api/music/discover/'
+
+    def setUp(self):
+        self.me = User.objects.create_user(username='me', password='pw')
+
+    def test_requires_login(self):
+        self.assertEqual(APIClient().get(self.url).status_code, 401)
+
+    def test_invalid_date_is_400(self):
+        for bad in ('2026-13-01', 'tomorrow', '16/11/2026', '20261116', '2026-W47-1'):
+            response = client_for(self.me).get(self.url, {'date': bad})
+            self.assertEqual((response.status_code, response.data), (400, {'error': 'date must be YYYY-MM-DD'}))
+
+    def discover(self, **params):
+        response = client_for(self.me).get(self.url, params)
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def test_on_this_day_is_picked_for_the_dates_month_and_day(self):
+        OnThisDay.objects.create(month=11, day=16, year=1986, headline='Other day')
+        OnThisDay.objects.create(month=10, day=15, year=1986, headline='Other month')
+        OnThisDay.objects.create(month=11, day=15, year=1986, headline='Licensed to Ill', body='b', discogs_id='1234567')
+        self.assertEqual(self.discover(date='2026-11-15')['on_this_day'], {
+            'month': 11, 'day': 15, 'year': 1986, 'years_ago': 40,
+            'headline': 'Licensed to Ill', 'body': 'b', 'discogs_id': '1234567',
+        })
+
+    def test_on_this_day_without_linked_album(self):
+        OnThisDay.objects.create(month=2, day=29, year=2000, headline='Leap')
+        entry = self.discover(date='2024-02-29')['on_this_day']
+        self.assertEqual((entry['years_ago'], entry['body'], entry['discogs_id']), (24, '', None))
+
+    def test_on_this_day_is_null_when_no_entry(self):
+        OnThisDay.objects.create(month=11, day=16, year=1986, headline='Other day')
+        self.assertIsNone(self.discover(date='2026-11-15')['on_this_day'])
+
+    def review(self, days_ago, likes=0, user=None):
+        album = Album.objects.create(title='T', artist='A', discogs_id=f'{days_ago}-{likes}', year=2001)
+        review = Review.objects.create(album=album, user=user or self.me, rating=7, headline='h',
+                                       created_at=timezone.now() - timedelta(days=days_ago))
+        for n in range(likes):
+            liker = User.objects.create_user(username=f'liker-{review.id}-{n}', password='pw')
+            ReviewLike.objects.create(user=liker, review=review)
+        return review
+
+    def top_ids(self):
+        return [card['review']['id'] for card in self.discover()['top_reviews']]
+
+    def test_top_reviews_by_likes_then_newest_within_30_days(self):
+        self.review(31, likes=9)
+        older = self.review(29, likes=1)
+        newer = self.review(2, likes=1)
+        unliked = self.review(1)
+        top = self.review(10, likes=3)
+        self.assertEqual(self.top_ids(), [top.id, newer.id, older.id, unliked.id])
+
+    def test_top_reviews_include_unrated_short_takes(self):
+        album = Album.objects.create(title='T', artist='A', discogs_id='unrated', year=2001)
+        take = Review.objects.create(album=album, user=self.me, rating=None, headline='short take')
+        self.assertEqual(self.top_ids(), [take.id])
+
+    def test_top_reviews_cap_at_5(self):
+        reviews = [self.review(1, likes=n) for n in range(7)]
+        self.assertEqual(self.top_ids(), [r.id for r in reversed(reviews[2:])])
+
+    def test_top_review_card_is_the_feed_card_without_latest_activity(self):
+        friend = User.objects.create_user(username='friend', password='pw')
+        self.me.following.add(friend)
+        review = self.review(1, likes=2, user=friend)
+        ReviewLike.objects.create(user=self.me, review=review)
+        Comment.objects.create(user=friend, review=review, content='c')
+        Activity.objects.create(user=friend, activity_type='review_created', review=review)
+
+        feed_card = client_for(self.me).get('/api/music/feed/').data['results'][0]
+        del feed_card['latest_activity']
+        card = self.discover()['top_reviews'][0]
+        self.assertEqual(card, feed_card)
+        self.assertEqual((card['review']['likes_count'], card['review']['is_liked']), (3, True))
+
+        card = client_for(friend).get(self.url).data['top_reviews'][0]
+        self.assertFalse(card['review']['is_liked'])
+
+    def test_no_recent_reviews_is_empty_list(self):
+        self.review(40, likes=2)
+        self.assertEqual(self.discover()['top_reviews'], [])
 
 
 class ReviewLikeTests(TestCase):

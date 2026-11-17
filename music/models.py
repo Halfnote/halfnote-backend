@@ -79,6 +79,7 @@ class Album(models.Model):
     cover_url = models.URLField(max_length=500, null=True, blank=True)
     artist_photo_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to artist photo from external API (deprecated, use artist_rel)")
     discogs_id = models.CharField(max_length=50, unique=True)
+    label = models.CharField(max_length=255, blank=True, default='')
     
     # User-assigned genres (from predefined list)
     genres = models.ManyToManyField(Genre, blank=True, related_name='albums')
@@ -147,12 +148,12 @@ def fill_songs(song_model, album):
 
 
 def latest_rated_average(reviews):
-    """Average of each user's latest rated review, so repeat reviews can't stack the score."""
+    """(average, count) of each user's latest rated review, so repeat reviews can't stack the score."""
     latest = {}
     for review in sorted(reviews, key=lambda r: r.created_at, reverse=True):
         if review.rating is not None:
             latest.setdefault(review.user_id, review.rating)
-    return sum(latest.values()) / len(latest) if latest else None
+    return (sum(latest.values()) / len(latest) if latest else None), len(latest)
 
 
 class Review(models.Model):
@@ -330,3 +331,18 @@ class RecentlyViewedAlbum(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user', 'album'], name='recently_viewed_once_per_album')]
         indexes = [models.Index(fields=['user', '-viewed_at'])]
+
+
+class OnThisDay(models.Model):
+    month = models.PositiveSmallIntegerField()
+    day = models.PositiveSmallIntegerField()
+    year = models.PositiveSmallIntegerField()
+    headline = models.CharField(max_length=200)
+    body = models.TextField(blank=True, default='')
+    discogs_id = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['month', 'day'])]
+
+    def __str__(self):
+        return f"{self.year}-{self.month:02}-{self.day:02} {self.headline}"

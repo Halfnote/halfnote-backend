@@ -6,11 +6,14 @@ Optimized views for music search, reviews, and social features with performance 
 import re
 import logging
 import requests
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Exists, Max, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -19,7 +22,7 @@ from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist, OnThisDay
 from .serializers import (
     AlbumSerializer, SongSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
@@ -27,6 +30,8 @@ from .serializers import (
 )
 from accounts.serializers import UserSerializer
 from .services import ExternalMusicService
+
+User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +128,13 @@ def get_artist_photos(artist_names):
     return photos
 
 
+def with_average_ratings(results):
+    reviews = defaultdict(list)
+    for review in Review.objects.filter(album__discogs_id__in=[str(r['id']) for r in results], rating__isnull=False).select_related('album'):
+        reviews[review.album.discogs_id].append(review)
+    return [{**r, 'average_rating': latest_rated_average(reviews[str(r['id'])])[0]} for r in results]
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
@@ -135,7 +147,7 @@ def search(request):
     cache_key = f'search_{query}'
     cached_results = cache.get(cache_key)
     if cached_results:
-        return Response({'results': cached_results, 'cached': True})
+        return Response({'results': with_average_ratings(cached_results), 'cached': True})
     
     try:
         results = search_discogs(query)
@@ -175,7 +187,7 @@ def search(request):
         # Cache for 15 minutes
         cache.set(cache_key, processed_results, 900)
         
-        return Response({'results': processed_results, 'cached': False})
+        return Response({'results': with_average_ratings(processed_results), 'cached': False})
         
     except Exception as e:
         logger.error(f"Search failed: {e}")
@@ -194,14 +206,20 @@ def album_detail(request, discogs_id):
     if not album:
         return Response({'error': 'Album not found'}, status=404)
 
-    reviews = list(Review.objects.filter(album=album).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-created_at'))
+    is_following_author = Exists(User.following.through.objects.filter(from_user_id=request.user.id, to_user=OuterRef('user')))
+    reviews = list(Review.objects.filter(album=album).annotate(is_following_author=is_following_author).select_related('user', 'favorite_song').prefetch_related('likes', 'comments', 'user_genres').order_by('-is_following_author', '-created_at'))
+    average_rating, rating_count = latest_rated_average(reviews)
 
     return Response({
         # Songs only on the album page, so album lists elsewhere don't query them per album.
         'album': {**AlbumSerializer(album).data, 'songs': SongSerializer(album.songs.all(), many=True).data},
-        'reviews': ReviewSerializer(reviews, many=True, context={'request': request}).data,
+        'reviews': [
+            {**data, 'is_following_author': review.is_following_author}
+            for review, data in zip(reviews, ReviewSerializer(reviews, many=True, context={'request': request}).data)
+        ],
         'review_count': len({r.user_id for r in reviews}),
-        'average_rating': latest_rated_average(reviews),
+        'average_rating': average_rating,
+        'rating_count': rating_count,
         'exists_in_db': True,
         'cached': False
     })
@@ -286,6 +304,7 @@ def import_album_from_discogs(discogs_id):
             'discogs_styles': album_data.get('styles', []),
             'tracklist': album_data.get('tracklist', []),
             'credits': album_data.get('credits', []),
+            'label': album_data.get('label', ''),
         })
         fill_songs(Song, album)
     return album
@@ -465,6 +484,26 @@ def count_by_review(model, review_ids):
     return dict(model.objects.filter(review__in=review_ids).values_list('review').annotate(Count('id')))
 
 
+def review_cards(reviews, me):
+    ids = [r.id for r in reviews]
+    likes = count_by_review(ReviewLike, ids)
+    comments = count_by_review(Comment, ids)
+    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
+    return [{
+        'review': {
+            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
+            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
+            'is_liked': r.id in liked,
+            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
+        },
+        'author': person(r.user),
+        'album': {
+            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
+            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
+        },
+    } for r in reviews]
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed(request):
@@ -487,28 +526,32 @@ def feed(request):
                           review__in=ids, created_at__in=latest_at.values())
                   .select_related('user').order_by('id'))
     latest = {a.review_id: a for a in candidates if a.created_at == latest_at[a.review_id]}
-    likes = count_by_review(ReviewLike, ids)
-    comments = count_by_review(Comment, ids)
-    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
-
-    return paginator.get_paginated_response([{
-        'review': {
-            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
-            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
-            'is_liked': r.id in liked,
-            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
-        },
-        'author': person(r.user),
-        'album': {
-            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
-            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
-        },
-        'latest_activity': {
+    cards = review_cards(page, me)
+    for card, r in zip(cards, page):
+        card['latest_activity'] = {
             'type': latest[r.id].activity_type,
             'actor': person(latest[r.id].user),
             'created_at': latest[r.id].created_at,
-        },
-    } for r in page])
+        }
+    return paginator.get_paginated_response(cards)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def discover(request):
+    raw = request.query_params.get('date')
+    try:
+        day = datetime.strptime(raw, '%Y-%m-%d').date() if raw else timezone.now().date()
+    except ValueError:
+        return Response({'error': 'date must be YYYY-MM-DD'}, status=400)
+    entry = (OnThisDay.objects.filter(month=day.month, day=day.day).order_by('?')
+             .values('month', 'day', 'year', 'headline', 'body', 'discogs_id').first())
+    if entry:
+        entry['years_ago'] = day.year - entry['year']
+    top = (Review.objects.filter(created_at__gte=timezone.now() - timedelta(days=30))
+           .annotate(like_count=Count('likes')).order_by('-like_count', '-created_at')
+           .select_related('user', 'album', 'favorite_song')[:5])
+    return Response({'top_reviews': review_cards(top, request.user), 'on_this_day': entry})
 
 
 # ============================================================================
@@ -599,8 +642,6 @@ def lists_view(request):
 @permission_classes([AllowAny])
 def user_lists(request, username):
     """Get lists by a specific user"""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
     
     user = get_object_or_404(User, username=username)
     
