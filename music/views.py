@@ -7,6 +7,7 @@ import re
 import logging
 import requests
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
@@ -19,7 +20,7 @@ from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist
+from .models import fill_songs, latest_rated_average, RecentlyViewedAlbum, Song, Album, Review, Genre, Activity, ReviewLike, Comment, List, ListItem, ListLike, Artist, OnThisDay
 from .serializers import (
     AlbumSerializer, SongSerializer, ReviewSerializer, ReviewWriteSerializer, AlbumSearchResultSerializer,
     ActivitySerializer, CommentSerializer, GenreSerializer,
@@ -516,6 +517,24 @@ def feed(request):
             'created_at': latest[r.id].created_at,
         }
     return paginator.get_paginated_response(cards)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def discover(request):
+    raw = request.query_params.get('date')
+    try:
+        day = date.fromisoformat(raw) if raw else timezone.now().date()
+    except ValueError:
+        return Response({'error': 'date must be YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+    entry = (OnThisDay.objects.filter(month=day.month, day=day.day).order_by('?')
+             .values('month', 'day', 'year', 'headline', 'body', 'discogs_id').first())
+    if entry:
+        entry['years_ago'] = day.year - entry['year']
+    top = (Review.objects.filter(created_at__gte=timezone.now() - timedelta(days=30))
+           .annotate(like_count=Count('likes')).order_by('-like_count', '-created_at')
+           .select_related('user', 'album', 'favorite_song')[:5])
+    return Response({'top_reviews': review_cards(top, request.user), 'on_this_day': entry})
 
 
 # ============================================================================

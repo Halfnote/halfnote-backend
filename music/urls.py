@@ -32,6 +32,7 @@ urlpatterns = [
     
     # Activity and social
     path('feed/', views.feed, name='feed'),
+    path('discover/', views.discover, name='discover'),
     path('activity/', views.activity_feed, name='activity-feed'),
     path('activity/<int:activity_id>/delete/', views.delete_activity, name='delete-activity'),
     

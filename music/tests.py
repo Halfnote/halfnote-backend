@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from music.models import Activity, Album, Comment, Genre, Review, ReviewLike, Song, fill_songs
+from music.models import Activity, Album, Comment, Genre, OnThisDay, Review, ReviewLike, Song, fill_songs
 from music.services import ExternalMusicService
 
 User = get_user_model()
@@ -535,6 +535,89 @@ class FeedTests(TestCase):
         client = client_for(self.me)
         with self.assertNumQueries(5):
             self.assertEqual(len(client.get(self.url).data['results']), 20)
+
+
+class DiscoverTests(TestCase):
+    url = '/api/music/discover/'
+
+    def setUp(self):
+        self.me = User.objects.create_user(username='me', password='pw')
+
+    def test_requires_login(self):
+        self.assertEqual(APIClient().get(self.url).status_code, 401)
+
+    def test_invalid_date_is_400(self):
+        for bad in ('2026-13-01', 'tomorrow', '16/11/2026'):
+            response = client_for(self.me).get(self.url, {'date': bad})
+            self.assertEqual((response.status_code, response.data), (400, {'error': 'date must be YYYY-MM-DD'}))
+
+    def discover(self, **params):
+        response = client_for(self.me).get(self.url, params)
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def test_on_this_day_is_picked_for_the_dates_month_and_day(self):
+        OnThisDay.objects.create(month=11, day=16, year=1986, headline='Other day')
+        OnThisDay.objects.create(month=10, day=15, year=1986, headline='Other month')
+        OnThisDay.objects.create(month=11, day=15, year=1986, headline='Licensed to Ill', body='b', discogs_id='1234567')
+        self.assertEqual(self.discover(date='2026-11-15')['on_this_day'], {
+            'month': 11, 'day': 15, 'year': 1986, 'years_ago': 40,
+            'headline': 'Licensed to Ill', 'body': 'b', 'discogs_id': '1234567',
+        })
+
+    def test_on_this_day_without_linked_album(self):
+        OnThisDay.objects.create(month=2, day=29, year=2000, headline='Leap')
+        entry = self.discover(date='2024-02-29')['on_this_day']
+        self.assertEqual((entry['years_ago'], entry['body'], entry['discogs_id']), (24, '', None))
+
+    def test_on_this_day_is_null_when_no_entry(self):
+        OnThisDay.objects.create(month=11, day=16, year=1986, headline='Other day')
+        self.assertIsNone(self.discover(date='2026-11-15')['on_this_day'])
+
+    def review(self, days_ago, likes=0, user=None):
+        album = Album.objects.create(title='T', artist='A', discogs_id=f'{days_ago}-{likes}', year=2001)
+        review = Review.objects.create(album=album, user=user or self.me, rating=7, headline='h',
+                                       created_at=timezone.now() - timedelta(days=days_ago))
+        for n in range(likes):
+            liker = User.objects.create_user(username=f'liker-{review.id}-{n}', password='pw')
+            ReviewLike.objects.create(user=liker, review=review)
+        return review
+
+    def top_ids(self):
+        return [card['review']['id'] for card in self.discover()['top_reviews']]
+
+    def test_top_reviews_by_likes_then_newest_within_30_days(self):
+        self.review(31, likes=9)
+        older = self.review(29, likes=1)
+        newer = self.review(2, likes=1)
+        unliked = self.review(1)
+        top = self.review(10, likes=3)
+        self.assertEqual(self.top_ids(), [top.id, newer.id, older.id, unliked.id])
+
+    def test_top_reviews_cap_at_5(self):
+        reviews = [self.review(1, likes=n) for n in range(7)]
+        self.assertEqual(self.top_ids(), [r.id for r in reversed(reviews[2:])])
+
+    def test_top_review_card_is_the_feed_card_without_latest_activity(self):
+        friend = User.objects.create_user(username='friend', password='pw')
+        self.me.following.add(friend)
+        review = self.review(1, likes=2, user=friend)
+        ReviewLike.objects.create(user=self.me, review=review)
+        Comment.objects.create(user=friend, review=review, content='c')
+        Activity.objects.create(user=friend, activity_type='review_created', review=review)
+
+        feed_card = client_for(self.me).get('/api/music/feed/').data['results'][0]
+        del feed_card['latest_activity']
+        card = self.discover()['top_reviews'][0]
+        self.assertEqual(card, feed_card)
+        self.assertEqual((card['review']['likes_count'], card['review']['is_liked']), (3, True))
+
+        card = client_for(friend).get(self.url).data['top_reviews'][0]
+        self.assertFalse(card['review']['is_liked'])
+
+    def test_no_recent_reviews_is_empty_list(self):
+        self.review(40, likes=2)
+        self.assertEqual(self.discover()['top_reviews'], [])
 
 
 class ReviewLikeTests(TestCase):
