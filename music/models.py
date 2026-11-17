@@ -331,3 +331,18 @@ class RecentlyViewedAlbum(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user', 'album'], name='recently_viewed_once_per_album')]
         indexes = [models.Index(fields=['user', '-viewed_at'])]
+
+
+class OnThisDay(models.Model):
+    month = models.PositiveSmallIntegerField()
+    day = models.PositiveSmallIntegerField()
+    year = models.PositiveSmallIntegerField()
+    headline = models.CharField(max_length=200)
+    body = models.TextField(blank=True, default='')
+    discogs_id = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['month', 'day'])]
+
+    def __str__(self):
+        return f"{self.year}-{self.month:02}-{self.day:02} {self.headline}"
