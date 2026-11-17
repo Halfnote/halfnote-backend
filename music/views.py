@@ -466,6 +466,26 @@ def count_by_review(model, review_ids):
     return dict(model.objects.filter(review__in=review_ids).values_list('review').annotate(Count('id')))
 
 
+def review_cards(reviews, me):
+    ids = [r.id for r in reviews]
+    likes = count_by_review(ReviewLike, ids)
+    comments = count_by_review(Comment, ids)
+    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
+    return [{
+        'review': {
+            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
+            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
+            'is_liked': r.id in liked,
+            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
+        },
+        'author': person(r.user),
+        'album': {
+            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
+            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
+        },
+    } for r in reviews]
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed(request):
@@ -488,28 +508,14 @@ def feed(request):
                           review__in=ids, created_at__in=latest_at.values())
                   .select_related('user').order_by('id'))
     latest = {a.review_id: a for a in candidates if a.created_at == latest_at[a.review_id]}
-    likes = count_by_review(ReviewLike, ids)
-    comments = count_by_review(Comment, ids)
-    liked = set(ReviewLike.objects.filter(review__in=ids, user=me).values_list('review_id', flat=True))
-
-    return paginator.get_paginated_response([{
-        'review': {
-            'id': r.id, 'rating': r.rating, 'headline': r.headline, 'body': r.body, 'created_at': r.created_at,
-            'likes_count': likes.get(r.id, 0), 'comments_count': comments.get(r.id, 0),
-            'is_liked': r.id in liked,
-            'favorite_song': SongSerializer(r.favorite_song).data if r.favorite_song else None,
-        },
-        'author': person(r.user),
-        'album': {
-            'discogs_id': r.album.discogs_id, 'title': r.album.title, 'artist': r.album.artist,
-            'year': r.album.year, 'cover_url': r.album.cover_url, 'tracklist': r.album.tracklist,
-        },
-        'latest_activity': {
+    cards = review_cards(page, me)
+    for card, r in zip(cards, page):
+        card['latest_activity'] = {
             'type': latest[r.id].activity_type,
             'actor': person(latest[r.id].user),
             'created_at': latest[r.id].created_at,
-        },
-    } for r in page])
+        }
+    return paginator.get_paginated_response(cards)
 
 
 # ============================================================================
