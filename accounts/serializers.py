@@ -16,6 +16,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
     most_reviewed_genres = serializers.SerializerMethodField()
     onboarded = serializers.BooleanField(write_only=True, required=False)
+    needs_onboarding = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -23,14 +24,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'name', 'display_name',
             'bio', 'location', 'avatar', 'banner', 'favorite_genres', 'most_reviewed_genres',
             'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
-            'favorite_albums', 'is_following', 'is_staff', 'avatar_preset', 'onboarded'
+            'favorite_albums', 'is_following', 'is_staff', 'avatar_preset', 'onboarded', 'needs_onboarding'
         ]
         read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
         return obj.name if obj.name else obj.username
-    
+
+    def get_needs_onboarding(self, obj):
+        return obj.onboarded_at is None
+
     def get_most_reviewed_genres(self, obj):
         """Get user's most reviewed genres with counts"""
         try:
@@ -186,8 +190,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
-        read_only_fields = ['id', 'email', 'is_staff']
+        fields = ['id', 'username', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        read_only_fields = ['id', 'is_staff']
     
     def get_follower_count(self, obj):
         return obj.followers.count()

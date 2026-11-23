@@ -14,7 +14,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from . import social
 from .models import Identity
@@ -107,6 +109,14 @@ def login(request):
     return auth_response(user)
 
 
+class RefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except User.DoesNotExist:
+            raise InvalidToken('User no longer exists')
+
+
 SOCIAL_FIELDS = {
     'apple': ['identity_token', 'authorization_code', 'nonce'],
     'google': ['id_token'],
@@ -114,25 +124,19 @@ SOCIAL_FIELDS = {
 
 
 def find_or_create_social_user(provider, verified, name):
-    """Returns (identity, created_user). Links to an existing account only on a provider-verified email."""
+    """Returns (identity, created_user)."""
     identity = Identity.objects.select_related('user').filter(provider=provider, subject=verified.subject).first()
     if identity:
         return identity, False
 
-    user = None
-    if verified.email and verified.email_verified:
-        user = User.objects.filter(email__iexact=verified.email).first()
-    created = user is None
-    if created:
-        user = User(
-            username=placeholder_username(),
-            email=verified.email if verified.email_verified else '',
-            name=(name or verified.name)[:100],
-        )
-        user.set_unusable_password()
-        user.save()
-    identity = Identity.objects.create(user=user, provider=provider, subject=verified.subject, email=verified.email)
-    return identity, created
+    # Never joined to an existing account by email: register doesn't verify emails, so a match proves nothing.
+    email = verified.email if verified.email_verified else ''
+    if User.objects.filter(email__iexact=email).exists():
+        email = ''
+    user = User(username=placeholder_username(), email=email, name=(name or verified.name)[:100])
+    user.set_unusable_password()
+    user.save()
+    return Identity.objects.create(user=user, provider=provider, subject=verified.subject, email=verified.email), True
 
 
 @api_view(['POST'])
@@ -161,9 +165,12 @@ def social_auth(request, provider):
     if not identity.user.is_active:
         return Response({'error': 'Account disabled'}, status=401)
 
-    if provider == 'apple' and not identity.apple_refresh_token:
-        identity.apple_refresh_token = social.apple_refresh_token(data['authorization_code'])
-        identity.save(update_fields=['apple_refresh_token'])
+    if provider == 'apple':
+        # Every sign-in, because reconnecting Halfnote in Apple ID settings replaces the earlier grant.
+        refresh_token = social.apple_refresh_token(data['authorization_code'])
+        if refresh_token:
+            identity.apple_refresh_token = refresh_token
+            identity.save(update_fields=['apple_refresh_token'])
 
     return auth_response(identity.user, status=201 if created else 200)
 
@@ -171,8 +178,11 @@ def social_auth(request, provider):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_me(request):
-    for identity in request.user.identities.filter(provider='apple'):
-        social.revoke_apple(identity.apple_refresh_token)
+    try:
+        for identity in request.user.identities.filter(provider='apple'):
+            social.revoke_apple(identity.apple_refresh_token)
+    except social.AppleUnavailable:
+        return Response({'error': "We couldn't reach Apple to disconnect your account, so it hasn't been deleted. Please try again in a few minutes."}, status=503)
     request.user.delete()
     return Response(status=204)
 

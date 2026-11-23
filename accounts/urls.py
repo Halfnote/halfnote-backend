@@ -4,7 +4,6 @@ URL patterns that match the frontend API expectations
 """
 
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 urlpatterns = [
@@ -14,7 +13,7 @@ urlpatterns = [
     path('auth/apple/', views.social_auth, {'provider': 'apple'}, name='auth-apple'),
     path('auth/google/', views.social_auth, {'provider': 'google'}, name='auth-google'),
     path('me/', views.delete_me, name='me'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('token/refresh/', views.RefreshView.as_view(), name='token-refresh'),
     path('profile/', views.profile, name='profile'),
 
     # Favorite albums

@@ -25,17 +25,20 @@ class TokenRefreshTests(TestCase):
 
 
 import hashlib
+import json
 import time
 from types import SimpleNamespace
 from unittest import mock
 
 import jwt
+import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from django.test import override_settings
 from django.utils import timezone
 
 from accounts import social
+from accounts.models import Identity
 
 SIGNING_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 APPLE_P8 = ec.generate_private_key(ec.SECP256R1()).private_bytes(
@@ -58,7 +61,14 @@ def google_token(sub, **claims):
 
 
 def apple_http(*args, **kwargs):
-    return SimpleNamespace(ok=True, json=lambda: {'refresh_token': 'apple-refresh'}, status_code=200, text='')
+    return apple_response(200, refresh_token='apple-refresh')
+
+
+def apple_response(status, **body):
+    response = requests.Response()
+    response.status_code = status
+    response._content = json.dumps(body).encode()
+    return response
 
 
 @override_settings(
@@ -131,12 +141,67 @@ class SignInTests(TestCase):
         self.assertEqual(self.apple(apple_token('apple-1', audience='com.someone.else')).status_code, 401)
         self.assertEqual(User.objects.count(), 0)
 
-    def test_google_links_to_existing_account_on_verified_email(self):
-        existing = User.objects.create_user(username='dee', email='dee@example.com', password='x', onboarded_at=timezone.now())
-        response = self.google(google_token('g-1', email='Dee@example.com', email_verified=True))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['user']['id'], existing.id)
-        self.assertFalse(response.data['needs_onboarding'])
+    def register(self, email):
+        return self.client.post('/api/accounts/register/', {'email': email, 'password': 'Pw1234567!'}, format='json')
+
+    def test_social_sign_in_never_joins_an_account_with_the_same_email(self):
+        password_user = self.register('dee@example.com').data['user']['id']
+        google = self.google(google_token('g-1', email='Dee@example.com', email_verified=True))
+        apple = self.apple(apple_token('apple-1', email='dee@example.com', email_verified='true'))
+        self.assertEqual((google.status_code, apple.status_code), (201, 201))
+        self.assertEqual(len({password_user, google.data['user']['id'], apple.data['user']['id']}), 3)
+
+        login = self.client.post('/api/accounts/login/', {'login': 'dee@example.com', 'password': 'Pw1234567!'}, format='json')
+        self.assertEqual(login.data['user']['id'], password_user)
+
+    def test_verified_social_email_is_kept_when_free(self):
+        user_id = self.google(google_token('g-1', email='dee@example.com', email_verified=True)).data['user']['id']
+        self.assertEqual(User.objects.get(id=user_id).email, 'dee@example.com')
+
+    def test_apple_sign_in_survives_an_outage_and_keeps_the_newest_token(self):
+        self.apple_http.side_effect = requests.Timeout()
+        self.assertEqual(self.apple(apple_token('apple-1')).status_code, 201)
+        identity = Identity.objects.get()
+        self.assertEqual(identity.apple_refresh_token, '')
+
+        for token in ('first', 'second'):
+            self.apple_http.side_effect = [apple_response(200, refresh_token=token)]
+            self.assertEqual(self.apple(apple_token('apple-1')).status_code, 200)
+            identity.refresh_from_db()
+            self.assertEqual(identity.apple_refresh_token, token)
+
+        self.apple_http.side_effect = [apple_response(503)]
+        self.assertEqual(self.apple(apple_token('apple-1')).status_code, 200)
+        identity.refresh_from_db()
+        self.assertEqual(identity.apple_refresh_token, 'second')
+
+    def test_delete_me_keeps_the_account_when_apple_is_unreachable(self):
+        token = self.apple(apple_token('apple-1')).data['access_token']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        for failure in (requests.ConnectionError(), apple_response(503), apple_response(429)):
+            self.apple_http.side_effect = [failure]
+            response = self.client.delete('/api/accounts/me/')
+            self.assertEqual(response.status_code, 503)
+            self.assertIn('try again', response.data['error'])
+            self.assertEqual(User.objects.count(), 1)
+
+    def test_delete_me_goes_ahead_when_apple_rejects_the_token(self):
+        token = self.apple(apple_token('apple-1')).data['access_token']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        self.apple_http.side_effect = [apple_response(400)]
+        self.assertEqual(self.client.delete('/api/accounts/me/').status_code, 204)
+        self.assertEqual(User.objects.count(), 0)
+
+    def test_refresh_after_deletion_is_unauthorized(self):
+        refresh = self.register('dee@example.com').data['refresh_token']
+        User.objects.all().delete()
+        self.assertEqual(self.client.post(TOKEN_REFRESH_URL, {'refresh': refresh}, format='json').status_code, 401)
+
+    def test_user_search_never_returns_emails(self):
+        User.objects.create_user(username='dee', email='dee@example.com', password='x', onboarded_at=timezone.now())
+        users = APIClient().get('/api/accounts/users/search/?q=dee').data['users']
+        self.assertEqual(users[0]['username'], 'dee')
+        self.assertNotIn('email', users[0])
 
     def test_google_unverified_email_never_links(self):
         User.objects.create_user(username='dee', email='dee@example.com', password='x')
@@ -175,12 +240,14 @@ class OnboardingStepTests(TestCase):
         return self.client.put('/api/accounts/favorite-albums/', {'discogs_ids': ids}, format='json')
 
     def test_full_onboarding_then_login_skips_it(self):
+        self.assertTrue(self.client.get('/api/accounts/profile/').data['needs_onboarding'])
         self.assertEqual(self.put_profile({'name': 'Dee', 'username': 'ddd'}).status_code, 200)
         self.assertEqual(self.put_favorites(['0', '1', '2', '3']).status_code, 200)
         self.assertEqual(self.put_profile({'avatar_preset': 'cat', 'onboarded': True}).status_code, 200)
 
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.onboarded_at)
+        self.assertFalse(self.client.get('/api/accounts/profile/').data['needs_onboarding'])
         self.assertEqual(self.user.avatar_preset, 'cat')
         self.assertEqual(self.user.favorite_albums.count(), 4)
 
