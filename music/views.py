@@ -29,6 +29,7 @@ from .serializers import (
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
 from accounts.serializers import UserSerializer
+from .onboarding import ONBOARDING_DISCOGS_IDS
 from .services import ExternalMusicService
 
 User = get_user_model()
@@ -286,6 +287,9 @@ def import_album_from_discogs(discogs_id):
     album = Album.objects.filter(discogs_id=discogs_id).first()
     if album:
         return album
+    # The ID becomes part of a Discogs URL, so "123?x=1" or "0123" would store a second copy of album 123.
+    if not re.fullmatch(r'[1-9][0-9]*', str(discogs_id)):
+        return None
 
     album_data = ExternalMusicService().get_album_details(discogs_id)
     if not album_data:
@@ -477,7 +481,8 @@ class FeedPagination(CursorPagination):
 
 
 def person(user):
-    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None}
+    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None,
+            'avatar_preset': user.avatar_preset}
 
 
 def count_by_review(model, review_ids):
@@ -552,6 +557,14 @@ def discover(request):
            .annotate(like_count=Count('likes')).order_by('-like_count', '-created_at')
            .select_related('user', 'album', 'favorite_song')[:5])
     return Response({'top_reviews': review_cards(top, request.user), 'on_this_day': entry})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def onboarding_albums(request):
+    albums = (Album.objects.filter(discogs_id__in=ONBOARDING_DISCOGS_IDS).order_by('?')
+              .values('discogs_id', 'title', 'artist', 'year', 'cover_url'))
+    return Response({'albums': list(albums)})
 
 
 # ============================================================================
@@ -746,6 +759,7 @@ def list_likes(request, list_id):
             'id': like.user.id,
             'username': like.user.username,
             'avatar': like.user.avatar.url if like.user.avatar else None,
+            'avatar_preset': like.user.avatar_preset,
             'is_staff': like.user.is_staff
         })
     
@@ -849,6 +863,7 @@ def review_likes(request, review_id):
             'id': like.user.id,
             'username': like.user.username,
             'avatar': like.user.avatar.url if like.user.avatar else None,
+            'avatar_preset': like.user.avatar_preset,
             'is_staff': like.user.is_staff
         })
 

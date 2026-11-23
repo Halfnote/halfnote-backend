@@ -12,3 +12,5 @@ dj-database-url
 redis
 django-redis
 gunicorn
+PyJWT
+cryptography

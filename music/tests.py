@@ -27,9 +27,9 @@ class ViewerSpecificFieldTests(TestCase):
     def setUp(self):
         cache.clear()
         self.enterContext(patch('music.views.get_artist_photo', return_value=None))
-        self.author = User.objects.create_user(username='author', password='pw')
-        self.alice = User.objects.create_user(username='alice', password='pw')
-        self.bob = User.objects.create_user(username='bob', password='pw')
+        self.author = User.objects.create_user(username='author', password='pw', onboarded_at=timezone.now())
+        self.alice = User.objects.create_user(username='alice', password='pw', onboarded_at=timezone.now())
+        self.bob = User.objects.create_user(username='bob', password='pw', onboarded_at=timezone.now())
         self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
         self.review = Review.objects.create(album=self.album, user=self.author, rating=8)
         Activity.objects.create(user=self.author, activity_type='review_created', review=self.review)
@@ -372,7 +372,7 @@ class ReviewDetailTests(TestCase):
         self.assertEqual(response.status_code, 200)
         card = response.data
         self.assertNotIn('latest_activity', card)
-        self.assertEqual(card['author'], {'username': 'stranger', 'name': 'Stranger', 'avatar': None})
+        self.assertEqual(card['author'], {'username': 'stranger', 'name': 'Stranger', 'avatar': None, 'avatar_preset': None})
         self.assertEqual(
             (card['review']['id'], card['review']['rating'], card['review']['headline'], card['review']['likes_count'], card['review']['is_liked']),
             (review.id, 8, 'Head', 1, True))
@@ -383,8 +383,8 @@ class RepeatReviewStatsTests(TestCase):
     def setUp(self):
         cache.clear()
         self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
-        self.a = User.objects.create_user(username='a', password='pw')
-        self.b = User.objects.create_user(username='b', password='pw')
+        self.a = User.objects.create_user(username='a', password='pw', onboarded_at=timezone.now())
+        self.b = User.objects.create_user(username='b', password='pw', onboarded_at=timezone.now())
         self.minute = 0
 
     def review(self, user, rating, headline='h'):
@@ -614,14 +614,14 @@ class FeedTests(TestCase):
                 'id': review.id, 'rating': 7, 'headline': 'h', 'body': '', 'created_at': self.at(1),
                 'likes_count': 1, 'comments_count': 1, 'is_liked': True, 'favorite_song': None,
             },
-            'author': {'username': 'friend', 'name': 'Friend', 'avatar': None},
+            'author': {'username': 'friend', 'name': 'Friend', 'avatar': None, 'avatar_preset': None},
             'album': {
                 'discogs_id': '42', 'title': 'T42', 'artist': 'A', 'year': 2001, 'cover_url': None,
                 'tracklist': [{'position': '1', 'title': 'One', 'duration': '1:00'}],
             },
             'latest_activity': {
                 'type': 'review_liked',
-                'actor': {'username': 'me', 'name': '', 'avatar': None},
+                'actor': {'username': 'me', 'name': '', 'avatar': None, 'avatar_preset': None},
                 'created_at': self.at(2),
             },
         })

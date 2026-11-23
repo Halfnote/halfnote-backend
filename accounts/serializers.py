@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from music.models import Review
 from django.db.models import Count
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -14,21 +15,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
     most_reviewed_genres = serializers.SerializerMethodField()
-    
+    onboarded = serializers.BooleanField(write_only=True, required=False)
+    needs_onboarding = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'name', 'display_name',
             'bio', 'location', 'avatar', 'banner', 'favorite_genres', 'most_reviewed_genres',
             'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
-            'favorite_albums', 'is_following', 'is_staff'
+            'favorite_albums', 'is_following', 'is_staff', 'avatar_preset', 'onboarded', 'needs_onboarding'
         ]
         read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
         return obj.name if obj.name else obj.username
-    
+
+    def get_needs_onboarding(self, obj):
+        return obj.onboarded_at is None
+
     def get_most_reviewed_genres(self, obj):
         """Get user's most reviewed genres with counts"""
         try:
@@ -67,6 +73,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Handle favorite_genres conversion from objects to strings"""
+        if validated_data.pop('onboarded', False) and instance.onboarded_at is None:
+            instance.onboarded_at = timezone.now()
         if 'favorite_genres' in validated_data:
             genres_data = validated_data['favorite_genres']
             if genres_data and isinstance(genres_data[0], dict):
@@ -99,7 +107,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Get user's favorite albums with album details and user review info"""
         try:
             from music.models import Review
-            favorite_albums = obj.favorite_albums.all()[:7]  # Limit to 7
+            favorite_albums = obj.favorite_albums.all()[:4]
             
             albums_data = []
             for album in favorite_albums:
@@ -141,7 +149,7 @@ class UserFollowSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'display_name', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_following', 'is_staff']
+        fields = ['id', 'username', 'display_name', 'avatar', 'avatar_preset', 'bio', 'follower_count', 'following_count', 'review_count', 'is_following', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
@@ -182,8 +190,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
-        read_only_fields = ['id', 'email', 'is_staff']
+        fields = ['id', 'username', 'name', 'bio', 'location', 'avatar', 'avatar_preset', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        read_only_fields = ['id', 'is_staff']
     
     def get_follower_count(self, obj):
         return obj.followers.count()
