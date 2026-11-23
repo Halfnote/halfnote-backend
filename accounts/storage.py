@@ -1,4 +1,5 @@
 from django.core.files.storage import Storage
+from django.utils.deconstruct import deconstructible
 import cloudinary.uploader
 import cloudinary.api
 import cloudinary.utils
@@ -6,6 +7,7 @@ import uuid
 import os
 from django.conf import settings
 
+@deconstructible
 class SimpleCloudinaryStorage(Storage):
     """
     Custom Cloudinary storage that bypasses django-cloudinary-storage 
