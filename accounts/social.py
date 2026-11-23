@@ -32,11 +32,11 @@ class VerifiedIdentity:
     name: str
 
 
-def _decode(token, keys, audience, issuer, algorithms):
+def _decode(token, keys, audience, issuer):
     try:
         key = keys.get_signing_key_from_jwt(token).key
-        return jwt.decode(token, key, algorithms=algorithms, audience=audience, issuer=issuer)
-    except (jwt.PyJWTError, jwt.PyJWKClientError) as e:
+        return jwt.decode(token, key, algorithms=['RS256'], audience=audience, issuer=issuer)
+    except jwt.PyJWTError as e:
         raise InvalidToken(str(e)) from e
 
 
@@ -52,7 +52,7 @@ def _verified(claims):
 
 
 def verify_apple(identity_token, nonce):
-    claims = _decode(identity_token, _apple_keys, settings.APPLE_BUNDLE_ID, APPLE_ISSUER, ['RS256'])
+    claims = _decode(identity_token, _apple_keys, settings.APPLE_BUNDLE_ID, APPLE_ISSUER)
     # The app hands Apple sha256(nonce) and sends us the raw nonce, so a stolen token can't be replayed with another nonce.
     if claims.get('nonce') != hashlib.sha256(nonce.encode()).hexdigest():
         raise InvalidToken('nonce mismatch')
@@ -60,7 +60,7 @@ def verify_apple(identity_token, nonce):
 
 
 def verify_google(id_token):
-    claims = _decode(id_token, _google_keys, settings.GOOGLE_CLIENT_IDS, GOOGLE_ISSUERS, ['RS256'])
+    claims = _decode(id_token, _google_keys, settings.GOOGLE_CLIENT_IDS, GOOGLE_ISSUERS)
     return _verified(claims)
 
 

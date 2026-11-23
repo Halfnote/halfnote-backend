@@ -1,7 +1,23 @@
+import hashlib
+import json
+import time
+from types import SimpleNamespace
+from unittest import mock
+
+import jwt
+import requests
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from accounts import social
+from accounts.models import Identity
+from music.models import Album
+from music.onboarding import ONBOARDING_DISCOGS_IDS
 
 User = get_user_model()
 
@@ -24,22 +40,6 @@ class TokenRefreshTests(TestCase):
         self.assertEqual(response.status_code, 401)
 
 
-import hashlib
-import json
-import time
-from types import SimpleNamespace
-from unittest import mock
-
-import jwt
-import requests
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
-from django.test import override_settings
-from django.utils import timezone
-
-from accounts import social
-from accounts.models import Identity
-
 SIGNING_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 APPLE_P8 = ec.generate_private_key(ec.SECP256R1()).private_bytes(
     serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
@@ -60,10 +60,6 @@ def google_token(sub, **claims):
     return id_token('https://accounts.google.com', 'google-ios-client', sub, **claims)
 
 
-def apple_http(*args, **kwargs):
-    return apple_response(200, refresh_token='apple-refresh')
-
-
 def apple_response(status, **body):
     response = requests.Response()
     response.status_code = status
@@ -80,11 +76,9 @@ class SignInTests(TestCase):
         self.client = APIClient()
         public = SimpleNamespace(key=SIGNING_KEY.public_key())
         for keys in (social._apple_keys, social._google_keys):
-            patcher = mock.patch.object(keys, 'get_signing_key_from_jwt', return_value=public)
-            patcher.start()
-            self.addCleanup(patcher.stop)
-        self.apple_http = mock.patch('accounts.social.requests.post', side_effect=apple_http).start()
-        self.addCleanup(mock.patch.stopall)
+            self.enterContext(mock.patch.object(keys, 'get_signing_key_from_jwt', return_value=public))
+        self.apple_http = self.enterContext(mock.patch(
+            'accounts.social.requests.post', return_value=apple_response(200, refresh_token='apple-refresh')))
 
     def apple(self, token, **extra):
         body = {'identity_token': token, 'authorization_code': 'code', 'nonce': NONCE, **extra}
@@ -93,8 +87,11 @@ class SignInTests(TestCase):
     def google(self, token):
         return self.client.post('/api/accounts/auth/google/', {'id_token': token}, format='json')
 
+    def register(self, email):
+        return self.client.post('/api/accounts/register/', {'email': email, 'password': 'Pw1234567!'}, format='json')
+
     def test_register_with_email_then_login_by_email(self):
-        response = self.client.post('/api/accounts/register/', {'email': 'Dee@Example.com', 'password': 'Pw1234567!'}, format='json')
+        response = self.register('Dee@Example.com')
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.data['needs_onboarding'])
         self.assertTrue(response.data['user']['username'].isalnum())
@@ -114,7 +111,7 @@ class SignInTests(TestCase):
 
     def test_register_rejects_taken_email_case_insensitively(self):
         User.objects.create_user(username='dee', email='dee@example.com', password='x')
-        response = self.client.post('/api/accounts/register/', {'email': 'DEE@example.com', 'password': 'Pw1234567!'}, format='json')
+        response = self.register('DEE@example.com')
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['fields'], {'email': 'taken'})
 
@@ -140,9 +137,6 @@ class SignInTests(TestCase):
         self.assertEqual(self.apple(apple_token('apple-1', nonce='other')).status_code, 401)
         self.assertEqual(self.apple(apple_token('apple-1', audience='com.someone.else')).status_code, 401)
         self.assertEqual(User.objects.count(), 0)
-
-    def register(self, email):
-        return self.client.post('/api/accounts/register/', {'email': email, 'password': 'Pw1234567!'}, format='json')
 
     def test_social_sign_in_never_joins_an_account_with_the_same_email(self):
         password_user = self.register('dee@example.com').data['user']['id']
@@ -203,11 +197,9 @@ class SignInTests(TestCase):
         self.assertEqual(users[0]['username'], 'dee')
         self.assertNotIn('email', users[0])
 
-    def test_google_unverified_email_never_links(self):
-        User.objects.create_user(username='dee', email='dee@example.com', password='x')
-        response = self.google(google_token('g-1', email='dee@example.com', email_verified=False))
-        self.assertEqual(response.status_code, 201)
-        self.assertNotEqual(response.data['user']['username'], 'dee')
+    def test_unverified_social_email_is_not_saved(self):
+        user_id = self.google(google_token('g-1', email='dee@example.com', email_verified=False)).data['user']['id']
+        self.assertEqual(User.objects.get(id=user_id).email, '')
 
     def test_delete_me_revokes_apple_token_and_removes_user(self):
         token = self.apple(apple_token('apple-1')).data['access_token']
@@ -219,10 +211,6 @@ class SignInTests(TestCase):
         revoke = self.apple_http.call_args
         self.assertTrue(revoke.args[0].endswith('/auth/revoke'))
         self.assertEqual(revoke.kwargs['data']['token'], 'apple-refresh')
-
-
-from music.models import Album
-from music.onboarding import ONBOARDING_DISCOGS_IDS
 
 
 class OnboardingStepTests(TestCase):
@@ -239,7 +227,7 @@ class OnboardingStepTests(TestCase):
     def put_favorites(self, ids):
         return self.client.put('/api/accounts/favorite-albums/', {'discogs_ids': ids}, format='json')
 
-    def test_full_onboarding_then_login_skips_it(self):
+    def test_full_onboarding(self):
         self.assertTrue(self.client.get('/api/accounts/profile/').data['needs_onboarding'])
         self.assertEqual(self.put_profile({'name': 'Dee', 'username': 'ddd'}).status_code, 200)
         self.assertEqual(self.put_favorites(['0', '1', '2', '3']).status_code, 200)
@@ -281,9 +269,10 @@ class OnboardingStepTests(TestCase):
         self.assertEqual(self.user.favorite_albums.count(), 4)
 
     @mock.patch('music.views.ExternalMusicService.get_album_details', return_value=None)
-    def test_unknown_album_is_rejected_without_saving(self, _):
+    def test_unknown_album_is_rejected_without_saving(self, discogs):
         self.put_favorites(['0'])
-        self.assertEqual(self.put_favorites(['0', 'nope']).status_code, 400)
+        self.assertEqual(self.put_favorites(['0', '999']).status_code, 400)
+        discogs.assert_called_once()
         self.assertEqual(list(self.user.favorite_albums.values_list('discogs_id', flat=True)), ['0'])
 
     def test_only_plain_numeric_discogs_ids_are_imported(self):

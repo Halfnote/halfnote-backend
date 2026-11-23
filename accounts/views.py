@@ -48,7 +48,7 @@ def auth_response(user, status=200):
 
 
 def field_error(field, message):
-    return Response({'error': message, 'fields': {field: message}}, status=400)
+    return validation_error({field: [message]})
 
 
 def placeholder_username():
@@ -103,7 +103,7 @@ def login(request):
         user = User.objects.filter(email__iexact=identifier).first()
         identifier = user.username if user else ''
 
-    user = authenticate(username=identifier, password=password) if identifier else None
+    user = authenticate(username=identifier, password=password)
     if not user:
         return Response({'error': 'Invalid credentials'}, status=401)
     return auth_response(user)
@@ -159,7 +159,7 @@ def social_auth(request, provider):
         with transaction.atomic():
             identity, created = find_or_create_social_user(provider, verified, (data.get('name') or '').strip())
     except IntegrityError:
-        # A concurrent request linked the same account first.
+        # A concurrent request created the same account first.
         identity, created = Identity.objects.select_related('user').get(provider=provider, subject=verified.subject), False
 
     if not identity.user.is_active:
