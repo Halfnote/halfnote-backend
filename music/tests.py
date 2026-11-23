@@ -27,9 +27,9 @@ class ViewerSpecificFieldTests(TestCase):
     def setUp(self):
         cache.clear()
         self.enterContext(patch('music.views.get_artist_photo', return_value=None))
-        self.author = User.objects.create_user(username='author', password='pw')
-        self.alice = User.objects.create_user(username='alice', password='pw')
-        self.bob = User.objects.create_user(username='bob', password='pw')
+        self.author = User.objects.create_user(username='author', password='pw', onboarded_at=timezone.now())
+        self.alice = User.objects.create_user(username='alice', password='pw', onboarded_at=timezone.now())
+        self.bob = User.objects.create_user(username='bob', password='pw', onboarded_at=timezone.now())
         self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
         self.review = Review.objects.create(album=self.album, user=self.author, rating=8)
         Activity.objects.create(user=self.author, activity_type='review_created', review=self.review)
@@ -383,8 +383,8 @@ class RepeatReviewStatsTests(TestCase):
     def setUp(self):
         cache.clear()
         self.album = Album.objects.create(title='Album', artist='Artist', discogs_id='123')
-        self.a = User.objects.create_user(username='a', password='pw')
-        self.b = User.objects.create_user(username='b', password='pw')
+        self.a = User.objects.create_user(username='a', password='pw', onboarded_at=timezone.now())
+        self.b = User.objects.create_user(username='b', password='pw', onboarded_at=timezone.now())
         self.minute = 0
 
     def review(self, user, rating, headline='h'):

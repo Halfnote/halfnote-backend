@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from music.models import Review
 from django.db.models import Count
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -14,14 +15,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
     most_reviewed_genres = serializers.SerializerMethodField()
-    
+    onboarded = serializers.BooleanField(write_only=True, required=False)
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'name', 'display_name',
             'bio', 'location', 'avatar', 'banner', 'favorite_genres', 'most_reviewed_genres',
             'follower_count', 'following_count', 'review_count', 'pinned_reviews', 
-            'favorite_albums', 'is_following', 'is_staff'
+            'favorite_albums', 'is_following', 'is_staff', 'avatar_preset', 'onboarded'
         ]
         read_only_fields = ['id', 'email', 'display_name', 'is_staff']
     
@@ -67,6 +69,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Handle favorite_genres conversion from objects to strings"""
+        if validated_data.pop('onboarded', False) and instance.onboarded_at is None:
+            instance.onboarded_at = timezone.now()
         if 'favorite_genres' in validated_data:
             genres_data = validated_data['favorite_genres']
             if genres_data and isinstance(genres_data[0], dict):
@@ -99,7 +103,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Get user's favorite albums with album details and user review info"""
         try:
             from music.models import Review
-            favorite_albums = obj.favorite_albums.all()[:7]  # Limit to 7
+            favorite_albums = obj.favorite_albums.all()[:4]
             
             albums_data = []
             for album in favorite_albums:

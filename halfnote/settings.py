@@ -204,3 +204,11 @@ DISCOGS_API_URL = "https://api.discogs.com"
 DISCOGS_CONSUMER_KEY = os.getenv('DISCOGS_CONSUMER_KEY')
 DISCOGS_CONSUMER_SECRET = os.getenv('DISCOGS_CONSUMER_SECRET')
 DISCOGS_TOKEN = os.getenv('DISCOGS_TOKEN', DISCOGS_CONSUMER_KEY)
+
+# Sign in with Apple / Google
+APPLE_BUNDLE_ID = os.getenv('APPLE_BUNDLE_ID', '')
+APPLE_TEAM_ID = os.getenv('APPLE_TEAM_ID', '')
+APPLE_KEY_ID = os.getenv('APPLE_KEY_ID', '')
+# The .p8 key; env vars can't hold newlines on every host, so "\n" escapes are expanded.
+APPLE_PRIVATE_KEY = os.getenv('APPLE_PRIVATE_KEY', '').replace('\\n', '\n')
+GOOGLE_CLIENT_IDS = [c for c in os.getenv('GOOGLE_CLIENT_IDS', '').split(',') if c]

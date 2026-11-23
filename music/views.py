@@ -29,6 +29,7 @@ from .serializers import (
     ListSerializer, ListSummarySerializer, ListItemSerializer
 )
 from accounts.serializers import UserSerializer
+from .onboarding import ONBOARDING_DISCOGS_IDS
 from .services import ExternalMusicService
 
 User = get_user_model()
@@ -552,6 +553,14 @@ def discover(request):
            .annotate(like_count=Count('likes')).order_by('-like_count', '-created_at')
            .select_related('user', 'album', 'favorite_song')[:5])
     return Response({'top_reviews': review_cards(top, request.user), 'on_this_day': entry})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def onboarding_albums(request):
+    albums = (Album.objects.filter(discogs_id__in=ONBOARDING_DISCOGS_IDS).order_by('?')
+              .values('discogs_id', 'title', 'artist', 'year', 'cover_url'))
+    return Response({'albums': list(albums)})
 
 
 # ============================================================================

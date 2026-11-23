@@ -11,6 +11,9 @@ urlpatterns = [
     # Authentication
     path('register/', views.register, name='register'),
     path('login/', views.login, name='login'),
+    path('auth/apple/', views.social_auth, {'provider': 'apple'}, name='auth-apple'),
+    path('auth/google/', views.social_auth, {'provider': 'google'}, name='auth-google'),
+    path('me/', views.delete_me, name='me'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('profile/', views.profile, name='profile'),
 

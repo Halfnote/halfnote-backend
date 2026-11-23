@@ -3,7 +3,12 @@ Halfnote Accounts Views
 Optimized user authentication and profile management with performance improvements
 """
 
+import secrets
+
 from django.contrib.auth import authenticate, get_user_model
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,60 +16,165 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from . import social
+from .models import Identity
+from .validators import validate_password, validate_username
 from .serializers import UserProfileSerializer, UserFollowSerializer, UserSerializer
 from music.models import Review
-from music.serializers import ReviewSerializer
+from music.serializers import AlbumSerializer, ReviewSerializer
+from music.views import import_album_from_discogs, validation_error
 
 User = get_user_model()
+
+MAX_FAVORITE_ALBUMS = 4
+
+
+def auth_response(user, status=200):
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access_token': str(refresh.access_token),
+        'refresh_token': str(refresh),
+        'needs_onboarding': user.onboarded_at is None,
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'name': user.name,
+            'avatar': user.avatar.url if user.avatar else None,
+            'avatar_preset': user.avatar_preset,
+        },
+    }, status=status)
+
+
+def field_error(field, message):
+    return Response({'error': message, 'fields': {field: message}}, status=400)
+
+
+def placeholder_username():
+    while True:
+        username = f'user{secrets.token_hex(4)}'
+        if not User.objects.filter(username=username).exists():
+            return username
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """Register a new user"""
+    email = (request.data.get('email') or '').strip().lower()
+    password = request.data.get('password') or ''
+    # The web app still sends a username; new clients pick one during onboarding.
+    username = (request.data.get('username') or '').strip().lower()
+
     try:
-        user = User.objects.create_user(
-            username=request.data['username'].lower(),
-            password=request.data['password'],
-            bio=request.data.get('bio', '')
-        )
+        validate_email(email)
+    except ValidationError:
+        return field_error('email', 'Enter a valid email address.')
+    try:
+        validate_password(password)
+    except ValidationError as e:
+        return field_error('password', e.messages[0])
+    if username:
+        try:
+            validate_username(username)
+        except ValidationError as e:
+            return field_error('username', e.messages[0])
+        if User.objects.filter(username=username).exists():
+            return field_error('username', 'taken')
+    if User.objects.filter(email__iexact=email).exists():
+        return field_error('email', 'taken')
 
-        if 'avatar' in request.FILES:
-            user.avatar = request.FILES['avatar']
-            user.save()
-
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'username': user.username,
-            'bio': user.bio,
-            'avatar': user.avatar.url if user.avatar else None,
-            'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh)
-        }, status=201)
-    except Exception as e:
-        return Response({'error': str(e)}, status=400)
+    try:
+        with transaction.atomic():
+            user = User.objects.create_user(username=username or placeholder_username(), email=email, password=password)
+    except IntegrityError:
+        return field_error('email', 'taken')
+    return auth_response(user, status=201)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    """Login user and return tokens"""
-    user = authenticate(
-        username=request.data.get('username', '').lower(),
-        password=request.data.get('password', '')
-    )
+    """`login` is a username or an email; `username` is still accepted from older clients."""
+    identifier = (request.data.get('login') or request.data.get('username') or '').strip().lower()
+    password = request.data.get('password', '')
 
-    if user:
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'username': user.username,
-            'bio': user.bio,
-            'avatar': user.avatar.url if user.avatar else None,
-            'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh)
-        })
+    if '@' in identifier:
+        user = User.objects.filter(email__iexact=identifier).first()
+        identifier = user.username if user else ''
 
-    return Response({'error': 'Invalid credentials'}, status=401)
+    user = authenticate(username=identifier, password=password) if identifier else None
+    if not user:
+        return Response({'error': 'Invalid credentials'}, status=401)
+    return auth_response(user)
+
+
+SOCIAL_FIELDS = {
+    'apple': ['identity_token', 'authorization_code', 'nonce'],
+    'google': ['id_token'],
+}
+
+
+def find_or_create_social_user(provider, verified, name):
+    """Returns (identity, created_user). Links to an existing account only on a provider-verified email."""
+    identity = Identity.objects.select_related('user').filter(provider=provider, subject=verified.subject).first()
+    if identity:
+        return identity, False
+
+    user = None
+    if verified.email and verified.email_verified:
+        user = User.objects.filter(email__iexact=verified.email).first()
+    created = user is None
+    if created:
+        user = User(
+            username=placeholder_username(),
+            email=verified.email if verified.email_verified else '',
+            name=(name or verified.name)[:100],
+        )
+        user.set_unusable_password()
+        user.save()
+    identity = Identity.objects.create(user=user, provider=provider, subject=verified.subject, email=verified.email)
+    return identity, created
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def social_auth(request, provider):
+    data = request.data
+    missing = [f for f in SOCIAL_FIELDS[provider] if not data.get(f)]
+    if missing:
+        return field_error(missing[0], 'This field is required.')
+
+    try:
+        if provider == 'apple':
+            verified = social.verify_apple(data['identity_token'], data['nonce'])
+        else:
+            verified = social.verify_google(data['id_token'])
+    except social.InvalidToken:
+        return Response({'error': f'Invalid {provider.title()} token'}, status=401)
+
+    try:
+        with transaction.atomic():
+            identity, created = find_or_create_social_user(provider, verified, (data.get('name') or '').strip())
+    except IntegrityError:
+        # A concurrent request linked the same account first.
+        identity, created = Identity.objects.select_related('user').get(provider=provider, subject=verified.subject), False
+
+    if not identity.user.is_active:
+        return Response({'error': 'Account disabled'}, status=401)
+
+    if provider == 'apple' and not identity.apple_refresh_token:
+        identity.apple_refresh_token = social.apple_refresh_token(data['authorization_code'])
+        identity.save(update_fields=['apple_refresh_token'])
+
+    return auth_response(identity.user, status=201 if created else 200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_me(request):
+    for identity in request.user.identities.filter(provider='apple'):
+        social.revoke_apple(identity.apple_refresh_token)
+    request.user.delete()
+    return Response(status=204)
 
 
 @api_view(['GET', 'PUT'])
@@ -85,14 +195,13 @@ def profile(request):
         data['banner'] = request.FILES['banner']
     
     serializer = UserProfileSerializer(request.user, data=data, partial=True)
-    if serializer.is_valid():
-        try:
-            serializer.save()
-            return Response(serializer.data)
-        except Exception as e:
-            return Response({'error': f'Profile update failed: {str(e)}'}, status=500)
-    
-    return Response(serializer.errors, status=400)
+    if not serializer.is_valid():
+        return validation_error(serializer.errors)
+    try:
+        serializer.save()
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': f'Profile update failed: {str(e)}'}, status=500)
 
 
 @api_view(['GET'])
@@ -120,9 +229,10 @@ def user_reviews(request, username):
 @permission_classes([AllowAny])
 def user_profile(request, username):
     """Get public user profile"""
-    user = get_object_or_404(User, username=username)
-    serializer = UserProfileSerializer(user, context={'request': request})
-    return Response({**serializer.data, 'cached': False})
+    user = get_object_or_404(User, username=username, onboarded_at__isnull=False)
+    data = UserProfileSerializer(user, context={'request': request}).data
+    data.pop('email')
+    return Response({**data, 'cached': False})
 
 
 @api_view(['POST', 'DELETE'])
@@ -208,7 +318,7 @@ def search_users(request):
     if not query:
         return Response({'users': []})
     
-    users = User.objects.filter(username__icontains=query)[:20]
+    users = User.objects.filter(username__icontains=query, onboarded_at__isnull=False)[:20]
     serializer = UserSerializer(users, many=True, context={'request': request})
     
     return Response({'users': serializer.data})
@@ -229,28 +339,43 @@ def user_genre_stats(request, username):
     })
 
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def favorite_albums(request):
     """Manage user's favorite albums"""
     if request.method == 'GET':
         # Get user's favorite albums
         favorite_albums = request.user.favorite_albums.all()
-        from music.serializers import AlbumSerializer
         serializer = AlbumSerializer(favorite_albums, many=True)
         return Response({'albums': serializer.data})
     
     elif request.method == 'POST':
-        # Add album to favorites
         discogs_id = request.data.get('discogs_id')
         if not discogs_id:
             return Response({'error': 'discogs_id required'}, status=400)
-        
-        from music.models import Album
-        album = get_object_or_404(Album, discogs_id=discogs_id)
+        if request.user.favorite_albums.exclude(discogs_id=discogs_id).count() >= MAX_FAVORITE_ALBUMS:
+            return field_error('discogs_id', f'You can have at most {MAX_FAVORITE_ALBUMS} favourite albums.')
+        album = import_album_from_discogs(discogs_id)
+        if album is None:
+            return field_error('discogs_id', f'unknown album {discogs_id}')
         request.user.favorite_albums.add(album)
-        
         return Response({'message': 'Album added to favorites'})
+
+    elif request.method == 'PUT':
+        discogs_ids = request.data.get('discogs_ids')
+        if not isinstance(discogs_ids, list) or not all(isinstance(i, str) for i in discogs_ids):
+            return field_error('discogs_ids', 'Send a list of Discogs IDs.')
+        discogs_ids = list(dict.fromkeys(discogs_ids))
+        if len(discogs_ids) > MAX_FAVORITE_ALBUMS:
+            return field_error('discogs_ids', f'You can have at most {MAX_FAVORITE_ALBUMS} favourite albums.')
+        albums = []
+        for discogs_id in discogs_ids:
+            album = import_album_from_discogs(discogs_id)
+            if album is None:
+                return field_error('discogs_ids', f'unknown album {discogs_id}')
+            albums.append(album)
+        request.user.favorite_albums.set(albums)
+        return Response({'albums': AlbumSerializer(albums, many=True).data})
     
     elif request.method == 'DELETE':
         # Remove album from favorites
