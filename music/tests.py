@@ -372,7 +372,7 @@ class ReviewDetailTests(TestCase):
         self.assertEqual(response.status_code, 200)
         card = response.data
         self.assertNotIn('latest_activity', card)
-        self.assertEqual(card['author'], {'username': 'stranger', 'name': 'Stranger', 'avatar': None})
+        self.assertEqual(card['author'], {'username': 'stranger', 'name': 'Stranger', 'avatar': None, 'avatar_preset': None})
         self.assertEqual(
             (card['review']['id'], card['review']['rating'], card['review']['headline'], card['review']['likes_count'], card['review']['is_liked']),
             (review.id, 8, 'Head', 1, True))
@@ -614,14 +614,14 @@ class FeedTests(TestCase):
                 'id': review.id, 'rating': 7, 'headline': 'h', 'body': '', 'created_at': self.at(1),
                 'likes_count': 1, 'comments_count': 1, 'is_liked': True, 'favorite_song': None,
             },
-            'author': {'username': 'friend', 'name': 'Friend', 'avatar': None},
+            'author': {'username': 'friend', 'name': 'Friend', 'avatar': None, 'avatar_preset': None},
             'album': {
                 'discogs_id': '42', 'title': 'T42', 'artist': 'A', 'year': 2001, 'cover_url': None,
                 'tracklist': [{'position': '1', 'title': 'One', 'duration': '1:00'}],
             },
             'latest_activity': {
                 'type': 'review_liked',
-                'actor': {'username': 'me', 'name': '', 'avatar': None},
+                'actor': {'username': 'me', 'name': '', 'avatar': None, 'avatar_preset': None},
                 'created_at': self.at(2),
             },
         })

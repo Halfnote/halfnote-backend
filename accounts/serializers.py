@@ -149,7 +149,7 @@ class UserFollowSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'display_name', 'avatar', 'bio', 'follower_count', 'following_count', 'review_count', 'is_following', 'is_staff']
+        fields = ['id', 'username', 'display_name', 'avatar', 'avatar_preset', 'bio', 'follower_count', 'following_count', 'review_count', 'is_following', 'is_staff']
     
     def get_display_name(self, obj):
         """Return the name if available, otherwise username"""
@@ -190,7 +190,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'name', 'bio', 'location', 'avatar', 'follower_count', 'following_count', 'review_count', 'is_staff']
+        fields = ['id', 'username', 'name', 'bio', 'location', 'avatar', 'avatar_preset', 'follower_count', 'following_count', 'review_count', 'is_staff']
         read_only_fields = ['id', 'is_staff']
     
     def get_follower_count(self, obj):

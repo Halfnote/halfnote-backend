@@ -481,7 +481,8 @@ class FeedPagination(CursorPagination):
 
 
 def person(user):
-    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None}
+    return {'username': user.username, 'name': user.name, 'avatar': user.avatar.url if user.avatar else None,
+            'avatar_preset': user.avatar_preset}
 
 
 def count_by_review(model, review_ids):
@@ -758,6 +759,7 @@ def list_likes(request, list_id):
             'id': like.user.id,
             'username': like.user.username,
             'avatar': like.user.avatar.url if like.user.avatar else None,
+            'avatar_preset': like.user.avatar_preset,
             'is_staff': like.user.is_staff
         })
     
@@ -861,6 +863,7 @@ def review_likes(request, review_id):
             'id': like.user.id,
             'username': like.user.username,
             'avatar': like.user.avatar.url if like.user.avatar else None,
+            'avatar_preset': like.user.avatar_preset,
             'is_staff': like.user.is_staff
         })
 

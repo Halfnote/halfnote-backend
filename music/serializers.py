@@ -28,10 +28,11 @@ class ArtistSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_avatar = serializers.SerializerMethodField()
+    user_avatar_preset = serializers.CharField(source='user.avatar_preset', read_only=True)
 
     class Meta:
         model = Comment
-        fields = ['id', 'username', 'user_avatar', 'content', 'created_at']
+        fields = ['id', 'username', 'user_avatar', 'user_avatar_preset', 'content', 'created_at']
         read_only_fields = ['id', 'username', 'user_avatar', 'created_at']
 
     def get_user_avatar(self, obj):
@@ -46,6 +47,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_avatar = serializers.SerializerMethodField()
+    user_avatar_preset = serializers.CharField(source='user.avatar_preset', read_only=True)
     user_is_staff = serializers.BooleanField(source='user.is_staff', read_only=True)
     user_genres = GenreSerializer(many=True, read_only=True)
     album_title = serializers.CharField(source='album.title', read_only=True)
@@ -61,7 +63,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = ['id', 'username', 'user_avatar', 'user_is_staff', 'rating', 'headline', 'body', 'content', 'user_genres', 'created_at', 
+        fields = ['id', 'username', 'user_avatar', 'user_avatar_preset', 'user_is_staff', 'rating', 'headline', 'body', 'content', 'user_genres', 'created_at', 
                   'album_title', 'album_artist', 'album_cover', 'album_artist_photo', 'album_year', 'album_discogs_id', 'is_pinned',
                   'likes_count', 'is_liked_by_user', 'comments_count', 'favorite_song']
         read_only_fields = ['id', 'created_at']
@@ -182,12 +184,14 @@ class ActivitySerializer(serializers.ModelSerializer):
             return {
                 'username': obj.user.username,
                 'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'avatar_preset': obj.user.avatar_preset,
                 'is_staff': obj.user.is_staff
             }
         except Exception:
             return {
                 'username': 'Unknown',
                 'avatar': None,
+                'avatar_preset': None,
                 'is_staff': False
             }
 
@@ -197,6 +201,7 @@ class ActivitySerializer(serializers.ModelSerializer):
                 return {
                     'username': obj.target_user.username,
                     'avatar': obj.target_user.avatar.url if obj.target_user.avatar else None,
+                    'avatar_preset': obj.target_user.avatar_preset,
                     'is_staff': obj.target_user.is_staff
                 }
             return None
@@ -231,6 +236,7 @@ class ActivitySerializer(serializers.ModelSerializer):
                     'user': {
                         'username': obj.review.user.username,
                         'avatar': obj.review.user.avatar.url if obj.review.user.avatar else None,
+                        'avatar_preset': obj.review.user.avatar_preset,
                         'is_staff': obj.review.user.is_staff
                     }
                 }
@@ -306,12 +312,14 @@ class ListSerializer(serializers.ModelSerializer):
             return {
                 'username': obj.user.username,
                 'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'avatar_preset': obj.user.avatar_preset,
                 'is_staff': obj.user.is_staff
             }
         except Exception:
             return {
                 'username': 'Unknown',
                 'avatar': None,
+                'avatar_preset': None,
                 'is_staff': False
             }
 
@@ -354,12 +362,14 @@ class ListSummarySerializer(serializers.ModelSerializer):
             return {
                 'username': obj.user.username,
                 'avatar': obj.user.avatar.url if obj.user.avatar else None,
+                'avatar_preset': obj.user.avatar_preset,
                 'is_staff': obj.user.is_staff
             }
         except Exception:
             return {
                 'username': 'Unknown',
                 'avatar': None,
+                'avatar_preset': None,
                 'is_staff': False
             }
 

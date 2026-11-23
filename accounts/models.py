@@ -63,7 +63,7 @@ class User(AbstractUser):
         blank=True
     )
     onboarded_at = models.DateTimeField(null=True, blank=True)
-    AVATAR_PRESETS = [(k, k.title()) for k in ['cat', 'bear', 'ghost', 'fox', 'dog', 'mushroom', 'vinyl', 'robot']]
+    AVATAR_PRESETS = [(k, k.title()) for k in ['cat', 'frog', 'ghost', 'bunny', 'bear', 'mushroom', 'record', 'robot']]
     avatar_preset = models.CharField(max_length=20, null=True, blank=True, choices=AVATAR_PRESETS)
 
     class Meta(AbstractUser.Meta):

@@ -1,3 +1,5 @@
+import re
+
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -31,12 +33,15 @@ def validate_username(value):
 
     if len(value) < 2:
         raise ValidationError(_("Username must be at least 2 characters long."))
-    if len(value) > 30:
-        raise ValidationError(_("Username must be at most 30 characters long."))
-    if not value.isalnum():
-        raise ValidationError(_("Username must contain only letters and numbers."))
-    if value != value.lower():
-        raise ValidationError(_("Username must be lowercase only."))
+    if len(value) > 24:
+        raise ValidationError(_("Username must be at most 24 characters long."))
+    if not re.fullmatch(r"[a-z0-9._]+", value):
+        raise ValidationError(
+            _("Username must contain only lowercase letters, numbers, dots and underscores.")
+        )
+    # ".." would break profile links, because URLs treat it as "go up a level".
+    if not re.search(r"[a-z0-9]", value):
+        raise ValidationError(_("Username must contain a letter or number."))
     if value.lower() in blocked_usernames:
         raise ValidationError(
             _("This username is not available. Please choose a different one.")

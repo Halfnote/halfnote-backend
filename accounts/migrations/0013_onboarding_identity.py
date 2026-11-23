@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='avatar_preset',
-            field=models.CharField(blank=True, choices=[('cat', 'Cat'), ('bear', 'Bear'), ('ghost', 'Ghost'), ('fox', 'Fox'), ('dog', 'Dog'), ('mushroom', 'Mushroom'), ('vinyl', 'Vinyl'), ('robot', 'Robot')], max_length=20, null=True),
+            field=models.CharField(blank=True, choices=[('cat', 'Cat'), ('frog', 'Frog'), ('ghost', 'Ghost'), ('bunny', 'Bunny'), ('bear', 'Bear'), ('mushroom', 'Mushroom'), ('record', 'Record'), ('robot', 'Robot')], max_length=20, null=True),
         ),
         migrations.AddField(
             model_name='user',

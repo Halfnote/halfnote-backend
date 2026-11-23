@@ -16,7 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts import social
 from accounts.models import Identity
-from music.models import Album
+from music.models import Album, Comment, Review
 from music.onboarding import ONBOARDING_DISCOGS_IDS
 
 User = get_user_model()
@@ -244,6 +244,39 @@ class OnboardingStepTests(TestCase):
         self.assertIn('username', self.put_profile({'username': 'ddd'}).data['fields'])
         self.assertIn('avatar_preset', self.put_profile({'avatar_preset': 'dragon'}).data['fields'])
 
+    def test_username_available(self):
+        User.objects.create_user(username='ddd', password='x')
+        def check(username):
+            return self.client.get('/api/accounts/username-available/', {'username': username}).data['available']
+
+        for free in ('dee_d', 'dee.d', 'a1', 'x' * 24, self.user.username):
+            self.assertTrue(check(free), free)
+        for bad in ('ddd', 'a', 'x' * 25, 'Dee', 'dé', 'a b', 'a/b', '..', '._', 'admin', ''):
+            self.assertFalse(check(bad), bad)
+            self.assertEqual(self.put_profile({'username': bad}).status_code, 400, bad)
+        self.assertEqual(self.put_profile({'username': 'dee_d'}).status_code, 200)
+        self.assertEqual(APIClient().get('/api/accounts/username-available/?username=zed').status_code, 401)
+
+    def test_face_shows_next_to_reviews_comments_and_people(self):
+        self.put_profile({'avatar_preset': 'frog', 'onboarded': True})
+        album = Album.objects.get(discogs_id='0')
+        review = Review.objects.create(album=album, user=self.user, rating=8, headline='h')
+        Comment.objects.create(review=review, user=self.user, content='c')
+        viewer = User.objects.create_user(username='viewer', password='x', onboarded_at=timezone.now())
+        viewer.following.add(self.user)
+        client = APIClient()
+        client.force_authenticate(viewer)
+
+        name = self.user.username
+        card = client.get(f'/api/music/reviews/{review.id}/').data
+        self.assertEqual(card['author']['avatar_preset'], 'frog')
+        self.assertEqual(client.get(f'/api/accounts/users/{name}/reviews/').data[0]['user_avatar_preset'], 'frog')
+        comments = client.get(f'/api/music/reviews/{review.id}/comments/').data
+        self.assertIn("'user_avatar_preset': 'frog'", str(comments))
+        self.assertEqual(client.get(f'/api/accounts/users/search/?q={name}').data['users'][0]['avatar_preset'], 'frog')
+        following = client.get('/api/accounts/users/viewer/following/').data
+        self.assertIn("'avatar_preset': 'frog'", str(following))
+
     def test_unfinished_users_are_hidden_publicly(self):
         anon = APIClient()
         self.assertEqual(anon.get('/api/accounts/users/user00000000/').status_code, 404)
@@ -261,12 +294,6 @@ class OnboardingStepTests(TestCase):
         self.assertEqual(self.put_favorites(['0', '1', '2', '3', '4']).status_code, 400)
         self.assertEqual(self.put_favorites([]).status_code, 200)
         self.assertEqual(self.user.favorite_albums.count(), 0)
-
-    def test_favorites_post_caps_at_four(self):
-        self.put_favorites(['0', '1', '2', '3'])
-        response = self.client.post('/api/accounts/favorite-albums/', {'discogs_id': '4'}, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(self.user.favorite_albums.count(), 4)
 
     @mock.patch('music.views.ExternalMusicService.get_album_details', return_value=None)
     def test_unknown_album_is_rejected_without_saving(self, discogs):

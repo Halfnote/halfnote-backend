@@ -74,18 +74,17 @@ def _apple_client_secret():
     )
 
 
+def _apple_post(path, **data):
+    data |= {'client_id': settings.APPLE_BUNDLE_ID, 'client_secret': _apple_client_secret()}
+    return requests.post(f'{APPLE_ISSUER}/auth/{path}', data=data, timeout=10)
+
+
 def apple_refresh_token(authorization_code):
     """Exchange the one-time code for a refresh token, kept only so account deletion can revoke it."""
     if not settings.APPLE_PRIVATE_KEY:
         return ''
-    data = {
-        'client_id': settings.APPLE_BUNDLE_ID,
-        'client_secret': _apple_client_secret(),
-        'code': authorization_code,
-        'grant_type': 'authorization_code',
-    }
     try:
-        response = requests.post(f'{APPLE_ISSUER}/auth/token', data=data, timeout=10)
+        response = _apple_post('token', code=authorization_code, grant_type='authorization_code')
         response.raise_for_status()
         return response.json().get('refresh_token', '')
     except requests.RequestException as e:
@@ -97,14 +96,8 @@ def revoke_apple(refresh_token):
     """Raises AppleUnavailable when a retry could work; a flat rejection from Apple is only logged."""
     if not (refresh_token and settings.APPLE_PRIVATE_KEY):
         return
-    data = {
-        'client_id': settings.APPLE_BUNDLE_ID,
-        'client_secret': _apple_client_secret(),
-        'token': refresh_token,
-        'token_type_hint': 'refresh_token',
-    }
     try:
-        response = requests.post(f'{APPLE_ISSUER}/auth/revoke', data=data, timeout=10)
+        response = _apple_post('revoke', token=refresh_token, token_type_hint='refresh_token')
     except requests.RequestException as e:
         raise AppleUnavailable(str(e)) from e
     if response.status_code == 429 or response.status_code >= 500:

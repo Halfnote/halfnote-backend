@@ -9,6 +9,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -54,11 +55,18 @@ def field_error(field, message):
     return validation_error({field: [message]})
 
 
+def user_with_email(email):
+    # Phrased to match accounts_user_email_unique; email__iexact can't use that index.
+    return (
+        User.objects.alias(email_lower=Lower("email"))
+        .filter(email_lower=email.lower())
+        .exclude(email="")
+        .first()
+    )
+
+
 def placeholder_username():
-    while True:
-        username = f"user{secrets.token_hex(4)}"
-        if not User.objects.filter(username=username).exists():
-            return username
+    return f"user{secrets.token_hex(10)}"
 
 
 @api_view(["POST"])
@@ -83,7 +91,7 @@ def register(request):
             return field_error("username", e.messages[0])
         if User.objects.filter(username=username).exists():
             return field_error("username", "taken")
-    if User.objects.filter(email__iexact=email).exists():
+    if user_with_email(email):
         return field_error("email", "taken")
 
     try:
@@ -110,7 +118,7 @@ def login(request):
     password = request.data.get("password", "")
 
     if "@" in identifier:
-        user = User.objects.filter(email__iexact=identifier).first()
+        user = user_with_email(identifier)
         identifier = user.username if user else ""
 
     user = authenticate(username=identifier, password=password)
@@ -145,7 +153,7 @@ def find_or_create_social_user(provider, verified, name):
 
     # Never joined to an existing account by email: register doesn't verify emails, so a match proves nothing.
     email = verified.email if verified.email_verified else ""
-    if User.objects.filter(email__iexact=email).exists():
+    if user_with_email(email):
         email = ""
     user = User(
         username=placeholder_username(), email=email, name=(name or verified.name)[:100]
@@ -215,6 +223,20 @@ def delete_me(request):
         )
     request.user.delete()
     return Response(status=204)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def username_available(request):
+    username = request.GET.get("username", "")
+    try:
+        validate_username(username)
+    except ValidationError as e:
+        return Response({"available": False, "error": e.messages[0]})
+    taken = (
+        User.objects.filter(username=username).exclude(pk=request.user.pk).exists()
+    )
+    return Response({"available": not taken, "error": "taken" if taken else None})
 
 
 @api_view(["GET", "PUT"])
@@ -387,67 +409,33 @@ def user_genre_stats(request, username):
     )
 
 
-@api_view(["GET", "POST", "PUT", "DELETE"])
+@api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
 def favorite_albums(request):
-    """Manage user's favorite albums"""
+    """Get or replace the user's favorite albums"""
     if request.method == "GET":
-        # Get user's favorite albums
-        favorite_albums = request.user.favorite_albums.all()
-        serializer = AlbumSerializer(favorite_albums, many=True)
-        return Response({"albums": serializer.data})
-
-    elif request.method == "POST":
-        discogs_id = request.data.get("discogs_id")
-        if not discogs_id:
-            return Response({"error": "discogs_id required"}, status=400)
-        if (
-            request.user.favorite_albums.exclude(discogs_id=discogs_id).count()
-            >= MAX_FAVORITE_ALBUMS
-        ):
-            return field_error(
-                "discogs_id",
-                f"You can have at most {MAX_FAVORITE_ALBUMS} favourite albums.",
-            )
-        album = import_album_from_discogs(discogs_id)
-        if album is None:
-            return field_error("discogs_id", f"unknown album {discogs_id}")
-        request.user.favorite_albums.add(album)
-        return Response({"message": "Album added to favorites"})
-
-    elif request.method == "PUT":
-        discogs_ids = request.data.get("discogs_ids")
-        if not isinstance(discogs_ids, list) or not all(
-            isinstance(i, str) for i in discogs_ids
-        ):
-            return field_error("discogs_ids", "Send a list of Discogs IDs.")
-        discogs_ids = list(dict.fromkeys(discogs_ids))
-        if len(discogs_ids) > MAX_FAVORITE_ALBUMS:
-            return field_error(
-                "discogs_ids",
-                f"You can have at most {MAX_FAVORITE_ALBUMS} favourite albums.",
-            )
-        albums = []
-        for discogs_id in discogs_ids:
-            album = import_album_from_discogs(discogs_id)
-            if album is None:
-                return field_error("discogs_ids", f"unknown album {discogs_id}")
-            albums.append(album)
-        request.user.favorite_albums.set(albums)
+        albums = request.user.favorite_albums.all()
         return Response({"albums": AlbumSerializer(albums, many=True).data})
 
-    elif request.method == "DELETE":
-        # Remove album from favorites
-        discogs_id = request.data.get("discogs_id")
-        if not discogs_id:
-            return Response({"error": "discogs_id required"}, status=400)
-
-        from music.models import Album
-
-        album = get_object_or_404(Album, discogs_id=discogs_id)
-        request.user.favorite_albums.remove(album)
-
-        return Response({"message": "Album removed from favorites"})
+    discogs_ids = request.data.get("discogs_ids")
+    if not isinstance(discogs_ids, list) or not all(
+        isinstance(i, str) for i in discogs_ids
+    ):
+        return field_error("discogs_ids", "Send a list of Discogs IDs.")
+    discogs_ids = list(dict.fromkeys(discogs_ids))
+    if len(discogs_ids) > MAX_FAVORITE_ALBUMS:
+        return field_error(
+            "discogs_ids",
+            f"You can have at most {MAX_FAVORITE_ALBUMS} favourite albums.",
+        )
+    albums = []
+    for discogs_id in discogs_ids:
+        album = import_album_from_discogs(discogs_id)
+        if album is None:
+            return field_error("discogs_ids", f"unknown album {discogs_id}")
+        albums.append(album)
+    request.user.favorite_albums.set(albums)
+    return Response({"albums": AlbumSerializer(albums, many=True).data})
 
 
 @api_view(["GET"])
