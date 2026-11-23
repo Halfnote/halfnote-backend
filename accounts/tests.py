@@ -286,6 +286,16 @@ class OnboardingStepTests(TestCase):
         self.assertEqual(self.put_favorites(['0', 'nope']).status_code, 400)
         self.assertEqual(list(self.user.favorite_albums.values_list('discogs_id', flat=True)), ['0'])
 
+    def test_only_plain_numeric_discogs_ids_are_imported(self):
+        details = {'title': 'M', 'artist': 'X'}
+        with mock.patch('music.views.ExternalMusicService.get_album_details', return_value=details) as discogs, \
+                mock.patch('music.views.get_or_create_artist', return_value=None):
+            for bad in ('1196330?x=1', '../artists/1', '01196330', '1196330\n', '١٢٣', 'abc'):
+                self.assertEqual(self.put_favorites([bad]).status_code, 400, bad)
+            discogs.assert_not_called()
+            self.assertEqual(self.put_favorites(['1196330']).status_code, 200)
+        self.assertEqual(Album.objects.filter(title='M').count(), 1)
+
     def test_onboarding_albums_lists_only_the_hand_picked_set(self):
         Album.objects.create(title='Melodrama', artist='Lorde', discogs_id=ONBOARDING_DISCOGS_IDS[0])
         albums = APIClient().get('/api/music/onboarding/albums/').data['albums']

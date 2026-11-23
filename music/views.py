@@ -287,6 +287,9 @@ def import_album_from_discogs(discogs_id):
     album = Album.objects.filter(discogs_id=discogs_id).first()
     if album:
         return album
+    # The ID becomes part of a Discogs URL, so "123?x=1" or "0123" would store a second copy of album 123.
+    if not re.fullmatch(r'[1-9][0-9]*', str(discogs_id)):
+        return None
 
     album_data = ExternalMusicService().get_album_details(discogs_id)
     if not album_data:
