@@ -55,7 +55,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 }
                 for genre in genre_stats
             ]
-        except Exception as e:
+        except Exception:
             # Return empty list if there's any issue to prevent profile page from breaking
             return []
     
@@ -99,7 +99,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             from music.serializers import ReviewSerializer
             pinned_reviews = Review.objects.filter(user=obj, is_pinned=True).order_by('-created_at')[:2]
             return ReviewSerializer(pinned_reviews, many=True, context=self.context).data
-        except Exception as e:
+        except Exception:
             # Return empty list if there's any issue to prevent profile page from breaking
             return []
     
@@ -130,7 +130,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 albums_data.append(album_data)
             
             return albums_data
-        except Exception as e:
+        except Exception:
             # Return empty list if there's any issue to prevent profile page from breaking
             return []
     
