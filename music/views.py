@@ -3,6 +3,7 @@ Halfnote Music Views
 Optimized views for music search, reviews, and social features with performance improvements
 """
 
+import hashlib
 import re
 import logging
 import requests
@@ -64,7 +65,7 @@ def search_discogs(query):
 
 
 def get_artist_photo(artist_name):
-    """Fetch artist photo from Discogs API"""
+    """Artist photo URL, '' when Discogs has none (worth caching), None when the lookup failed."""
     try:
         response = requests.get(
             f"{settings.DISCOGS_API_URL}/database/search",
@@ -80,36 +81,13 @@ def get_artist_photo(artist_name):
         )
         if not response.ok:
             return None
-
         results = response.json().get('results', [])
-        if not results:
-            return None
-            
-        # Details of first artist result
-        artist_id = results[0].get('id')
-        if not artist_id:
-            return None
-
-        detail_response = requests.get(
-            f"{settings.DISCOGS_API_URL}/artists/{artist_id}",
-            params={
-                "key": settings.DISCOGS_CONSUMER_KEY,
-                "secret": settings.DISCOGS_CONSUMER_SECRET
-            },
-            headers={'User-Agent': 'HalfnoteApp/1.0'},
-            timeout=(2, 5)
-        )
-        
-        if detail_response.ok:
-            artist_data = detail_response.json()
-            images = artist_data.get('images', [])
-            if images:
-                return images[0].get('uri')
-                
+        photo = results[0].get('cover_image', '') if results else ''
+        # Discogs fills cover_image with a placeholder gif when the artist has no image.
+        return '' if photo.endswith('spacer.gif') else photo
     except Exception as e:
         logger.error(f"Error fetching artist photo for {artist_name}: {e}")
-        
-    return None
+        return None
 
 
 ARTIST_PHOTO_TTL = 60 * 60 * 24
@@ -117,16 +95,16 @@ PHOTO_RESULTS_LIMIT = 10
 
 
 def get_artist_photos(artist_names):
-    keys = {name: f'artist_photo_{name}' for name in artist_names}
+    keys = {name: f'artist_photo_{hashlib.md5(name.encode()).hexdigest()}' for name in artist_names}
     cached = cache.get_many(keys.values())
     photos = {name: cached[key] for name, key in keys.items() if key in cached}
     missing = [name for name in artist_names if name not in photos]
     if missing:
         with ThreadPoolExecutor(max_workers=len(missing)) as pool:
             fetched = dict(zip(missing, pool.map(get_artist_photo, missing)))
-        cache.set_many({keys[name]: url for name, url in fetched.items() if url}, ARTIST_PHOTO_TTL)
+        cache.set_many({keys[name]: url for name, url in fetched.items() if url is not None}, ARTIST_PHOTO_TTL)
         photos.update(fetched)
-    return photos
+    return {name: url or None for name, url in photos.items()}
 
 
 def with_average_ratings(results):
@@ -145,7 +123,7 @@ def search(request):
         return Response({'error': 'Query parameter required'}, status=400)
     
     # Check cache first
-    cache_key = f'search_{query}'
+    cache_key = f'search_{hashlib.md5(query.encode()).hexdigest()}'
     cached_results = cache.get(cache_key)
     if cached_results:
         return Response({'results': with_average_ratings(cached_results), 'cached': True})
