@@ -746,24 +746,6 @@ def list_likes(request, list_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def search_artists(request):
-    """Search for artists"""
-    query = request.GET.get('q', '')
-
-    if not query:
-        return Response({'results': []})
-
-    # Search local Artist database
-    artists = Artist.objects.filter(name__icontains=query)[:10]
-
-    from .serializers import ArtistSerializer
-    serializer = ArtistSerializer(artists, many=True)
-
-    return Response({'results': serializer.data})
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def artist_detail(request, artist_id):
     """Get detailed information about a specific artist"""
     try:
