@@ -9,7 +9,6 @@ from . import views
 urlpatterns = [
     # Search and discovery
     path('search/', views.search, name='search'),
-    path('search/artists/', views.search_artists, name='search-artists'),
     path('genres/', views.genres, name='genres'),
     path('recently-viewed/', views.recently_viewed, name='recently-viewed'),
 

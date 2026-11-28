@@ -26,7 +26,6 @@ def client_for(user):
 class ViewerSpecificFieldTests(TestCase):
     def setUp(self):
         cache.clear()
-        self.enterContext(patch('music.views.get_artist_photo', return_value=None))
         self.author = User.objects.create_user(username='author', password='pw', onboarded_at=timezone.now())
         self.alice = User.objects.create_user(username='alice', password='pw', onboarded_at=timezone.now())
         self.bob = User.objects.create_user(username='bob', password='pw', onboarded_at=timezone.now())
@@ -129,7 +128,6 @@ DISCOGS_ALBUM = {
 }
 
 
-@patch('music.views.get_artist_photo', return_value='https://example.com/artist.jpg')
 @patch.object(ExternalMusicService, 'search_artist', return_value=None)
 @patch.object(ExternalMusicService, 'get_album_details', return_value=DISCOGS_ALBUM)
 class DiscogsImportTests(TestCase):
@@ -167,11 +165,9 @@ class AlbumArtistPhotoTests(TestCase):
         self.client = client_for(User.objects.create_user(username='u', password='pw'))
 
     def test_album_photo_comes_from_artist_row_without_refetching(self, *mocks):
-        with patch('music.views.get_artist_photo', return_value=None) as photo:
-            self.client.get('/api/music/albums/777/')
-            self.client.get('/api/music/albums/777/')
+        self.client.get('/api/music/albums/777/')
+        self.client.get('/api/music/albums/777/')
 
-        self.assertEqual(photo.call_count, 0)
         self.assertEqual(Album.objects.get(discogs_id='777').artist_photo_url, 'https://example.com/artist.jpg')
         self.assertEqual([m.call_count for m in mocks], [1, 1, 1])
 
@@ -204,7 +200,6 @@ class ReleaseFallbackTests(TestCase):
         self.assertEqual((album, endpoints), (None, ['masters/39018578']))
 
 
-@patch('music.views.get_artist_photo', return_value=None)
 @patch.object(ExternalMusicService, 'search_artist', return_value=None)
 @patch.object(ExternalMusicService, '_make_request', side_effect=discogs_label_response)
 class AlbumLabelTests(TestCase):
@@ -226,25 +221,41 @@ class BackfillAlbumMetaTests(TestCase):
         details.assert_called_once_with('1')
 
 
-class SearchArtistPhotoTests(TestCase):
+class SearchDiscogsCallTests(TestCase):
+    def test_search_makes_one_discogs_call_and_no_artist_photo_lookups(self):
+        """Discogs allows 60 calls a minute; search used to spend 21 per query, mostly on artist photos."""
+        hits = {'results': [{'id': i, 'title': 'Artist %d - Album' % i} for i in range(25)]}
+        cache.clear()
+        with patch('music.views.requests.get', return_value=SimpleNamespace(ok=True, json=lambda: hits)) as get:
+            results = APIClient().get('/api/music/search/', {'q': 'artist'}).json()['results']
+
+        self.assertEqual(get.call_count, 1)
+        self.assertEqual({r['artist_photo_url'] for r in results}, {None})
+
+
+class SearchLocalAlbumsTests(TestCase):
     def setUp(self):
         cache.clear()
+        Album.objects.create(title='Ours Only', artist='Local Band', discogs_id='111')
+        Album.objects.create(title='Both', artist='Local Band', discogs_id='222')
 
-    def test_photo_fetched_once_per_artist_across_searches(self):
-        hits = [{'id': i, 'title': 'Radiohead - Album %d' % i} for i in range(5)]
-        with patch('music.views.search_discogs', return_value=hits), \
-                patch('music.views.get_artist_photo', return_value='https://example.com/r.jpg') as photo:
-            first = APIClient().get('/api/music/search/', {'q': 'radiohead'})
-            APIClient().get('/api/music/search/', {'q': 'radiohead ok'})
+    def search(self):
+        return [(r['id'], r['title']) for r in APIClient().get('/api/music/search/', {'q': 'local band'}).json()['results']]
 
-        self.assertEqual(photo.call_count, 1)
-        self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
+    def test_local_albums_follow_discogs_results_without_duplicates(self):
+        with patch('music.views.search_discogs', return_value=[{'id': 222, 'title': 'Local Band - Both'}]):
+            self.assertEqual(self.search(), [(222, 'Both'), (111, 'Ours Only')])
+
+    def test_discogs_failure_still_returns_local_albums_and_is_not_cached(self):
+        with patch('music.views.search_discogs', return_value=None):
+            self.assertEqual(self.search(), [(222, 'Both'), (111, 'Ours Only')])
+        with patch('music.views.search_discogs', return_value=[{'id': 333, 'title': 'Local Band - New'}]):
+            self.assertEqual(self.search()[0], (333, 'New'))
 
 
 class SearchAverageRatingTests(TestCase):
     def setUp(self):
         cache.clear()
-        self.enterContext(patch('music.views.get_artist_photo', return_value=None))
         self.enterContext(patch('music.views.search_discogs', return_value=[
             {'id': 123, 'title': 'Artist - Rated'}, {'id': 456, 'title': 'Artist - Unknown'}]))
         self.album = Album.objects.create(title='Rated', artist='Artist', discogs_id='123')
@@ -788,7 +799,6 @@ TRACKS = [
 ]
 
 
-@patch('music.views.get_artist_photo', return_value=None)
 @patch.object(ExternalMusicService, 'search_artist', return_value=None)
 @patch.object(ExternalMusicService, 'get_album_details', return_value={**DISCOGS_ALBUM, 'tracklist': TRACKS})
 class SongImportTests(TestCase):
