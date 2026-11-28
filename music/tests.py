@@ -270,6 +270,27 @@ class SearchArtistPhotoTests(TestCase):
         self.assertIsNone(first[0]['artist_photo_url'])
 
 
+class SearchLocalAlbumsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.enterContext(patch('music.views.get_artist_photo', return_value=None))
+        Album.objects.create(title='Ours Only', artist='Local Band', discogs_id='111')
+        Album.objects.create(title='Both', artist='Local Band', discogs_id='222')
+
+    def search(self):
+        return [(r['id'], r['title']) for r in APIClient().get('/api/music/search/', {'q': 'local band'}).json()['results']]
+
+    def test_local_albums_follow_discogs_results_without_duplicates(self):
+        with patch('music.views.search_discogs', return_value=[{'id': 222, 'title': 'Local Band - Both'}]):
+            self.assertEqual(self.search(), [(222, 'Both'), (111, 'Ours Only')])
+
+    def test_discogs_failure_still_returns_local_albums_and_is_not_cached(self):
+        with patch('music.views.search_discogs', return_value=None):
+            self.assertEqual(self.search(), [(222, 'Both'), (111, 'Ours Only')])
+        with patch('music.views.search_discogs', return_value=[{'id': 333, 'title': 'Local Band - New'}]):
+            self.assertEqual(self.search()[0], (333, 'New'))
+
+
 class SearchAverageRatingTests(TestCase):
     def setUp(self):
         cache.clear()

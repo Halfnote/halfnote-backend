@@ -42,23 +42,27 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 def search_discogs(query):
-    """Search Discogs API for albums"""
-    response = requests.get(
-        f"{settings.DISCOGS_API_URL}/database/search",
-        params={
-            "q": query,
-            "type": "master",
-            "per_page": 25,
-            "key": settings.DISCOGS_CONSUMER_KEY,
-            "secret": settings.DISCOGS_CONSUMER_SECRET
-        },
-        headers={'User-Agent': 'HalfnoteApp/1.0'},
-        timeout=(2, 10)
-    )
+    """Discogs master search hits, or None when Discogs failed (429, timeout, outage)."""
+    try:
+        response = requests.get(
+            f"{settings.DISCOGS_API_URL}/database/search",
+            params={
+                "q": query,
+                "type": "master",
+                "per_page": 25,
+                "key": settings.DISCOGS_CONSUMER_KEY,
+                "secret": settings.DISCOGS_CONSUMER_SECRET
+            },
+            headers={'User-Agent': 'HalfnoteApp/1.0'},
+            timeout=(2, 10)
+        )
+    except requests.RequestException as e:
+        logger.error(f"Discogs API error: {e}")
+        return None
 
     if not response.ok:
         logger.error(f"Discogs API error: {response.status_code}")
-        return []
+        return None
 
     return response.json().get('results', [])
 
@@ -91,6 +95,8 @@ def get_artist_photo(artist_name):
 
 ARTIST_PHOTO_TTL = 60 * 60 * 24
 SEARCH_TTL = 60 * 60 * 24
+LOCAL_RESULTS_LIMIT = 10
+
 
 def cached_artist_photo(artist_name):
     key = f'artist_photo_{hashlib.md5(artist_name.encode()).hexdigest()}'
@@ -109,65 +115,91 @@ def with_average_ratings(results):
     return [{**r, 'average_rating': latest_rated_average(reviews[str(r['id'])])[0]} for r in results]
 
 
+def local_album_results(query):
+    """Albums already in our database, most reviewed first, in the Discogs search result shape."""
+    albums = (Album.objects.filter(Q(title__icontains=query) | Q(artist__icontains=query))
+              .annotate(review_count=Count('reviews')).order_by('-review_count', 'title')[:LOCAL_RESULTS_LIMIT])
+    return [{
+        'id': int(a.discogs_id),
+        'title': a.title,
+        'artist': a.artist,
+        'year': a.year,
+        'genre': a.discogs_genres,
+        'style': a.discogs_styles,
+        'cover_image': a.cover_url or '',
+        'artist_photo_url': a.artist_photo_url,
+        'thumb': a.cover_url or '',
+    } for a in albums]
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search(request):
-    """Search for albums using Discogs API"""
+    """Search Discogs for albums, plus matching albums from our database (which still answer when Discogs fails)."""
     query = request.GET.get('q')
     if not query:
         return Response({'error': 'Query parameter required'}, status=400)
-    
-    # Check cache first
-    cache_key = f'search_{hashlib.md5(query.encode()).hexdigest()}'
-    cached_results = cache.get(cache_key)
-    if cached_results:
-        return Response({'results': with_average_ratings(cached_results), 'cached': True})
-    
-    try:
-        results = search_discogs(query)
-        processed_results = []
-        
-        for result in results:
-            title = result.get('title', '')
-            artist = 'Various Artists'
-            album_title = title
-            
-            # Parse artist and title from Discogs format
-            if ' - ' in title:
-                parts = title.split(' - ', 1)
-                if len(parts) == 2 and len(parts[0].strip()) < 100:
-                    # Clean up disambiguation numbers
-                    clean_artist = re.sub(r'\s*\(\d+\)$', '', parts[0].strip())
-                    artist = clean_artist or parts[0].strip()
-                    album_title = parts[1].strip()
-            
-            processed_results.append({
-                'id': result.get('id'),
-                'title': album_title,
-                'artist': artist,
-                'year': result.get('year'),
-                'genre': result.get('genre', []),
-                'style': result.get('style', []),
-                'cover_image': result.get('cover_image', ''),
-                'artist_photo_url': None,
-                'thumb': result.get('thumb', ''),
-            })
-        
-        # One photo per search: each artist photo costs a Discogs call, and Discogs allows 60 a minute.
-        top_artist = next((r['artist'] for r in processed_results if r['artist'] != 'Various Artists'), None)
-        if top_artist:
-            photo = cached_artist_photo(top_artist)
-            for r in processed_results:
-                if r['artist'] == top_artist:
-                    r['artist_photo_url'] = photo
 
-        cache.set(cache_key, processed_results, SEARCH_TTL)
-        
-        return Response({'results': with_average_ratings(processed_results), 'cached': False})
-        
+    try:
+        cache_key = f'search_{hashlib.md5(query.encode()).hexdigest()}'
+        discogs_results = cache.get(cache_key)
+        cached = bool(discogs_results)
+        if not cached:
+            discogs_results = discogs_album_results(query)
+            if discogs_results is not None:
+                cache.set(cache_key, discogs_results, SEARCH_TTL)
+        discogs_results = discogs_results or []
+        seen = {r['id'] for r in discogs_results}
+        results = discogs_results + [r for r in local_album_results(query) if r['id'] not in seen]
+        return Response({'results': with_average_ratings(results), 'cached': cached})
+
     except Exception as e:
         logger.error(f"Search failed: {e}")
         return Response({'error': 'Search failed'}, status=500)
+
+
+def discogs_album_results(query):
+    """Discogs hits parsed into search results, or None when Discogs failed."""
+    results = search_discogs(query)
+    if results is None:
+        return None
+    processed_results = []
+
+    for result in results:
+        title = result.get('title', '')
+        artist = 'Various Artists'
+        album_title = title
+        
+        # Parse artist and title from Discogs format
+        if ' - ' in title:
+            parts = title.split(' - ', 1)
+            if len(parts) == 2 and len(parts[0].strip()) < 100:
+                # Clean up disambiguation numbers
+                clean_artist = re.sub(r'\s*\(\d+\)$', '', parts[0].strip())
+                artist = clean_artist or parts[0].strip()
+                album_title = parts[1].strip()
+        
+        processed_results.append({
+            'id': result.get('id'),
+            'title': album_title,
+            'artist': artist,
+            'year': result.get('year'),
+            'genre': result.get('genre', []),
+            'style': result.get('style', []),
+            'cover_image': result.get('cover_image', ''),
+            'artist_photo_url': None,
+            'thumb': result.get('thumb', ''),
+        })
+    
+    # One photo per search: each artist photo costs a Discogs call, and Discogs allows 60 a minute.
+    top_artist = next((r['artist'] for r in processed_results if r['artist'] != 'Various Artists'), None)
+    if top_artist:
+        photo = cached_artist_photo(top_artist)
+        for r in processed_results:
+            if r['artist'] == top_artist:
+                r['artist_photo_url'] = photo
+
+    return processed_results
 
 
 # ============================================================================
