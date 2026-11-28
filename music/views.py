@@ -8,7 +8,6 @@ import re
 import logging
 import requests
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -91,20 +90,14 @@ def get_artist_photo(artist_name):
 
 
 ARTIST_PHOTO_TTL = 60 * 60 * 24
-PHOTO_RESULTS_LIMIT = 10
-
-
-def get_artist_photos(artist_names):
-    keys = {name: f'artist_photo_{hashlib.md5(name.encode()).hexdigest()}' for name in artist_names}
-    cached = cache.get_many(keys.values())
-    photos = {name: cached[key] for name, key in keys.items() if key in cached}
-    missing = [name for name in artist_names if name not in photos]
-    if missing:
-        with ThreadPoolExecutor(max_workers=len(missing)) as pool:
-            fetched = dict(zip(missing, pool.map(get_artist_photo, missing)))
-        cache.set_many({keys[name]: url for name, url in fetched.items() if url is not None}, ARTIST_PHOTO_TTL)
-        photos.update(fetched)
-    return {name: url or None for name, url in photos.items()}
+def cached_artist_photo(artist_name):
+    key = f'artist_photo_{hashlib.md5(artist_name.encode()).hexdigest()}'
+    photo = cache.get(key)
+    if photo is None:
+        photo = get_artist_photo(artist_name)
+        if photo is not None:
+            cache.set(key, photo, ARTIST_PHOTO_TTL)
+    return photo or None
 
 
 def with_average_ratings(results):
@@ -158,10 +151,13 @@ def search(request):
                 'thumb': result.get('thumb', ''),
             })
         
-        artists = {r['artist'] for r in processed_results[:PHOTO_RESULTS_LIMIT] if r['artist'] != 'Various Artists'}
-        photos = get_artist_photos(artists)
-        for r in processed_results[:PHOTO_RESULTS_LIMIT]:
-            r['artist_photo_url'] = photos.get(r['artist'])
+        # One photo per search: each artist photo costs a Discogs call, and Discogs allows 60 a minute.
+        top_artist = next((r['artist'] for r in processed_results if r['artist'] != 'Various Artists'), None)
+        if top_artist:
+            photo = cached_artist_photo(top_artist)
+            for r in processed_results:
+                if r['artist'] == top_artist:
+                    r['artist_photo_url'] = photo
 
         # Cache for 15 minutes
         cache.set(cache_key, processed_results, 900)

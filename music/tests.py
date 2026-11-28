@@ -240,13 +240,12 @@ class SearchArtistPhotoTests(TestCase):
         self.assertEqual(photo.call_count, 1)
         self.assertEqual({r['artist_photo_url'] for r in first.json()['results']}, {'https://example.com/r.jpg'})
 
-    def test_discogs_calls_stay_under_rate_limit(self):
-        """Discogs allows 60 calls a minute; search used to spend 21 per query and re-ask for photoless artists."""
+    def search_counting_discogs_calls(self, photo):
+        """Two searches with the same top artist; returns (first results, cold calls, warm calls)."""
         def discogs(url, params, **_):
             if params['type'] == 'master':
-                results = [{'id': i, 'title': 'Artist %d - Album' % i} for i in range(25)]
+                results = [{'id': i, 'title': 'Artist %d - Album' % (i % 3)} for i in range(25)]
             else:
-                photo = 'https://st.discogs.com/images/spacer.gif' if params['q'] == 'Artist 0' else 'https://example.com/%s.jpg' % params['q']
                 results = [{'id': 1, 'cover_image': photo}]
             return SimpleNamespace(ok=True, json=lambda: {'results': results})
 
@@ -254,11 +253,21 @@ class SearchArtistPhotoTests(TestCase):
             first = APIClient().get('/api/music/search/', {'q': 'artist'}).json()['results']
             cold = get.call_count
             APIClient().get('/api/music/search/', {'q': 'artists'})
+        return first, cold, get.call_count - cold
 
-        self.assertEqual(cold, 11)
-        self.assertEqual(get.call_count - cold, 1)
+    def test_search_fetches_only_the_top_artist_photo(self):
+        """Discogs allows 60 calls a minute; search used to spend 21 per query on artist photos."""
+        first, cold, warm = self.search_counting_discogs_calls('https://example.com/a0.jpg')
+
+        self.assertEqual((cold, warm), (2, 1))
+        self.assertEqual({r['artist_photo_url'] for r in first if r['artist'] == 'Artist 0'}, {'https://example.com/a0.jpg'})
+        self.assertEqual({r['artist_photo_url'] for r in first if r['artist'] != 'Artist 0'}, {None})
+
+    def test_artist_without_photo_is_cached(self):
+        first, cold, warm = self.search_counting_discogs_calls('https://st.discogs.com/images/spacer.gif')
+
+        self.assertEqual((cold, warm), (2, 1))
         self.assertIsNone(first[0]['artist_photo_url'])
-        self.assertEqual(first[1]['artist_photo_url'], 'https://example.com/Artist 1.jpg')
 
 
 class SearchAverageRatingTests(TestCase):
