@@ -90,6 +90,8 @@ def get_artist_photo(artist_name):
 
 
 ARTIST_PHOTO_TTL = 60 * 60 * 24
+SEARCH_TTL = 60 * 60 * 24
+
 def cached_artist_photo(artist_name):
     key = f'artist_photo_{hashlib.md5(artist_name.encode()).hexdigest()}'
     photo = cache.get(key)
@@ -159,8 +161,7 @@ def search(request):
                 if r['artist'] == top_artist:
                     r['artist_photo_url'] = photo
 
-        # Cache for 15 minutes
-        cache.set(cache_key, processed_results, 900)
+        cache.set(cache_key, processed_results, SEARCH_TTL)
         
         return Response({'results': with_average_ratings(processed_results), 'cached': False})
         
