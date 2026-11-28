@@ -67,45 +67,8 @@ def search_discogs(query):
     return response.json().get('results', [])
 
 
-def get_artist_photo(artist_name):
-    """Artist photo URL, '' when Discogs has none (worth caching), None when the lookup failed."""
-    try:
-        response = requests.get(
-            f"{settings.DISCOGS_API_URL}/database/search",
-            params={
-                "q": artist_name,
-                "type": "artist",
-                "per_page": 1,
-                "key": settings.DISCOGS_CONSUMER_KEY,
-                "secret": settings.DISCOGS_CONSUMER_SECRET
-            },
-            headers={'User-Agent': 'HalfnoteApp/1.0'},
-            timeout=(2, 5)
-        )
-        if not response.ok:
-            return None
-        results = response.json().get('results', [])
-        photo = results[0].get('cover_image', '') if results else ''
-        # Discogs fills cover_image with a placeholder gif when the artist has no image.
-        return '' if photo.endswith('spacer.gif') else photo
-    except Exception as e:
-        logger.error(f"Error fetching artist photo for {artist_name}: {e}")
-        return None
-
-
-ARTIST_PHOTO_TTL = 60 * 60 * 24
 SEARCH_TTL = 60 * 60 * 24
 LOCAL_RESULTS_LIMIT = 10
-
-
-def cached_artist_photo(artist_name):
-    key = f'artist_photo_{hashlib.md5(artist_name.encode()).hexdigest()}'
-    photo = cache.get(key)
-    if photo is None:
-        photo = get_artist_photo(artist_name)
-        if photo is not None:
-            cache.set(key, photo, ARTIST_PHOTO_TTL)
-    return photo or None
 
 
 def with_average_ratings(results):
@@ -191,14 +154,6 @@ def discogs_album_results(query):
             'thumb': result.get('thumb', ''),
         })
     
-    # One photo per search: each artist photo costs a Discogs call, and Discogs allows 60 a minute.
-    top_artist = next((r['artist'] for r in processed_results if r['artist'] != 'Various Artists'), None)
-    if top_artist:
-        photo = cached_artist_photo(top_artist)
-        for r in processed_results:
-            if r['artist'] == top_artist:
-                r['artist_photo_url'] = photo
-
     return processed_results
 
 
